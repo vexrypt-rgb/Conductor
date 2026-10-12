@@ -11,7 +11,9 @@
 #      CLIENT_TIMEOUT (seconds, default 1200),
 #      HARNESS_SCENARIO (stage4, evidence, or connect-only: join and wait while installed modules run),
 #      EXTRA_MODS (colon-separated jars to load too, e.g. the Conductor mod and module jars),
-#      HARNESS_HOLD (seconds connect-only waits, default 60).
+#      HARNESS_HOLD (seconds connect-only waits, default 60),
+#      SERVER_ON_JOIN (server console commands sent after the player joins and is opped, separated by ';';
+#                      "sleep N" waits N seconds, e.g. "difficulty easy;sleep 5;execute at Dev run summon minecraft:zombie ~6 ~ ~").
 # Output: <workdir>/harness.jsonl (per-tick evidence), server.log, client.log.
 set -euo pipefail
 
@@ -43,7 +45,19 @@ until grep -q "Done (" "$WORK/server.log" 2>/dev/null; do sleep 1; done
 echo "server ready"
 
 # Op the dev player once it joins, so the harness can change dimension with /execute.
-( until grep -q "Dev joined the game" "$WORK/server.log" 2>/dev/null; do sleep 1; done; echo "op Dev" > "$WORK/server.in" ) &
+(
+    until grep -q "Dev joined the game" "$WORK/server.log" 2>/dev/null; do sleep 1; done
+    echo "op Dev" > "$WORK/server.in"
+    IFS=';' read -ra CMDS <<< "${SERVER_ON_JOIN:-}"
+    for cmd in "${CMDS[@]}"; do
+        cmd="${cmd#"${cmd%%[![:space:]]*}"}"
+        case "$cmd" in
+            "") ;;
+            sleep\ *) sleep "${cmd#sleep }" ;;
+            *) echo "$cmd" > "$WORK/server.in" ;;
+        esac
+    done
+) &
 
 MODS="$JAR${EXTRA_MODS:+:$EXTRA_MODS}"
 export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dfabric.addMods=$MODS -Dconductor.harness.out=$OUT -Dconductor.harness.server=localhost:25565 -Dconductor.harness.scenario=${HARNESS_SCENARIO:-stage4} -Dconductor.harness.holdSeconds=${HARNESS_HOLD:-60}"

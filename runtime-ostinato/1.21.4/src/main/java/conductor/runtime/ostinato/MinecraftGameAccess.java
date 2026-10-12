@@ -51,6 +51,22 @@ final class MinecraftGameAccess implements GameAccess {
     }
 
     @Override
+    public java.util.Map<String, Integer> inventoryItems() {
+        if (ctx.player() == null) {
+            return null;
+        }
+        java.util.Map<String, Integer> items = new java.util.TreeMap<>();
+        net.minecraft.world.entity.player.Inventory inventory = ctx.player().getInventory();
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            net.minecraft.world.item.ItemStack stack = inventory.getItem(slot);
+            if (!stack.isEmpty()) {
+                items.merge(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(), stack.getCount(), Integer::sum);
+            }
+        }
+        return items;
+    }
+
+    @Override
     public Boolean useKeyDown() {
         // PvpProcess/PveProcess hold shields and eat through this key directly (Stage 5 audit).
         return ctx.minecraft().options == null ? null : ctx.minecraft().options.keyUse.isDown();

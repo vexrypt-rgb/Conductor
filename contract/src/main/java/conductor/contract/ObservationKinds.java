@@ -67,8 +67,13 @@ public final class ObservationKinds {
             "COMBAT_TARGET",
             "The entity the engine's combat is targeting: entity type id and name, or empty when none.");
 
+    public static final ObservationKind<java.util.Map<String, Integer>> INVENTORY_ITEMS = new ObservationKind<>(
+            "INVENTORY_ITEMS",
+            "The player's inventory (hotbar, main, armour, offhand) as item id to total count, e.g. "
+                    + "minecraft:shield -> 1. Ids are registry ids, so the same module works on every version.");
+
     public static final List<ObservationKind<?>> ALL = List.of(
             PATH_SEGMENT_PRESENT, NEXT_SEGMENT_PRESENT, PATH_CALCULATION_PENDING, CONTROLLING_PROCESS,
             TRAVEL_GOAL_ACTIVE, FORCED_INPUTS, SECONDARY_BACKEND_BOUND, SECONDARY_BACKEND_PATHING,
-            SECONDARY_BACKEND_STOPPING, PLAYER_POSITION, USE_KEY_HELD, COMBAT_TARGET);
+            SECONDARY_BACKEND_STOPPING, PLAYER_POSITION, USE_KEY_HELD, COMBAT_TARGET, INVENTORY_ITEMS);
 }

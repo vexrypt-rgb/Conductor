@@ -15,6 +15,8 @@ include 'contract'
 // Version-agnostic modules: plain Java, built once, depend on the contract only.
 include 'example-walk-and-stop'
 project(':example-walk-and-stop').projectDir = file('examples/walk-and-stop')
+include 'example-agnostic-combat'
+project(':example-agnostic-combat').projectDir = file('examples/agnostic-combat')
 
 // Per Minecraft version (see mcTargets in build.gradle): the runtime adapter, the Conductor mod that hosts modules,
 // and the live test harness.

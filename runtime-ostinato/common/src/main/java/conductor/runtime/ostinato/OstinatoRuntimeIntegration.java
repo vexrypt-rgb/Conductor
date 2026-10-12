@@ -17,6 +17,7 @@ import java.util.Optional;
 import static conductor.contract.ObservationKinds.COMBAT_TARGET;
 import static conductor.contract.ObservationKinds.CONTROLLING_PROCESS;
 import static conductor.contract.ObservationKinds.FORCED_INPUTS;
+import static conductor.contract.ObservationKinds.INVENTORY_ITEMS;
 import static conductor.contract.ObservationKinds.NEXT_SEGMENT_PRESENT;
 import static conductor.contract.ObservationKinds.PATH_CALCULATION_PENDING;
 import static conductor.contract.ObservationKinds.PATH_SEGMENT_PRESENT;
@@ -91,7 +92,7 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
                         TRAVEL_GOAL_ACTIVE, FORCED_INPUTS),
                 navigation != null ? NAVIGATION_OPERATIONS : List.of());
         CapabilityDescriptor player = new CapabilityDescriptor(PLAYER, CapabilityAvailability.AVAILABLE,
-                "read-only player state", List.of(PLAYER_POSITION), List.of());
+                "read-only player state", List.of(PLAYER_POSITION, INVENTORY_ITEMS), List.of());
         CapabilityDescriptor combat = new CapabilityDescriptor(COMBAT,
                 combatPort != null ? CapabilityAvailability.AVAILABLE : CapabilityAvailability.UNAVAILABLE,
                 "Ostinato PvpProcess (players) and PveProcess (mobs); exclusive with travel; stop needs release "
@@ -155,6 +156,10 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
         if (kind == PLAYER_POSITION) {
             BlockPoint at = game.playerBlock();
             return (Sample<T>) (at == null ? Sample.notObserved("no player") : Sample.observed(at));
+        }
+        if (kind == INVENTORY_ITEMS) {
+            java.util.Map<String, Integer> items = game.inventoryItems();
+            return (Sample<T>) (items == null ? Sample.notObserved("no player") : Sample.observed(java.util.Map.copyOf(items)));
         }
         if (kind == USE_KEY_HELD) {
             Boolean down = game.useKeyDown();

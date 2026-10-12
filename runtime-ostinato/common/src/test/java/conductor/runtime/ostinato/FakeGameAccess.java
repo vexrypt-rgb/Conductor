@@ -37,6 +37,12 @@ final class FakeGameAccess implements GameAccess {
     }
 
     Boolean useKey = false;
+    java.util.Map<String, Integer> inventory = new java.util.HashMap<>(java.util.Map.of("minecraft:iron_sword", 1));
+
+    @Override
+    public java.util.Map<String, Integer> inventoryItems() {
+        return inventory;
+    }
 
     @Override
     public Boolean useKeyDown() {

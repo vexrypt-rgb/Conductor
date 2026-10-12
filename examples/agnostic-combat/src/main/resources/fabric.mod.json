@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "conductor_example_agnostic_combat",
+  "version": "${version}",
+  "name": "Conductor example: version-agnostic combat",
+  "description": "One combat module jar for every Minecraft version: parts that need spears, maces or wind charges switch off where those don't exist.",
+  "environment": "client",
+  "entrypoints": {
+    "conductor": ["conductor.example.combat.AgnosticCombat"]
+  },
+  "depends": {
+    "conductor": "*"
+  }
+}

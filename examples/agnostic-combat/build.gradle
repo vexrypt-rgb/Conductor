@@ -1,0 +1,13 @@
+// A version-agnostic Conductor module: plain Java, compiled once against the contract only. The same jar runs on
+// every Minecraft version that has a Conductor mod. No Minecraft, Fabric or engine classes are on the classpath, so
+// the compiler itself keeps the module version-agnostic.
+dependencies {
+    compileOnly project(':contract')
+}
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') {
+        expand version: project.version
+    }
+}

@@ -277,4 +277,15 @@ class OstinatoRuntimeTest {
             assertEquals(ContentResult.Presence.PRESENT, real.check(ContentId.engine(id)).presence(), id);
         }
     }
+
+    @Test
+    void inventoryIsReportedByRegistryIdAndNotObservedWithoutAPlayer() {
+        tick(TickEvent.Type.IN);
+        game.inventory.put("minecraft:shield", 1);
+        assertEquals(Optional.of(java.util.Map.of("minecraft:iron_sword", 1, "minecraft:shield", 1)),
+                observe(ObservationKinds.INVENTORY_ITEMS).observedValue());
+        game.inventory = null;
+        assertEquals(Availability.NOT_OBSERVED, observe(ObservationKinds.INVENTORY_ITEMS).availability());
+    }
 }
+
