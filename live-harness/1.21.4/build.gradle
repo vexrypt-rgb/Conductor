@@ -1,0 +1,2 @@
+ext.mc = '1.21.4'
+apply from: rootProject.file('gradle/harness.gradle')

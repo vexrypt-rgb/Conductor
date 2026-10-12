@@ -11,5 +11,11 @@ pluginManagement {
 rootProject.name = 'conductor'
 
 include 'contract'
-include 'runtime-ostinato'
-include 'live-harness'
+
+// One runtime adapter and one live harness per Minecraft version (see mcTargets in build.gradle).
+['1.21.11', '1.21.4'].each { mc ->
+    include "runtime-ostinato-${mc}"
+    project(":runtime-ostinato-${mc}").projectDir = file("runtime-ostinato/${mc}")
+    include "live-harness-${mc}"
+    project(":live-harness-${mc}").projectDir = file("live-harness/${mc}")
+}

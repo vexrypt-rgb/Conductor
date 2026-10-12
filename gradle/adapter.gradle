@@ -1,12 +1,11 @@
-// Runtime integration + version adapter for Ostinato `main` (Minecraft 1.21.11).
-// Compiles against a local Ostinato checkout's compiled classes; Ostinato is not modified or repackaged.
-// Build Ostinato first: (cd <ostinatoDir> && ./gradlew compileJava compileApiJava)
-plugins {
-    id 'xyz.wagyourtail.unimined' version '1.4.2-SNAPSHOT'
-}
+// Runtime integration + version adapter for one Minecraft version. Applied by runtime-ostinato/<mc>/build.gradle,
+// which sets ext.mc. Shared sources and tests live in runtime-ostinato/common; only this project's own src differs.
+apply plugin: 'xyz.wagyourtail.unimined'
 
-def ostinatoDir = file(findProperty('ostinatoDir') ?: "${rootDir}/../Ostinato")
+def target = rootProject.mcTargets[mc]
+def ostinatoDir = file(target.ostinatoDir)
 def ostinatoClasses = files("${ostinatoDir}/build/classes/java/api", "${ostinatoDir}/build/classes/java/main")
+ext.ostinatoClasses = ostinatoClasses
 
 repositories {
     maven { url = 'https://maven.fabricmc.net/' }
@@ -14,13 +13,17 @@ repositories {
     mavenCentral()
 }
 
-// Same Minecraft version and mapping layers as Ostinato main (Ostinato gradle.properties at dfce2a2).
+sourceSets {
+    main.java.srcDirs += rootProject.file('runtime-ostinato/common/src/main/java')
+    test.java.srcDirs += rootProject.file('runtime-ostinato/common/src/test/java')
+}
+
 unimined.minecraft {
-    version '1.21.11'
+    version mc
     mappings {
         intermediary()
         mojmap()
-        parchment('1.21.11', '2025.12.20')
+        parchment(mc, target.parchment)
     }
     runs.off = true
     defaultRemapJar = false
@@ -50,7 +53,8 @@ test {
     jvmArgs '-XX:+EnableDynamicAgentLoading'
     doFirst {
         if (!file("${ostinatoDir}/build/classes/java/main").isDirectory()) {
-            throw new GradleException("Ostinato classes not found under ${ostinatoDir}; build Ostinato first or pass -PostinatoDir=...")
+            throw new GradleException("Ostinato ${target.branch} classes not found under ${ostinatoDir}; "
+                    + "build that branch first (./gradlew compileJava compileApiJava) or set its ostinatoDir property")
         }
     }
 }

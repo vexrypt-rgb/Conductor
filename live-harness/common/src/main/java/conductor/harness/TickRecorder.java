@@ -62,7 +62,7 @@ final class TickRecorder implements AbstractGameEventListener {
         operationState = op == null ? "" : conductor.operationStatus(op).status().map(s -> s.state().name()).orElse("?");
         log.write(JsonLog.obj("type", "tick", "t", event.getCount(), "phase", phase,
                 "resource", resourceState, "op", operationState,
-                "dim", mc.level.dimension().identifier().toString(),
+                "dim", Compat.dimension(mc.level),
                 "x", round(pos.x), "y", round(pos.y), "z", round(pos.z),
                 "vx", round(vel.x), "vz", round(vel.z), "hspeed", round(hs), "obs", obs));
         ticks++;

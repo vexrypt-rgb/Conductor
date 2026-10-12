@@ -22,10 +22,7 @@ import conductor.contract.ReleasePolicy;
 import conductor.contract.ResourceState;
 import conductor.runtime.ostinato.ConductorOstinato;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
-import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.core.BlockPos;
 
 import java.util.Optional;
@@ -89,8 +86,7 @@ final class Scenario implements Runnable {
                     "isTitle", onGame(() -> mc.screen instanceof TitleScreen));
             event("connecting", "server", server);
             onGame(() -> {
-                ConnectScreen.startConnecting(mc.screen, mc, ServerAddress.parseString(server),
-                        new ServerData("conductor-harness", server, ServerData.Type.OTHER), false, null);
+                Compat.connect(mc, server);
                 return null;
             });
         }
@@ -215,7 +211,7 @@ final class Scenario implements Runnable {
             return null;
         });
         long dimDeadline = System.currentTimeMillis() + 30_000;
-        while (!onGame(() -> mc.level.dimension().identifier().toString()).equals("minecraft:the_nether")) {
+        while (!onGame(() -> Compat.dimension(mc.level)).equals("minecraft:the_nether")) {
             if (System.currentTimeMillis() > dimDeadline) {
                 event("D dimension never changed (is the player op?)");
                 break;

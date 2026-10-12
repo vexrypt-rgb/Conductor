@@ -3,8 +3,11 @@
 #
 #   scripts/live-run.sh <workdir>
 #
-# <workdir> must contain server/server.jar (vanilla 1.21.11) with eula.txt and server.properties.
-# Env: OSTINATO_DIR (default ../Ostinato), GRADLE_ARGS (extra args for both Gradle builds, e.g. an init script),
+# <workdir> must contain server/server.jar (vanilla, same Minecraft version as MC) with eula.txt and
+# server.properties.
+# Env: MC (Minecraft version of the harness, default 1.21.11; see mcTargets in build.gradle),
+#      OSTINATO_DIR (the Ostinato checkout for that version, default ../Ostinato),
+#      GRADLE_ARGS (extra args for both Gradle builds, e.g. an init script or -PostinatoDir_1_21_4=...),
 #      CLIENT_TIMEOUT (seconds, default 1200), HARNESS_SCENARIO (stage4 or evidence).
 # Output: <workdir>/harness.jsonl (per-tick evidence), server.log, client.log.
 set -euo pipefail
@@ -13,10 +16,11 @@ WORK=$(realpath "$1")
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 OSTINATO_DIR=$(realpath "${OSTINATO_DIR:-$ROOT/../Ostinato}")
 CLIENT_TIMEOUT=${CLIENT_TIMEOUT:-1200}
+MC=${MC:-1.21.11}
 OUT="$WORK/harness.jsonl"
 
-(cd "$ROOT" && ./gradlew ${GRADLE_ARGS:-} :live-harness:build --no-daemon -q)
-JAR=$(ls "$ROOT"/live-harness/build/libs/live-harness-*.jar | grep -v -- '-dev.jar' | head -1)
+(cd "$ROOT" && ./gradlew ${GRADLE_ARGS:-} ":live-harness-$MC:build" --no-daemon -q)
+JAR=$(ls "$ROOT/live-harness/$MC/build/libs/"live-harness-*.jar | grep -v -- '-dev.jar' | head -1)
 
 rm -f "$OUT" "$WORK/server.log" "$WORK/client.log"
 rm -rf "$WORK/server/world"

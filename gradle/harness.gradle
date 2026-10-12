@@ -1,0 +1,51 @@
+// Live test harness for one Minecraft version: a client Fabric mod (test tooling, not shipped). Applied by
+// live-harness/<mc>/build.gradle, which sets ext.mc. Shared sources in live-harness/common.
+apply plugin: 'xyz.wagyourtail.unimined'
+
+def target = rootProject.mcTargets[mc]
+def adapter = project(":runtime-ostinato-${mc}")
+evaluationDependsOn(adapter.path)
+
+repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
+    maven { url = 'https://maven.parchmentmc.net/' }
+    mavenCentral()
+}
+
+sourceSets {
+    main.java.srcDirs += rootProject.file('live-harness/common/src/main/java')
+    main.resources.srcDirs += rootProject.file('live-harness/common/src/main/resources')
+}
+
+unimined.minecraft {
+    version mc
+    mappings {
+        intermediary()
+        mojmap()
+        parchment(mc, target.parchment)
+    }
+    fabric {
+        loader target.loader
+    }
+    runs.off = true
+}
+
+dependencies {
+    implementation project(':contract')
+    implementation adapter
+    compileOnly adapter.ostinatoClasses
+}
+
+processResources {
+    inputs.property 'mc', mc
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') {
+        expand mc: mc, version: project.version
+    }
+}
+
+// Ship contract + adapter inside the mod so the remap to intermediary covers their Minecraft references too.
+jar {
+    from project(':contract').sourceSets.main.output
+    from adapter.sourceSets.main.output
+}
