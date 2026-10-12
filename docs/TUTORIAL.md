@@ -394,9 +394,29 @@ Hard limits, by design: no universal scheduler, no automatic preemption between 
 
 ## 10. Limits you should know about
 
-- **One module per game.** Conductor currently serves a single consumer. A second install is refused. Several modules sharing Conductor is future work.
-- **Stops take as long as Ostinato takes.** After `cancel()` the bot usually finishes its current stretch of path (live: up to 17 s on a long path). Conductor reports this honestly but cannot make it faster.
+Conductor is young. Here is everything it **cannot** do today, so you can plan around it. The long-term goal of hosting any kind of client mod, and what it would take, is in [VISION-client-mod-host.md](VISION-client-mod-host.md).
+
+**What it can do**
+- **Travel is the only action.** No mining, building, farming, combat, elytra or following yet (see [deferred-candidates.md](deferred-candidates.md)).
+- **No rendering, HUD, chat, keybinds, inventory, packets, camera or GUI.** A module can draw nothing and send nothing through Conductor. It can still use Minecraft directly, but then Conductor's safety rules don't cover that code.
+- **No arrival signal.** A trip that ends on its own is `UNCERTAIN` ("outcome not established"). Check the player's position yourself.
+
+**How many modules, and where**
+- **One module per game.** Conductor serves a single consumer; a second install is refused. Each module jar currently bundles its own copy of Conductor, so two modules would also clash.
+- **Ostinato only.** Conductor needs Ostinato, a Baritone fork. It is not a general mod loader.
+- **Fabric client only.** Forge and NeoForge are untested.
+- **Minecraft 1.21.11 and 1.21.4 only.** Ostinato's 26.3 branch (Java 25) has no adapter yet. The 1.16.1 branch's API differs too much to reuse as is.
+- **No hot reload.** Modules load at game start and cannot be unloaded.
+
+**How the engine behaves**
+- **Stops take as long as Ostinato takes.** After `cancel()` the bot usually finishes its current stretch of path. Live, that was up to 344 ticks (17 s) and 122 blocks on a long path. Conductor reports this honestly but cannot make it faster.
 - **`cancel()` stops more than your operation.** Ostinato's cancel also stops other processes, such as mining.
-- **No arrival signal.** A trip that ends on its own is `UNCERTAIN` ("outcome not established"). Check the player's position yourself if you need to know.
+- **Something else can take the bot at any time.** For example, Ostinato's drowning protection (`AirProcess`) took over about 10 s after a stop underwater. Conductor detects this and marks the bot busy, but cannot prevent it.
 - **Tungsten blocks travel.** With Tungsten installed and preferred, travel requests are refused, because its stop can't be proven.
-- **Tested on:** Minecraft 1.21.11 and 1.21.4, flat test worlds with stairs, a trench, water and long paths, and the Baritone backend. Not yet tested: elytra, boats, heavy parkour, Tungsten.
+- **Human input is invisible.** Keys pressed by a person are not seen by Conductor.
+
+**Building and testing**
+- **Building needs local Ostinato checkouts** with compiled classes. There are no published artifacts yet.
+- **Tested on:** flat local test worlds (stairs, trench, water, long paths, mining), the Baritone backend, about 25 live cancel trials, and one full live run per Minecraft version.
+- **Not tested:** elytra, boats, heavy parkour, Tungsten, real servers (latency, anticheat), long play sessions.
+- **The live harness hangs on loading errors.** If a mod fails to load, Fabric opens an error window that nobody can close in a headless run. The run then waits for the script's timeout instead of failing at once.

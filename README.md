@@ -14,6 +14,16 @@ Conductor is the modularity and capability-contract layer for Ostinato. It evolv
 
 **New here? Start with the [tutorial](docs/TUTORIAL.md)**: what Conductor does, every capability, and how to build a module (worked example in [`examples/walk-and-stop`](examples/walk-and-stop)).
 
+**Limitations (today):**
+- Travel is the only action, and only one module can run per game.
+- No rendering/HUD, chat, keybinds, packets or GUI.
+- Ostinato and Fabric client only, on Minecraft 1.21.11 and 1.21.4.
+- Stops take as long as Ostinato's engine takes (up to about 17 s observed).
+
+Full list: [tutorial §10](docs/TUTORIAL.md#10-limits-you-should-know-about).
+
+**Long-term goal:** host any client-side mod (utility/anarchy and legit PvP modules alike). The gap analysis and a staged path are in [docs/VISION-client-mod-host.md](docs/VISION-client-mod-host.md).
+
 Deferred capability candidates (combat and others): [docs/deferred-candidates.md](docs/deferred-candidates.md)
 
 ## Layout
