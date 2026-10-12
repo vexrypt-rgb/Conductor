@@ -27,7 +27,7 @@ def main(path):
     cancels += [{"k": "S3", "tick": e["tick"]} for e in events if e["type"] == "event" and e["name"] == "S3 cancel"]
     print()
     header = ("trial            " + "  ".join(f"{s:>7}" for s in SIGNALS)
-              + "  composite  physical  rearm  moved  to_target  phys_after_composite")
+              + "  composite  physical  rearm/other  moved  to_target  phys_after_composite")
     print(header)
     for c in cancels:
         start = c["tick"]
@@ -39,7 +39,14 @@ def main(path):
         composite = max(settle.values())
         moving_last = max((i for i, t in enumerate(window) if t["hspeed"] >= MOVING), default=-1)
         seg = [SIGNALS["segment"](t["obs"]) for t in window]
-        rearm = any(not seg[i] and any(seg[i + 1:]) for i in range(len(seg)))
+        # a segment re-appearing after clearing: "rearm" if no other process claims it, else the process name
+        rearm = "False"
+        for i in range(1, len(seg)):
+            if seg[i] and not seg[i - 1]:
+                proc = window[i]["obs"].get("CONTROLLING_PROCESS", "")
+                foreign = proc not in ("Optional.empty",) and "CustomGoalProcess" not in proc
+                rearm = proc.split(".")[-1].rstrip("]") if foreign else "REARM"
+                break
         moved = 0.0
         to_target = float("nan")
         if window:
@@ -51,8 +58,10 @@ def main(path):
         late = sum(1 for i, t in enumerate(window) if i > composite + 10 and t["hspeed"] >= MOVING)
         label = f'{c.get("course", "")} k={c["k"]}'
         print(f'{label:<16} ' + "  ".join(f"{settle[s]:>7}" for s in SIGNALS)
-              + f"  {composite:>9}  {moving_last + 1:>8}  {str(rearm):>5}  {moved:>5.1f}  {to_target:>9.1f}  {late:>20}")
-    print("\n(settle values are ticks after cancel() until the signal was last active; window 200 ticks)")
+              + f"  {composite:>9}  {moving_last + 1:>8}  {rearm:>11}  {moved:>5.1f}  {to_target:>9.1f}  {late:>20}")
+    print("\n(settle: ticks after cancel() until the signal was last active, within each trial's window."
+          "\n rearm/other: REARM = a segment re-appeared with no other process claiming it; a process name ="
+          " another process started pathing after release)")
 
 
 if __name__ == "__main__":
