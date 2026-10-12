@@ -127,6 +127,16 @@ class OstinatoRuntimeTest {
     }
 
     @Test
+    void playerPositionComesFromGameAccessAndNeverDefaults() {
+        tick(TickEvent.Type.IN);
+
+        assertEquals(Optional.of(new conductor.contract.BlockPoint(1, 64, -2)), observe(ObservationKinds.PLAYER_POSITION).observedValue());
+        game.player = null;
+        assertEquals(Availability.NOT_OBSERVED, observe(ObservationKinds.PLAYER_POSITION).availability());
+        verifyNoInteractions(pathing, control, customGoal, inputs);
+    }
+
+    @Test
     void secondaryBackendFalseIsNeverAConfirmedNegative() {
         tick(TickEvent.Type.IN);
 
