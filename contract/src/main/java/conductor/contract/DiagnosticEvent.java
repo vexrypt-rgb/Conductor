@@ -28,7 +28,13 @@ public record DiagnosticEvent(Type type, String thread, long tick, ContextId con
         AUTHORITY_RELEASED,
         RESOURCE_STATE_CHANGED,
         /** Subject is the {@link InterferenceClass}; detail names the source. */
-        INTERFERENCE
+        INTERFERENCE,
+        /** Module platform: subject is the module id. */
+        MODULE_STATE_CHANGED,
+        /** Module platform: subject is the resource. */
+        LEASE_CHANGED,
+        /** Module platform: a module threw, or broke a platform rule. */
+        MODULE_FAULT
     }
 
     static DiagnosticEvent onGameThread(Type type, long tick, ContextId context, String subject, String detail) {

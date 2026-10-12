@@ -35,6 +35,8 @@ final class NavigationOperations {
 
     private long nextId = 1;
     private OperationId id;
+    private ModuleId owner;
+    private java.util.function.Predicate<String> attributed = controller -> false;
     private OperationState state;
     private boolean contextValid;
     private boolean authorityHeld;
@@ -110,7 +112,8 @@ final class NavigationOperations {
         Optional<String> controller = evidence.controller();
         boolean own = controller.isPresent() && port.isPresent() && operationActive()
                 && port.get().isOwnController(controller.get());
-        if (controller.isEmpty() || own) {
+        boolean declared = controller.isPresent() && attributed.test(controller.get());
+        if (controller.isEmpty() || own || declared) {
             lastForeignController = null;
             return;
         }
@@ -124,9 +127,40 @@ final class NavigationOperations {
         }
     }
 
+    // ---- host hooks (module platform) ----
+
+    /** Engine processes declared by the current MOVEMENT holder: their activity is that module's, not interference. */
+    void setControllerAttribution(java.util.function.Predicate<String> attributed) {
+        this.attributed = attributed == null ? controller -> false : attributed;
+    }
+
+    ResourceState resourceState() {
+        return resource;
+    }
+
+    /** The module owning the current operation while it still holds authority; empty otherwise. */
+    Optional<ModuleId> activeOwner() {
+        return operationActive() ? Optional.of(owner) : Optional.empty();
+    }
+
+    /** Best-effort cancel of {@code module}'s active operation (lease revoked). Not confirmation. */
+    void cancelOwnedBy(ModuleId module, String why) {
+        if (operationActive() && module.equals(owner) && contextValid
+                && (state == OperationState.EXECUTING || state == OperationState.UNCERTAIN)) {
+            invokeCancel(why);
+            if (state == OperationState.EXECUTING) {
+                transition(OperationState.CANCELLING, why + "; cancel invoked; not confirmed");
+            }
+        }
+    }
+
     // ---- consumer calls ----
 
     OperationResult requestTravel(NavigationGoal goal) {
+        return requestTravel(ModuleId.CORE, goal);
+    }
+
+    OperationResult requestTravel(ModuleId requester, NavigationGoal goal) {
         if (goal == null) {
             return reject(RejectionReason.INVALID_ARGUMENT, "requestTravel", "goal is null");
         }
@@ -173,12 +207,13 @@ final class NavigationOperations {
         }
 
         id = new OperationId(nextId++, current.get());
+        owner = requester;
         state = null; // a new operation has no previous state
         contextValid = true;
         authorityHeld = true;
         cancelTick = -1;
         lastForeignController = null;
-        record(DiagnosticEvent.Type.AUTHORITY_GRANTED, "operation " + id.id(), goal + " via " + delegation.backend());
+        record(DiagnosticEvent.Type.AUTHORITY_GRANTED, "operation " + id.id(), goal + " via " + delegation.backend() + " for " + requester);
         if (delegation.backendObservable()) {
             transition(OperationState.EXECUTING, "accepted by " + delegation.backend());
         } else {
@@ -188,10 +223,14 @@ final class NavigationOperations {
     }
 
     OperationResult cancel(OperationId operation) {
+        return cancel(ModuleId.CORE, operation);
+    }
+
+    OperationResult cancel(ModuleId caller, OperationId operation) {
         if (operation == null) {
             return reject(RejectionReason.INVALID_ARGUMENT, "cancel", "operation is null");
         }
-        if (!operation.equals(id)) {
+        if (!operation.equals(id) || !caller.equals(owner)) {
             return reject(RejectionReason.UNKNOWN_OPERATION, "cancel", "not an operation of this consumer: " + operation);
         }
         if (!contextValid) {
@@ -211,7 +250,11 @@ final class NavigationOperations {
     }
 
     OperationResult status(OperationId operation) {
-        if (operation == null || !operation.equals(id)) {
+        return status(ModuleId.CORE, operation);
+    }
+
+    OperationResult status(ModuleId caller, OperationId operation) {
+        if (operation == null || !operation.equals(id) || !caller.equals(owner)) {
             return OperationResult.rejected(RejectionReason.UNKNOWN_OPERATION, null, "not an operation of this consumer");
         }
         return OperationResult.accepted(snapshot());

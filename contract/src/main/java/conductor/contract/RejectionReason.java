@@ -25,6 +25,8 @@ public enum RejectionReason {
     /** The engine did not accept the request. The engine was called, so the grant is spent. */
     ENGINE_DECLINED,
     UNKNOWN_OPERATION,
+    /** Another module holds the lease this needs (module platform). */
+    LEASE_HELD,
     /** The operation's context is no longer current, so its authority is gone. */
     AUTHORITY_INVALIDATED
 }

@@ -55,6 +55,52 @@ public final class ContractService implements Conductor {
         return navigation.resourceStatus();
     }
 
+    // ---- host API (module platform): same rules, attributed to a module ----
+
+    OperationResult requestTravel(ModuleId module, NavigationGoal goal) {
+        if (!runtime.isGameThread()) {
+            sink.record(DiagnosticEvent.offThread("requestTravel " + module, "rejected before any engine call"));
+            return OperationResult.rejected(RejectionReason.OFF_THREAD, null, "call was not on the game thread");
+        }
+        return navigation.requestTravel(module, goal);
+    }
+
+    OperationResult cancel(ModuleId module, OperationId operation) {
+        if (!runtime.isGameThread()) {
+            sink.record(DiagnosticEvent.offThread("cancel " + module, "rejected before any engine call"));
+            return OperationResult.rejected(RejectionReason.OFF_THREAD, null, "call was not on the game thread");
+        }
+        return navigation.cancel(module, operation);
+    }
+
+    OperationResult operationStatus(ModuleId module, OperationId operation) {
+        if (!runtime.isGameThread()) {
+            sink.record(DiagnosticEvent.offThread("operationStatus " + module, "rejected before reading state"));
+            return OperationResult.rejected(RejectionReason.OFF_THREAD, null, "call was not on the game thread");
+        }
+        return navigation.status(module, operation);
+    }
+
+    boolean onGameThread() {
+        return runtime.isGameThread();
+    }
+
+    long currentTick() {
+        return runtime.currentTick();
+    }
+
+    DiagnosticSink sink() {
+        return sink;
+    }
+
+    Optional<ContextId> currentContext() {
+        return contexts.current();
+    }
+
+    NavigationOperations navigation() {
+        return navigation;
+    }
+
     @Override
     public OperationResult requestTravel(NavigationGoal goal) {
         if (!runtime.isGameThread()) {
