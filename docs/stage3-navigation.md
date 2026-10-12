@@ -1,6 +1,6 @@
 # Conductor Stage 3: Single-consumer navigation delegation
 
-Status: **implemented and unit-tested at the `IMovementEngine` boundary; not run in a live game.** Stage 4 has not been started.
+Status: **implemented, unit-tested, and run live once** (see [live-run-2026-10-12.md](live-run-2026-10-12.md)). Every Stage 3 rule behaved as specified in a real client. Stage 4 has not been started.
 
 Basis: Ostinato `dfce2a2` (`main`). Builds on Stage 2 (`docs/stage2-observations.md`) and the Stage 1 conditions (`docs/stage1-audit.md` §10).
 
@@ -35,7 +35,7 @@ One consumer can send one travel request to Ostinato's existing `IMovementEngine
 |---|---|---|---|
 | Engine calls for "go to block, then cancel" | `goTo(GET_TO_BLOCK pos)`, `cancel()` | identical | **Verified by test** (`delegationMakesTheSameEngineCallsAsDirectUse`), call for call on a mock |
 | Extra engine reads | caller's choice | none | **Verified by test** (`contractReadsNothingFromTheEngineInstance`) |
-| Engine behaviour below `IMovementEngine` | unchanged | unchanged: the same API, the same implementation | Verified by construction; **runtime equivalence Unknown** (no live run) |
+| Engine behaviour below `IMovementEngine` | unchanged | unchanged: the same API, the same implementation | Verified by construction. Live: the contract trial and direct trials showed the same post-cancel behaviour (segment runs to completion, L1). |
 | Second request, Tungsten routes, follow goals, off-thread calls | allowed | rejected (fail closed) | Deliberate contract restrictions, not behaviour changes for accepted requests |
 
 **Stop-condition check ("Stage 3 cannot preserve single-consumer IMovementEngine behaviour"): not triggered.** For every request the contract accepts, the engine receives exactly the calls a direct caller would make. The contract adds rejections, never different engine calls.
@@ -78,6 +78,8 @@ Resource quarantine vs ownership-token validity is Stage 4.
 | The one-grant limit removed | 6 tests across both modules |
 
 ## 6. Recommendation for Stage 4
+
+**Update:** the live harness now exists (`live-harness/`, `scripts/live-run.sh`), and the first run settled several of the Unknowns below; see `live-run-2026-10-12.md`. The original recommendation follows.
 
 Stage 4 (quarantine, evidence-based release, interference classification) should **wait for a live runtime harness**. Its release rule depends on facts the audit left Unknown and that only controlled runtime tests can settle:
 - whether the quiescence composite (audit §7.2) is sufficient;
