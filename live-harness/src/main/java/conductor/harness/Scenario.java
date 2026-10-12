@@ -68,12 +68,22 @@ final class Scenario implements Runnable {
         if (server != null) {
             event("waiting for title screen");
             long titleDeadline = System.currentTimeMillis() + 300_000;
-            while (!onGame(() -> mc.screen instanceof TitleScreen && mc.getOverlay() == null)) {
+            // First launch can show an onboarding screen instead of the title screen; any screen will do once
+            // resource loading (the overlay) has finished.
+            String lastScreen = "";
+            while (!onGame(() -> mc.screen != null && mc.getOverlay() == null)) {
+                String screen = onGame(() -> mc.screen == null ? "none" : mc.screen.getClass().getName());
+                if (!screen.equals(lastScreen)) {
+                    event("screen", "class", screen);
+                    lastScreen = screen;
+                }
                 if (System.currentTimeMillis() > titleDeadline) {
-                    throw new IllegalStateException("title screen never appeared");
+                    throw new IllegalStateException("no screen after loading; last " + lastScreen);
                 }
                 Thread.sleep(500);
             }
+            event("screen ready", "class", onGame(() -> mc.screen.getClass().getName()),
+                    "isTitle", onGame(() -> mc.screen instanceof TitleScreen));
             event("connecting", "server", server);
             onGame(() -> {
                 ConnectScreen.startConnecting(mc.screen, mc, ServerAddress.parseString(server),
