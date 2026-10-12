@@ -34,6 +34,13 @@ public interface Conductor {
     OperationResult requestTravel(NavigationGoal goal);
 
     /**
+     * Delegate one combat request to the engine's existing combat processes (Stage 5). Same rules as
+     * {@link #requestTravel}: combat steers the movement resource, so it needs it AVAILABLE, is exclusive with travel,
+     * and is stopped with {@link #cancel} and confirmed only on release evidence.
+     */
+    OperationResult requestCombat(CombatGoal goal);
+
+    /**
      * Invoke the engine's cancel for an operation this consumer holds. The result is at most
      * {@link OperationState#CANCELLING}: cancel requested, not confirmed. The engine's cancel may stop more than this
      * operation; see {@link NavigationPort#cancel()}.

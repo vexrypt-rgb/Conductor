@@ -38,6 +38,11 @@ public interface RuntimeIntegration {
         return new ContentResult(content, ContentResult.Presence.UNKNOWN, "runtime cannot check content");
     }
 
+    /** Combat delegation, if this runtime offers it (Stage 5). */
+    default Optional<CombatPort> combat() {
+        return Optional.empty();
+    }
+
     /** Navigation delegation, if this runtime offers it (Stage 3). */
     default Optional<NavigationPort> navigation() {
         return Optional.empty();

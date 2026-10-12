@@ -10,6 +10,7 @@ import static conductor.contract.ObservationKinds.PATH_CALCULATION_PENDING;
 import static conductor.contract.ObservationKinds.PATH_SEGMENT_PRESENT;
 import static conductor.contract.ObservationKinds.SECONDARY_BACKEND_BOUND;
 import static conductor.contract.ObservationKinds.TRAVEL_GOAL_ACTIVE;
+import static conductor.contract.ObservationKinds.USE_KEY_HELD;
 
 /**
  * One tick's release evidence, built from raw observations. Only {@code OBSERVED} values count: an unavailable or
@@ -20,8 +21,9 @@ import static conductor.contract.ObservationKinds.TRAVEL_GOAL_ACTIVE;
  * conditions.
  *
  * @param pathingStopped  no current or next segment and no pending calculation: the candidate for STOPPED_PATHING
- * @param quiet           pathing stopped, no forced inputs, no controlling process, no active travel goal, and no
- *                        secondary backend that could be steering unobserved
+ * @param quiet           pathing stopped, no forced inputs, no controlling process, no active travel goal, no
+ *                        secondary backend that could be steering unobserved, and (where combat is offered or the
+ *                        signal is reported) the use key released
  * @param controller      the process the engine reports in control, if one was observed
  * @param reason          why the evidence is not quiet; empty when it is
  */
@@ -57,8 +59,21 @@ record ReleaseEvidence(boolean pathingStopped, boolean quiet, Optional<String> c
         boolean secondaryClear = !supported.contains(SECONDARY_BACKEND_BOUND)
                 || isFalse(runtime, supported, SECONDARY_BACKEND_BOUND, why);
 
-        boolean quiet = pathingStopped && goal && noController && noInputs && secondaryClear;
+        // Engine combat holds the use key directly (Stage 5 audit), outside FORCED_INPUTS. A runtime that offers combat
+        // must show it released; any runtime that reports it is held to it.
+        boolean useClear = !(supported.contains(USE_KEY_HELD) || offersCombat(runtime))
+                || isFalse(runtime, supported, USE_KEY_HELD, why);
+
+        boolean quiet = pathingStopped && goal && noController && noInputs && secondaryClear && useClear;
         return new ReleaseEvidence(pathingStopped, quiet, controller, why.toString());
+    }
+
+    private static boolean offersCombat(RuntimeIntegration runtime) {
+        try {
+            return runtime.combat().isPresent();
+        } catch (RuntimeException | LinkageError e) {
+            return true; // cannot tell: hold release to the stricter rule
+        }
     }
 
     private static boolean isFalse(RuntimeIntegration runtime, Set<ObservationKind<?>> supported,

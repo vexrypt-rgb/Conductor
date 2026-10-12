@@ -84,6 +84,14 @@ public final class ContractService implements Conductor {
         return navigation.requestTravel(module, goal);
     }
 
+    OperationResult requestCombat(ModuleId module, CombatGoal goal) {
+        if (!runtime.isGameThread()) {
+            sink.record(DiagnosticEvent.offThread("requestCombat " + module, "rejected before any engine call"));
+            return OperationResult.rejected(RejectionReason.OFF_THREAD, null, "call was not on the game thread");
+        }
+        return navigation.requestCombat(module, goal);
+    }
+
     OperationResult cancel(ModuleId module, OperationId operation) {
         if (!runtime.isGameThread()) {
             sink.record(DiagnosticEvent.offThread("cancel " + module, "rejected before any engine call"));
@@ -127,6 +135,11 @@ public final class ContractService implements Conductor {
             return OperationResult.rejected(RejectionReason.OFF_THREAD, null, "call was not on the game thread");
         }
         return navigation.requestTravel(goal);
+    }
+
+    @Override
+    public OperationResult requestCombat(CombatGoal goal) {
+        return requestCombat(ModuleId.CORE, goal);
     }
 
     @Override

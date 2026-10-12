@@ -37,7 +37,7 @@ public final class ConductorOstinato {
             throw new IllegalStateException("ConductorOstinato.install must be called on the game thread");
         }
         return install(baritone, sink, policy, game, new TungstenBackendAccess(), MovementBackends.engine(baritone),
-                MovementBackends::preferTungstenTravel);
+                MovementBackends::preferTungstenTravel, new OstinatoCombatAccess(baritone));
     }
 
     /** Without a release policy: discovery and observation work, but navigation is never granted. */
@@ -47,6 +47,13 @@ public final class ConductorOstinato {
 
     static ContractService install(IBaritone baritone, DiagnosticSink sink, ReleasePolicy policy, GameAccess game,
                              SecondaryBackendAccess secondary, IMovementEngine engine, BooleanSupplier prefersSecondaryTravel) {
+        return install(baritone, sink, policy, game, secondary, engine, prefersSecondaryTravel, null);
+    }
+
+    /** @param combat engine combat access; null to offer no combat */
+    static ContractService install(IBaritone baritone, DiagnosticSink sink, ReleasePolicy policy, GameAccess game,
+                             SecondaryBackendAccess secondary, IMovementEngine engine, BooleanSupplier prefersSecondaryTravel,
+                             CombatAccess combat) {
         Objects.requireNonNull(sink, "sink");
         Objects.requireNonNull(policy, "policy");
         synchronized (INSTALLED) {
@@ -59,6 +66,9 @@ public final class ConductorOstinato {
         OstinatoRuntimeIntegration runtime = new OstinatoRuntimeIntegration(game, lifecycle,
                 new OstinatoSignals(baritone, secondary), secondary,
                 new OstinatoNavigationPort(engine, prefersSecondaryTravel));
+        if (combat != null) {
+            runtime.enableCombat(new OstinatoCombatPort(combat, engine), combat);
+        }
         ContractService service = new ContractService(runtime, contexts, sink, policy);
         lifecycle.onInWorldTick(service::tick);
         baritone.getGameEventHandler().registerEventListener(lifecycle);

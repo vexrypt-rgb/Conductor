@@ -15,6 +15,9 @@ class FakeRuntime implements RuntimeIntegration {
     final Map<ObservationKind<?>, Object> samples = new HashMap<>();
     RuntimeException failure;
     NavigationPort port;
+    CombatPort combatPort;
+    /** Whether the runtime lists USE_KEY_HELD among its observations. */
+    boolean reportsUseKey;
     final Map<ContentId, ContentResult.Presence> content = new HashMap<>();
     final AtomicInteger sampleCalls = new AtomicInteger();
     final AtomicInteger stateReads = new AtomicInteger();
@@ -42,7 +45,11 @@ class FakeRuntime implements RuntimeIntegration {
     @Override
     public List<CapabilityDescriptor> capabilities() {
         stateReads.incrementAndGet();
-        return List.of(NAVIGATION);
+        if (!reportsUseKey) {
+            return List.of(NAVIGATION);
+        }
+        return List.of(NAVIGATION, new CapabilityDescriptor("combat", CapabilityAvailability.AVAILABLE, "fake",
+                List.of(ObservationKinds.USE_KEY_HELD, ObservationKinds.COMBAT_TARGET), List.of()));
     }
 
     @Override
@@ -64,6 +71,11 @@ class FakeRuntime implements RuntimeIntegration {
     }
 
     @Override
+    public Optional<CombatPort> combat() {
+        return Optional.ofNullable(combatPort);
+    }
+
+    @Override
     public Optional<NavigationPort> navigation() {
         return Optional.ofNullable(port);
     }
@@ -76,6 +88,7 @@ class FakeRuntime implements RuntimeIntegration {
         samples.put(ObservationKinds.CONTROLLING_PROCESS, Sample.observed(java.util.Optional.<String>empty()));
         samples.put(ObservationKinds.TRAVEL_GOAL_ACTIVE, Sample.observed(false));
         samples.put(ObservationKinds.FORCED_INPUTS, Sample.observed(java.util.Set.<String>of()));
+        samples.put(ObservationKinds.USE_KEY_HELD, Sample.observed(false));
     }
 
     /** The engine is executing a segment for {@code controller}. */

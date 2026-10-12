@@ -51,6 +51,12 @@ final class MinecraftGameAccess implements GameAccess {
     }
 
     @Override
+    public Boolean useKeyDown() {
+        // PvpProcess/PveProcess hold shields and eat through this key directly (Stage 5 audit).
+        return ctx.minecraft().options == null ? null : ctx.minecraft().options.keyUse.isDown();
+    }
+
+    @Override
     public ContentResult.Presence registryPresence(ContentId.Kind kind, String id) {
         ResourceLocation key = ResourceLocation.tryParse(id);
         if (key == null) {

@@ -5,7 +5,8 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Navigation rules for one consumer (Stages 3 and 4). Game thread only: {@link ContractService} checks the thread
+ * Rules for operations that steer the movement resource: travel (Stages 3 and 4) and combat (Stage 5). One operation
+ * at a time, whichever kind. Game thread only: {@link ContractService} checks the thread
  * before calling in, and the runtime calls {@link #tick()} once per in-world game tick.
  * <ul>
  *   <li>Contract-level exclusivity: one operation at a time. A conflicting request is rejected (BLOCKED) without an
@@ -43,6 +44,9 @@ final class NavigationOperations {
     private long cancelTick = -1;
     private String detail = "";
     private String lastForeignController;
+    /** The running operation's own engine process, and how to stop it; set when an operation is accepted. */
+    private java.util.function.Predicate<String> ownController = controller -> false;
+    private Runnable engineCancel;
 
     NavigationOperations(RuntimeIntegration runtime, ContextTracker contexts, DiagnosticSink sink, ReleasePolicy policy) {
         this.runtime = runtime;
@@ -57,13 +61,12 @@ final class NavigationOperations {
         if (contexts.current().isEmpty()) {
             return;
         }
-        Optional<NavigationPort> port = runtime.navigation();
         ReleaseEvidence evidence = ReleaseEvidence.sample(runtime, supportedKinds());
         quietTicks = evidence.quiet() ? quietTicks + 1 : 0;
         boolean releasable = policy.confirmStopWindowTicks().isPresent()
                 && quietTicks >= policy.confirmStopWindowTicks().getAsLong();
 
-        noteForeignControl(evidence, port);
+        noteForeignControl(evidence);
         if (id != null) {
             progressOperation(evidence, releasable);
         }
@@ -108,10 +111,9 @@ final class NavigationOperations {
         }
     }
 
-    private void noteForeignControl(ReleaseEvidence evidence, Optional<NavigationPort> port) {
+    private void noteForeignControl(ReleaseEvidence evidence) {
         Optional<String> controller = evidence.controller();
-        boolean own = controller.isPresent() && port.isPresent() && operationActive()
-                && port.get().isOwnController(controller.get());
+        boolean own = controller.isPresent() && operationActive() && ownController.test(controller.get());
         boolean declared = controller.isPresent() && attributed.test(controller.get());
         if (controller.isEmpty() || own || declared) {
             lastForeignController = null;
@@ -164,21 +166,10 @@ final class NavigationOperations {
         if (goal == null) {
             return reject(RejectionReason.INVALID_ARGUMENT, "requestTravel", "goal is null");
         }
-        Optional<ContextId> current = contexts.current();
-        if (current.isEmpty()) {
-            return reject(RejectionReason.NO_CURRENT_CONTEXT, "requestTravel", "no current context");
-        }
         Optional<NavigationPort> port = runtime.navigation();
-        if (port.isEmpty()) {
-            return reject(RejectionReason.NO_NAVIGATION, "requestTravel", "runtime offers no navigation");
-        }
-        if (operationActive()) {
-            interference(InterferenceClass.BLOCKED, "contract request", "operation " + id.id() + " still holds the resource");
-            return reject(RejectionReason.CONFLICTING_OPERATION, "requestTravel", "operation " + id.id() + " is " + state);
-        }
-        if (resource != ResourceState.AVAILABLE) {
-            return reject(RejectionReason.RESOURCE_NOT_RELEASED, "requestTravel", resourceDetail
-                    + (policy.confirmStopWindowTicks().isEmpty() ? " (no confirmStopWindowTicks configured: never released)" : ""));
+        OperationResult refused = precheck("requestTravel", port.isPresent(), RejectionReason.NO_NAVIGATION, "navigation");
+        if (refused != null) {
+            return refused;
         }
         boolean observable;
         try {
@@ -190,24 +181,67 @@ final class NavigationOperations {
             return reject(RejectionReason.BACKEND_UNOBSERVABLE, "requestTravel",
                     "request would run on a backend whose stop cannot be observed");
         }
+        NavigationPort p = port.get();
+        return begin(requester, "requestTravel", goal.toString(), () -> p.travel(goal), p::isOwnController, p::cancel);
+    }
 
+    OperationResult requestCombat(ModuleId requester, CombatGoal goal) {
+        if (goal == null) {
+            return reject(RejectionReason.INVALID_ARGUMENT, "requestCombat", "goal is null");
+        }
+        Optional<CombatPort> port = runtime.combat();
+        OperationResult refused = precheck("requestCombat", port.isPresent(), RejectionReason.NO_COMBAT, "combat");
+        if (refused != null) {
+            return refused;
+        }
+        CombatPort p = port.get();
+        return begin(requester, "requestCombat", goal.toString(), () -> p.engage(goal), p::isOwnController, p::cancel);
+    }
+
+    /** Checks shared by every movement operation, in order; null when the request may go to the engine. */
+    private OperationResult precheck(String subject, boolean portPresent, RejectionReason noPort, String what) {
+        RejectionReason reason = null;
+        String why = null;
+        if (contexts.current().isEmpty()) {
+            reason = RejectionReason.NO_CURRENT_CONTEXT;
+            why = "no current context";
+        } else if (!portPresent) {
+            reason = noPort;
+            why = "runtime offers no " + what;
+        } else if (operationActive()) {
+            interference(InterferenceClass.BLOCKED, "contract request", "operation " + id.id() + " still holds the resource");
+            reason = RejectionReason.CONFLICTING_OPERATION;
+            why = "operation " + id.id() + " is " + state;
+        } else if (resource != ResourceState.AVAILABLE) {
+            reason = RejectionReason.RESOURCE_NOT_RELEASED;
+            why = resourceDetail + (policy.confirmStopWindowTicks().isEmpty()
+                    ? " (no confirmStopWindowTicks configured: never released)" : "");
+        }
+        return reason == null ? null : reject(reason, subject, why);
+    }
+
+    private OperationResult begin(ModuleId requester, String subject, String goal,
+                                  java.util.function.Supplier<NavigationPort.Delegation> delegate,
+                                  java.util.function.Predicate<String> own, Runnable cancel) {
         // From here the engine is called: the resource is in use until evidence says otherwise.
         quietTicks = 0;
         setResource(ResourceState.QUARANTINED, "in use by a contract request");
         NavigationPort.Delegation delegation;
         try {
-            delegation = port.get().travel(goal);
+            delegation = delegate.get();
         } catch (RuntimeException | LinkageError e) {
-            record(DiagnosticEvent.Type.PROVIDER_FAULT, "requestTravel", "engine call threw: " + e);
-            return reject(RejectionReason.ENGINE_DECLINED, "requestTravel", "engine call threw: " + e);
+            record(DiagnosticEvent.Type.PROVIDER_FAULT, subject, "engine call threw: " + e);
+            return reject(RejectionReason.ENGINE_DECLINED, subject, "engine call threw: " + e);
         }
         if (!delegation.accepted()) {
-            return reject(RejectionReason.ENGINE_DECLINED, "requestTravel",
+            return reject(RejectionReason.ENGINE_DECLINED, subject,
                     "engine declined (" + delegation.backend() + "): " + delegation.detail());
         }
 
-        id = new OperationId(nextId++, current.get());
+        id = new OperationId(nextId++, contexts.current().orElseThrow());
         owner = requester;
+        ownController = own;
+        engineCancel = cancel;
         state = null; // a new operation has no previous state
         contextValid = true;
         authorityHeld = true;
@@ -277,7 +311,7 @@ final class NavigationOperations {
         record(DiagnosticEvent.Type.AUTHORITY_INVALIDATED, "operation " + id.id(),
                 "context " + old + " is no longer current; no new authority granted");
         if (state == OperationState.EXECUTING || state == OperationState.UNCERTAIN) {
-            if (runtime.navigation().isPresent()) {
+            if (engineCancel != null) {
                 invokeCancel("context invalidated");
             }
             if (state == OperationState.EXECUTING) {
@@ -306,7 +340,7 @@ final class NavigationOperations {
     private void invokeCancel(String why) {
         cancelTick = runtime.currentTick();
         try {
-            runtime.navigation().orElseThrow().cancel();
+            engineCancel.run();
             record(DiagnosticEvent.Type.CANCEL_INVOKED, "operation " + id.id(), why + "; invocation is not confirmation");
         } catch (RuntimeException | LinkageError e) {
             record(DiagnosticEvent.Type.PROVIDER_FAULT, "operation " + id.id(), "cancel threw: " + e);

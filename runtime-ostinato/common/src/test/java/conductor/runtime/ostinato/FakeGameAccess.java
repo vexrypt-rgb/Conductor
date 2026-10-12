@@ -36,6 +36,13 @@ final class FakeGameAccess implements GameAccess {
         return player;
     }
 
+    Boolean useKey = false;
+
+    @Override
+    public Boolean useKeyDown() {
+        return useKey;
+    }
+
     /** "kind:id" entries that exist; kinds in {@code unsupported} have no registry. */
     final java.util.Set<String> registry = new java.util.HashSet<>();
     final java.util.Set<conductor.contract.ContentId.Kind> unsupported = java.util.EnumSet.of(conductor.contract.ContentId.Kind.ENGINE);

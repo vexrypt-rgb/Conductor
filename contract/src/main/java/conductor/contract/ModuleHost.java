@@ -582,8 +582,18 @@ public final class ModuleHost {
 
         @Override
         public OperationResult requestTravel(NavigationGoal goal) {
+            return withMovement("travel", () -> core.requestTravel(e.id, goal));
+        }
+
+        @Override
+        public OperationResult requestCombat(CombatGoal goal) {
+            return withMovement("combat", () -> core.requestCombat(e.id, goal));
+        }
+
+        /** Runs a movement operation under this module's MOVEMENT lease, taking a scoped one if it holds none. */
+        private OperationResult withMovement(String what, java.util.function.Supplier<OperationResult> operation) {
             if (!core.onGameThread()) {
-                return core.requestTravel(e.id, goal); // records and rejects OFF_THREAD
+                return operation.get(); // records and rejects OFF_THREAD
             }
             if (e.state != ModuleState.RUNNING) {
                 return OperationResult.rejected(RejectionReason.AUTHORITY_INVALIDATED, null, "module is " + e.state);
@@ -600,10 +610,10 @@ public final class ModuleHost {
                 }
                 scoped = r.lease().orElseThrow();
             }
-            OperationResult result = core.requestTravel(e.id, goal);
+            OperationResult result = operation.get();
             if (!result.isAccepted() && scoped != null && movement.holder != null && movement.holder.id() == scoped.id()) {
                 movement.holder = null;
-                leaseEvent(LeaseEvent.Kind.RELEASED, scoped, e.id, "travel not accepted: " + result.rejection().orElse(null));
+                leaseEvent(LeaseEvent.Kind.RELEASED, scoped, e.id, what + " not accepted: " + result.rejection().orElse(null));
             }
             return result;
         }

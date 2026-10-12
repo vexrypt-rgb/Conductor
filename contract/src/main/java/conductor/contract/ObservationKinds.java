@@ -58,8 +58,17 @@ public final class ObservationKinds {
             "PLAYER_POSITION",
             "The block the player is standing in.");
 
+    public static final ObservationKind<Boolean> USE_KEY_HELD = new ObservationKind<>(
+            "USE_KEY_HELD",
+            "The game's use (right-click) key is down, whoever pressed it. Covers what FORCED_INPUTS cannot: engine "
+                    + "combat holds shields and eats by writing this key directly.");
+
+    public static final ObservationKind<java.util.Optional<String>> COMBAT_TARGET = new ObservationKind<>(
+            "COMBAT_TARGET",
+            "The entity the engine's combat is targeting: entity type id and name, or empty when none.");
+
     public static final List<ObservationKind<?>> ALL = List.of(
             PATH_SEGMENT_PRESENT, NEXT_SEGMENT_PRESENT, PATH_CALCULATION_PENDING, CONTROLLING_PROCESS,
             TRAVEL_GOAL_ACTIVE, FORCED_INPUTS, SECONDARY_BACKEND_BOUND, SECONDARY_BACKEND_PATHING,
-            SECONDARY_BACKEND_STOPPING, PLAYER_POSITION);
+            SECONDARY_BACKEND_STOPPING, PLAYER_POSITION, USE_KEY_HELD, COMBAT_TARGET);
 }

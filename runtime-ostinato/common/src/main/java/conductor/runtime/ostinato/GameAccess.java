@@ -28,5 +28,8 @@ interface GameAccess {
      * built-in registry here or the id is malformed (the caller reports UNKNOWN). Built-in registries are frozen at
      * startup, so this is valid in and out of a world.
      */
+    /** Game thread only. Whether the game's use key is down (whoever pressed it); null when there are no options yet. */
+    Boolean useKeyDown();
+
     conductor.contract.ContentResult.Presence registryPresence(conductor.contract.ContentId.Kind kind, String id);
 }
