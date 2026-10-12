@@ -19,11 +19,41 @@ public final class ContractService implements Conductor {
     private final RuntimeIntegration runtime;
     private final ContextTracker contexts;
     private final DiagnosticSink sink;
+    private final NavigationOperations navigation;
 
     public ContractService(RuntimeIntegration runtime, ContextTracker contexts, DiagnosticSink sink) {
         this.runtime = Objects.requireNonNull(runtime, "runtime");
         this.contexts = Objects.requireNonNull(contexts, "contexts");
         this.sink = Objects.requireNonNull(sink, "sink");
+        this.navigation = new NavigationOperations(runtime, contexts, sink);
+        contexts.addInvalidationListener(navigation::onContextInvalidated);
+    }
+
+    @Override
+    public OperationResult requestTravel(NavigationGoal goal) {
+        if (!runtime.isGameThread()) {
+            sink.record(DiagnosticEvent.offThread("requestTravel", "rejected before any engine call"));
+            return OperationResult.rejected(RejectionReason.OFF_THREAD, null, "call was not on the game thread");
+        }
+        return navigation.requestTravel(goal);
+    }
+
+    @Override
+    public OperationResult cancel(OperationId operation) {
+        if (!runtime.isGameThread()) {
+            sink.record(DiagnosticEvent.offThread("cancel", "rejected before any engine call"));
+            return OperationResult.rejected(RejectionReason.OFF_THREAD, null, "call was not on the game thread");
+        }
+        return navigation.cancel(operation);
+    }
+
+    @Override
+    public OperationResult operationStatus(OperationId operation) {
+        if (!runtime.isGameThread()) {
+            sink.record(DiagnosticEvent.offThread("operationStatus", "rejected before reading state"));
+            return OperationResult.rejected(RejectionReason.OFF_THREAD, null, "call was not on the game thread");
+        }
+        return navigation.status(operation);
     }
 
     @Override

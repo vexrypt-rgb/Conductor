@@ -3,6 +3,7 @@ package conductor.contract;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Test runtime. Counts every read so tests can prove what a rejected call did not touch. */
@@ -13,6 +14,7 @@ final class FakeRuntime implements RuntimeIntegration {
     long nanos;
     final Map<ObservationKind<?>, Object> samples = new HashMap<>();
     RuntimeException failure;
+    NavigationPort port;
     final AtomicInteger sampleCalls = new AtomicInteger();
     final AtomicInteger stateReads = new AtomicInteger();
 
@@ -50,6 +52,11 @@ final class FakeRuntime implements RuntimeIntegration {
             throw failure;
         }
         return (Sample<T>) samples.get(kind);
+    }
+
+    @Override
+    public Optional<NavigationPort> navigation() {
+        return Optional.ofNullable(port);
     }
 
     void advance(long ticks, long nanosDelta) {

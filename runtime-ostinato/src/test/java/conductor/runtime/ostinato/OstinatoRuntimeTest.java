@@ -83,7 +83,7 @@ class OstinatoRuntimeTest {
         contexts = new ContextTracker(sink);
         lifecycle = new LifecycleListener(contexts, game, sink);
         OstinatoRuntimeIntegration runtime = new OstinatoRuntimeIntegration(game, lifecycle,
-                new OstinatoSignals(baritone, secondary), secondary);
+                new OstinatoSignals(baritone, secondary), secondary, null);
         conductor = new ContractService(runtime, contexts, sink);
     }
 
@@ -142,7 +142,7 @@ class OstinatoRuntimeTest {
     }
 
     @Test
-    void discoveryReportsBackendAvailabilityAndNoOperations() {
+    void discoveryReportsBackendAvailabilityAndNoOperationsWithoutNavigation() {
         tick(TickEvent.Type.IN);
         DiscoveryResult result = conductor.discover();
 

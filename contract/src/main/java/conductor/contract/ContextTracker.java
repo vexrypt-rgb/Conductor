@@ -1,7 +1,10 @@
 package conductor.contract;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Holds the current {@link ContextId} and moves it on lifecycle signals from the runtime integration.
@@ -18,9 +21,15 @@ public final class ContextTracker {
     private long lastSessionId;
     private long lastEpoch;
     private ContextId current;
+    private final List<Consumer<ContextId>> invalidationListeners = new ArrayList<>();
 
     public ContextTracker(DiagnosticSink sink) {
         this.sink = Objects.requireNonNull(sink, "sink");
+    }
+
+    /** Called on the game thread with the old context whenever a context is invalidated or ended. */
+    public void addInvalidationListener(Consumer<ContextId> listener) {
+        invalidationListeners.add(Objects.requireNonNull(listener, "listener"));
     }
 
     public Optional<ContextId> current() {
@@ -41,6 +50,7 @@ public final class ContextTracker {
             ContextId old = current;
             current = null;
             sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.CONTEXT_ENDED, tick, old, "context", "connection changed"));
+            notifyInvalidated(old);
             establish(dimension, tick, "new connection");
         } else if (!current.dimension().equals(dimension)) {
             advanceEpoch(dimension, tick, "dimension changed from " + current.dimension());
@@ -76,11 +86,19 @@ public final class ContextTracker {
         current = new ContextId(old.sessionId(), ++lastEpoch, dimension);
         sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.CONTEXT_INVALIDATED, tick, old, "context",
                 why + "; superseded by epoch " + current.epoch()));
+        notifyInvalidated(old);
     }
 
     private void end(long tick, String why) {
         ContextId old = current;
         current = null;
         sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.CONTEXT_ENDED, tick, old, "context", why));
+        notifyInvalidated(old);
+    }
+
+    private void notifyInvalidated(ContextId old) {
+        for (Consumer<ContextId> listener : invalidationListeners) {
+            listener.accept(old);
+        }
     }
 }

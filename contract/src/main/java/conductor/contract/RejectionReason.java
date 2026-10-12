@@ -13,5 +13,16 @@ public enum RejectionReason {
     STALE,
     /** The runtime integration does not provide this kind. */
     UNSUPPORTED_KIND,
-    INVALID_ARGUMENT
+    INVALID_ARGUMENT,
+    /** The runtime offers no navigation delegation. */
+    NO_NAVIGATION,
+    /** The movement resource has not been shown safe to reuse. In Stage 3 one grant is the limit; release is Stage 4. */
+    RESOURCE_NOT_RELEASED,
+    /** The request would run on a backend whose stop cannot be observed. Rejected before any engine call. */
+    BACKEND_UNOBSERVABLE,
+    /** The engine did not accept the request. The engine was called, so the grant is spent. */
+    ENGINE_DECLINED,
+    UNKNOWN_OPERATION,
+    /** The operation's context is no longer current, so its authority is gone. */
+    AUTHORITY_INVALIDATED
 }

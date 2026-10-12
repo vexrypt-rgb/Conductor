@@ -1,36 +1,58 @@
 package conductor.runtime.ostinato;
 
 import baritone.api.IBaritone;
+import baritone.api.movement.IMovementEngine;
+import baritone.movement.MovementBackends;
 import conductor.contract.Conductor;
 import conductor.contract.ContextTracker;
 import conductor.contract.ContractService;
 import conductor.contract.DiagnosticSink;
 
+import java.util.Collections;
 import java.util.Objects;
+import java.util.Set;
+import java.util.WeakHashMap;
+import java.util.function.BooleanSupplier;
 
-/** Entry point: connects the contract to one Ostinato {@link IBaritone}. */
+/** Entry point: connects the contract to one Ostinato {@link IBaritone} for one consumer. */
 public final class ConductorOstinato {
+
+    private static final Set<IBaritone> INSTALLED = Collections.newSetFromMap(new WeakHashMap<>());
 
     private ConductorOstinato() {}
 
     /**
-     * Register a lifecycle listener on {@code baritone} and return the Stage 2 binding. Call on the game thread.
+     * Register a lifecycle listener on {@code baritone} and return the binding for one consumer. Call on the game
+     * thread. A second install on the same {@code IBaritone} is refused: Stage 3 is a single-consumer experiment,
+     * not a shared service.
      * <p>
-     * The only change made to Ostinato is adding one event listener that reads tick and world events. There is no
-     * current context until the next in-world tick, so observations made before then are rejected.
+     * Changes made to Ostinato: one event listener that reads tick and world events, and one
+     * {@code HybridMovementEngine} instance, held for this consumer. There is no current context until the next
+     * in-world tick.
      */
     public static Conductor install(IBaritone baritone, DiagnosticSink sink) {
         Objects.requireNonNull(baritone, "baritone");
-        Objects.requireNonNull(sink, "sink");
         GameAccess game = new MinecraftGameAccess(baritone.getPlayerContext());
         if (!game.isGameThread()) {
             throw new IllegalStateException("ConductorOstinato.install must be called on the game thread");
         }
+        return install(baritone, sink, game, new TungstenBackendAccess(), MovementBackends.engine(baritone),
+                MovementBackends::preferTungstenTravel);
+    }
+
+    static Conductor install(IBaritone baritone, DiagnosticSink sink, GameAccess game, SecondaryBackendAccess secondary,
+                             IMovementEngine engine, BooleanSupplier prefersSecondaryTravel) {
+        Objects.requireNonNull(sink, "sink");
+        synchronized (INSTALLED) {
+            if (!INSTALLED.add(baritone)) {
+                throw new IllegalStateException("Conductor is already installed for this IBaritone (single consumer only)");
+            }
+        }
         ContextTracker contexts = new ContextTracker(sink);
         LifecycleListener lifecycle = new LifecycleListener(contexts, game, sink);
-        SecondaryBackendAccess secondary = new TungstenBackendAccess();
         OstinatoRuntimeIntegration runtime = new OstinatoRuntimeIntegration(game, lifecycle,
-                new OstinatoSignals(baritone, secondary), secondary);
+                new OstinatoSignals(baritone, secondary), secondary,
+                new OstinatoNavigationPort(engine, prefersSecondaryTravel));
         baritone.getGameEventHandler().registerEventListener(lifecycle);
         return new ContractService(runtime, contexts, sink);
     }

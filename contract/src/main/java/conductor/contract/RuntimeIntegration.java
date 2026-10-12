@@ -1,14 +1,15 @@
 package conductor.contract;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * What the contract needs from the runtime integration boundary. Implemented once per engine and Minecraft version.
  * All Minecraft-specific and privileged access stays behind this interface.
  * <p>
  * Except for {@link #isGameThread()}, every method is called only after the contract has confirmed it is on the game
- * thread. Implementations must be read-only in Stage 2: sampling and describing must not start, stop, or alter any
- * engine operation, process, or input.
+ * thread. Sampling and describing must be read-only: they must not start, stop, or alter any engine operation,
+ * process, or input. Only {@link NavigationPort} may act on the engine.
  */
 public interface RuntimeIntegration {
 
@@ -28,4 +29,9 @@ public interface RuntimeIntegration {
      * substitute a default. May throw; the contract records a fault and treats the result as {@code UNKNOWN}.
      */
     <T> Sample<T> sample(ObservationKind<T> kind);
+
+    /** Navigation delegation, if this runtime offers it (Stage 3). */
+    default Optional<NavigationPort> navigation() {
+        return Optional.empty();
+    }
 }

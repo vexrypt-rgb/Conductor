@@ -17,7 +17,13 @@ public record DiagnosticEvent(Type type, String thread, long tick, ContextId con
         OBSERVATION_REJECTED,
         /** The runtime failed while sampling; the observation became {@link Availability#UNKNOWN}. */
         PROVIDER_FAULT,
-        OFF_THREAD_VIOLATION
+        OFF_THREAD_VIOLATION,
+        OPERATION_REJECTED,
+        AUTHORITY_GRANTED,
+        AUTHORITY_INVALIDATED,
+        OPERATION_STATE_CHANGED,
+        /** The engine's cancel was invoked. Invocation is not confirmation. */
+        CANCEL_INVOKED
     }
 
     static DiagnosticEvent onGameThread(Type type, long tick, ContextId context, String subject, String detail) {

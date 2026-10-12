@@ -2,11 +2,13 @@ package conductor.runtime.ostinato;
 
 import conductor.contract.CapabilityAvailability;
 import conductor.contract.CapabilityDescriptor;
+import conductor.contract.NavigationPort;
 import conductor.contract.ObservationKind;
 import conductor.contract.RuntimeIntegration;
 import conductor.contract.Sample;
 
 import java.util.List;
+import java.util.Optional;
 
 import static conductor.contract.ObservationKinds.CONTROLLING_PROCESS;
 import static conductor.contract.ObservationKinds.FORCED_INPUTS;
@@ -18,7 +20,10 @@ import static conductor.contract.ObservationKinds.SECONDARY_BACKEND_PATHING;
 import static conductor.contract.ObservationKinds.SECONDARY_BACKEND_STOPPING;
 import static conductor.contract.ObservationKinds.TRAVEL_GOAL_ACTIVE;
 
-/** Runtime integration for Ostinato {@code main} (Minecraft 1.21.11). Read-only in Stage 2. */
+/**
+ * Runtime integration for Ostinato {@code main} (Minecraft 1.21.11). Observations are read-only. Navigation goes
+ * through {@link OstinatoNavigationPort} only.
+ */
 final class OstinatoRuntimeIntegration implements RuntimeIntegration {
 
     static final String NAVIGATION = "navigation";
@@ -28,13 +33,18 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
     private final LifecycleListener lifecycle;
     private final OstinatoSignals signals;
     private final SecondaryBackendAccess secondary;
+    private final NavigationPort navigation;
 
-    OstinatoRuntimeIntegration(GameAccess game, LifecycleListener lifecycle, OstinatoSignals signals, SecondaryBackendAccess secondary) {
+    OstinatoRuntimeIntegration(GameAccess game, LifecycleListener lifecycle, OstinatoSignals signals,
+                               SecondaryBackendAccess secondary, NavigationPort navigation) {
         this.game = game;
         this.lifecycle = lifecycle;
         this.signals = signals;
         this.secondary = secondary;
+        this.navigation = navigation;
     }
+
+    static final List<String> NAVIGATION_OPERATIONS = List.of("requestTravel", "cancel", "operationStatus");
 
     @Override
     public boolean isGameThread() {
@@ -53,12 +63,12 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
 
     @Override
     public List<CapabilityDescriptor> capabilities() {
-        CapabilityDescriptor navigation = new CapabilityDescriptor(NAVIGATION, CapabilityAvailability.AVAILABLE,
-                "Ostinato IMovementEngine boundary present; no operations exposed before Stage 3",
+        CapabilityDescriptor primary = new CapabilityDescriptor(NAVIGATION, CapabilityAvailability.AVAILABLE,
+                "Ostinato IMovementEngine boundary; single consumer, one grant per installation (Stage 3)",
                 List.of(PATH_SEGMENT_PRESENT, NEXT_SEGMENT_PRESENT, PATH_CALCULATION_PENDING, CONTROLLING_PROCESS,
                         TRAVEL_GOAL_ACTIVE, FORCED_INPUTS),
-                List.of());
-        return List.of(navigation, secondaryDescriptor());
+                navigation != null ? NAVIGATION_OPERATIONS : List.of());
+        return List.of(primary, secondaryDescriptor());
     }
 
     private CapabilityDescriptor secondaryDescriptor() {
@@ -79,5 +89,10 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
     @Override
     public <T> Sample<T> sample(ObservationKind<T> kind) {
         return signals.read(kind);
+    }
+
+    @Override
+    public Optional<NavigationPort> navigation() {
+        return Optional.ofNullable(navigation);
     }
 }
