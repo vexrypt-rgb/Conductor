@@ -17,6 +17,9 @@ import conductor.contract.ObservationKinds;
 import conductor.contract.ObservationResult;
 import conductor.contract.OperationId;
 import conductor.contract.OperationResult;
+import conductor.contract.OperationState;
+import conductor.contract.ReleasePolicy;
+import conductor.contract.ResourceState;
 import conductor.runtime.ostinato.ConductorOstinato;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ConnectScreen;
@@ -103,7 +106,10 @@ final class Scenario implements Runnable {
 
         InMemoryDiagnosticSink sink = new InMemoryDiagnosticSink(10_000);
         IBaritone baritone = onGame(() -> BaritoneAPI.getProvider().getPrimaryBaritone());
-        Conductor conductor = onGame(() -> ConductorOstinato.install(baritone, sink));
+        // Release windows chosen from the evidence runs (docs/live-run-2026-10-12.md): control signals clear before
+        // movement ends, and momentum lasts at most 11 ticks. They are harness settings, not contract defaults.
+        ReleasePolicy policy = new ReleasePolicy(OptionalLong.of(20), OptionalLong.of(1200));
+        Conductor conductor = onGame(() -> ConductorOstinato.install(baritone, sink, policy));
         recorder = new TickRecorder(conductor, log);
         onGame(() -> {
             baritone.getGameEventHandler().registerEventListener(recorder);
@@ -132,56 +138,74 @@ final class Scenario implements Runnable {
         ObservationResult<Boolean> stale = onGame(() -> conductor.revalidate(held, fiveTicks));
         event("S2 revalidate after 10 ticks with max 5", "rejection", String.valueOf(stale.rejection()),
                 "freshness", String.valueOf(stale.freshness()), "availability", String.valueOf(held.availability()));
+        // ---- Stage 3 + 4, live ----
+        recorder.phase = "S4 wait available";
+        event("S4 resource available", "ok", waitResource(ResourceState.AVAILABLE, 400));
+
+        // 1. cancel mid-path: CANCELLING until evidence, then CANCELLED
+        recorder.phase = "S4 travel+cancel";
+        BlockPos start = onGame(() -> mc.player.blockPosition());
+        OperationResult travel = onGame(() -> conductor.requestTravel(NavigationGoal.getToBlock(start.getX() + 40, start.getY(), start.getZ())));
+        event("S4 requestTravel", "result", String.valueOf(travel));
+        OperationId op = travel.status().map(st -> st.id()).orElse(null);
+        recorder.operation = op;
+        waitTicks(20);
+        event("S4 cancel", "result", String.valueOf(onGame(() -> conductor.cancel(op))));
+        long cancelTick = recorder.ticks;
+        boolean cancelled = waitOperation(op, OperationState.CANCELLED, 1000);
+        event("S4 confirmed", "cancelled", cancelled, "ticksAfterCancel", recorder.ticks - cancelTick,
+                "hspeedAtConfirm", recorder.horizontalSpeed, "status", String.valueOf(onGame(() -> conductor.operationStatus(op))),
+                "resource", String.valueOf(onGame(conductor::resourceStatus)));
+
+        // 2. reuse on evidence; let it run to the end without cancel
+        recorder.phase = "S4 reuse";
+        BlockPos here = onGame(() -> mc.player.blockPosition());
+        OperationResult reuse = onGame(() -> conductor.requestTravel(NavigationGoal.getToBlock(here.getX() - 30, here.getY(), here.getZ())));
+        event("S4 reuse requestTravel", "result", String.valueOf(reuse));
+        OperationId op2 = reuse.status().map(st -> st.id()).orElse(null);
+        recorder.operation = op2;
+        boolean ended = waitOperation(op2, OperationState.UNCERTAIN, 1500);
+        event("S4 reuse ended", "ok", ended, "status", String.valueOf(op2 == null ? null : onGame(() -> conductor.operationStatus(op2))),
+                "pos", String.valueOf(onGame(() -> mc.player.blockPosition())), "target", String.valueOf(here.offset(-30, 0, 0)));
+        waitResource(ResourceState.AVAILABLE, 400);
+
+        // 3. a foreign process holds the resource: grant refused, interference detected
+        recorder.phase = "S4 mining";
+        cmd("fill " + (here.getX() - 25) + " " + here.getY() + " " + (here.getZ() + 4) + " " + (here.getX() - 23) + " "
+                + (here.getY() + 2) + " " + (here.getZ() + 6) + " minecraft:oak_log");
+        onGame(() -> {
+            baritone.getMineProcess().mineByName(0, "oak_log");
+            return null;
+        });
+        waitTicks(40);
+        event("S4 request while mining", "result", String.valueOf(onGame(() -> conductor.requestTravel(NavigationGoal.xz(0, 0)))),
+                "resource", String.valueOf(onGame(conductor::resourceStatus)));
+        onGame(() -> {
+            baritone.getMineProcess().cancel();
+            return null;
+        });
+        event("S4 mining stopped; resource available again", "ok", waitResource(ResourceState.AVAILABLE, 600));
+
+        // 4. water: cancel takes effect at the edge, then drowning protection takes over (detected)
+        recorder.phase = "S4 water";
+        cmd("fill 10 -63 55 25 -61 65 minecraft:water");
+        cmd("tp @s 0.5 -60 60.5");
+        waitTicks(20);
+        waitResource(ResourceState.AVAILABLE, 400);
+        OperationResult swim = onGame(() -> conductor.requestTravel(NavigationGoal.getToBlock(35, -60, 60)));
+        OperationId op3 = swim.status().map(st -> st.id()).orElse(null);
+        recorder.operation = op3;
+        waitTicks(15);
+        onGame(() -> conductor.cancel(op3));
+        boolean swimCancelled = waitOperation(op3, OperationState.CANCELLED, 600);
+        event("S4 water cancel", "cancelled", swimCancelled, "status", String.valueOf(onGame(() -> conductor.operationStatus(op3))));
+        boolean quarantinedAgain = waitResource(ResourceState.QUARANTINED, 600);
+        event("S4 water later activity", "quarantined", quarantinedAgain, "resource", String.valueOf(onGame(conductor::resourceStatus)));
+        cmd("tp @s 0.5 -60 0.5");
+        waitResource(ResourceState.AVAILABLE, 600);
         Observation<Boolean> beforeDimensionChange = onGame(() ->
                 conductor.observe(ObservationKinds.PATH_SEGMENT_PRESENT, FreshnessPolicy.maxAge(OptionalLong.of(100_000), Optional.empty())))
                 .observation().orElseThrow();
-
-        // ---- Stage 3, live: one contract operation ----
-        recorder.phase = "S3";
-        BlockPos start = onGame(() -> mc.player.blockPosition());
-        OperationResult travel = onGame(() -> conductor.requestTravel(NavigationGoal.getToBlock(start.getX() + 24, start.getY(), start.getZ())));
-        event("S3 requestTravel", "result", String.valueOf(travel));
-        OperationId op = travel.status().map(s -> s.id()).orElse(null);
-        waitTicks(30);
-        if (op != null) {
-            event("S3 cancel", "result", String.valueOf(onGame(() -> conductor.cancel(op))));
-        }
-        recorder.phase = "S3 after cancel";
-        waitTicks(OBSERVE_AFTER_CANCEL);
-        event("S3 status after observation window", "result", String.valueOf(op == null ? null : onGame(() -> conductor.operationStatus(op))));
-        event("S3 second requestTravel", "result",
-                String.valueOf(onGame(() -> conductor.requestTravel(NavigationGoal.getToBlock(start.getX(), start.getY(), start.getZ())))));
-
-        // ---- Stage 4 evidence: direct engine trials (outside the contract) ----
-        IMovementEngine engine = onGame(() -> MovementBackends.engine(baritone));
-        int direction = -1;
-        for (int k : CANCEL_AFTER_TICKS) {
-            recorder.phase = "E wait-idle k=" + k;
-            boolean idle = waitIdle(20, 600);
-            BlockPos from = onGame(() -> mc.player.blockPosition());
-            BlockPos target = from.offset(40 * direction, 0, 0);
-            direction = -direction;
-            recorder.phase = "E k=" + k + " moving";
-            PathResult result = onGame(() -> {
-                PathResult r = engine.goTo(MovementGoal.getToBlock(target));
-                if (k == 0) {
-                    engine.cancel();
-                }
-                return r;
-            });
-            long goTick = recorder.ticks;
-            event("E goTo", "k", k, "idleBefore", idle, "from", String.valueOf(from), "target", String.valueOf(target), "result", String.valueOf(result));
-            if (k > 0) {
-                waitTicks(k);
-                onGame(() -> {
-                    engine.cancel();
-                    return null;
-                });
-            }
-            event("E cancel", "k", k, "ticksAfterGoTo", recorder.ticks - goTick);
-            recorder.phase = "E k=" + k + " after cancel";
-            waitTicks(OBSERVE_AFTER_CANCEL);
-        }
 
         // ---- Dimension change: context and authority invalidation, live ----
         recorder.phase = "D";
@@ -201,9 +225,9 @@ final class Scenario implements Runnable {
         waitTicks(40);
         event("D revalidate pre-change observation", "result",
                 String.valueOf(onGame(() -> conductor.revalidate(beforeDimensionChange, FreshnessPolicy.maxAge(OptionalLong.of(100_000), Optional.empty())))));
-        event("D operation status", "result", String.valueOf(op == null ? null : onGame(() -> conductor.operationStatus(op))));
-        event("D requestTravel after context change", "result",
-                String.valueOf(onGame(() -> conductor.requestTravel(NavigationGoal.xz(5, 5)))));
+        event("D resource right after change", "resource", String.valueOf(onGame(conductor::resourceStatus)));
+        event("D fresh evidence in new context", "ok", waitResource(ResourceState.AVAILABLE, 400),
+                "resource", String.valueOf(onGame(conductor::resourceStatus)));
         event("D discover", "context", String.valueOf(onGame(conductor::discover).context()));
 
         dumpSink(sink);
@@ -214,6 +238,40 @@ final class Scenario implements Runnable {
             log.write(JsonLog.obj("type", "sink", "event", e.type().name(), "thread", e.thread(), "tick", e.tick(),
                     "context", String.valueOf(e.context()), "subject", e.subject(), "detail", e.detail()));
         }
+    }
+
+    private boolean waitResource(ResourceState wanted, int maxTicks) throws InterruptedException {
+        long end = recorder.ticks + maxTicks;
+        while (recorder.ticks < end) {
+            if (recorder.resourceState.equals(wanted.name())) {
+                return true;
+            }
+            Thread.sleep(10);
+        }
+        return false;
+    }
+
+    /** Waits for the recorder (which tracks {@code recorder.operation} each tick) to report {@code wanted}. */
+    private boolean waitOperation(OperationId id, OperationState wanted, int maxTicks) throws InterruptedException {
+        if (id == null) {
+            return false;
+        }
+        long end = recorder.ticks + maxTicks;
+        while (recorder.ticks < end) {
+            if (recorder.operationState.equals(wanted.name())) {
+                return true;
+            }
+            Thread.sleep(10);
+        }
+        return false;
+    }
+
+    void cmd(String command) throws Exception {
+        onGame(() -> {
+            mc.player.connection.sendCommand(command);
+            return null;
+        });
+        waitTicks(2);
     }
 
     boolean waitIdle(int consecutive, int maxTicks) throws InterruptedException {

@@ -11,7 +11,7 @@ package conductor.contract;
  */
 public interface Conductor {
 
-    String CONTRACT_VERSION = "conductor-contract/0.3 (stage 3: single-consumer navigation delegation)";
+    String CONTRACT_VERSION = "conductor-contract/0.4 (stage 4: evidence-based release, interference classification)";
 
     DiscoveryResult discover();
 
@@ -27,9 +27,9 @@ public interface Conductor {
     /**
      * Delegate one travel request to the engine's existing navigation boundary.
      * <p>
-     * Stage 3 grants at most one operation per installation: reusing the movement resource needs resource-safety
-     * evidence, which only Stage 4 defines. Later requests are rejected with
-     * {@link RejectionReason#RESOURCE_NOT_RELEASED}. A context change never grants a new operation.
+     * Granted only while the movement resource is {@link ResourceState#AVAILABLE}: release evidence has held for the
+     * configured {@link ReleasePolicy#confirmStopWindowTicks()}. Without that setting nothing is ever granted. A
+     * context change never grants anything.
      */
     OperationResult requestTravel(NavigationGoal goal);
 
@@ -41,4 +41,6 @@ public interface Conductor {
     OperationResult cancel(OperationId operation);
 
     OperationResult operationStatus(OperationId operation);
+
+    ResourceStatus resourceStatus();
 }

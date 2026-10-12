@@ -23,7 +23,12 @@ public record DiagnosticEvent(Type type, String thread, long tick, ContextId con
         AUTHORITY_INVALIDATED,
         OPERATION_STATE_CHANGED,
         /** The engine's cancel was invoked. Invocation is not confirmation. */
-        CANCEL_INVOKED
+        CANCEL_INVOKED,
+        /** Authority released because the resource was released on evidence. */
+        AUTHORITY_RELEASED,
+        RESOURCE_STATE_CHANGED,
+        /** Subject is the {@link InterferenceClass}; detail names the source. */
+        INTERFERENCE
     }
 
     static DiagnosticEvent onGameThread(Type type, long tick, ContextId context, String subject, String detail) {

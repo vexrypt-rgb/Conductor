@@ -26,6 +26,8 @@ final class TickRecorder implements AbstractGameEventListener {
     // latest values, read by the scenario thread to decide when the engine looks idle
     volatile boolean segment, next, calc, goalActive, inputsForced, processInControl;
     volatile double horizontalSpeed;
+    volatile conductor.contract.OperationId operation;
+    volatile String resourceState = "", operationState = "";
 
     TickRecorder(Conductor conductor, JsonLog log) {
         this.conductor = conductor;
@@ -55,7 +57,11 @@ final class TickRecorder implements AbstractGameEventListener {
         inputsForced = !"[]".equals(obs.get("FORCED_INPUTS"));
         processInControl = !"Optional.empty".equals(obs.get("CONTROLLING_PROCESS"));
         horizontalSpeed = hs;
+        resourceState = String.valueOf(conductor.resourceStatus().state());
+        conductor.contract.OperationId op = operation;
+        operationState = op == null ? "" : conductor.operationStatus(op).status().map(s -> s.state().name()).orElse("?");
         log.write(JsonLog.obj("type", "tick", "t", event.getCount(), "phase", phase,
+                "resource", resourceState, "op", operationState,
                 "dim", mc.level.dimension().identifier().toString(),
                 "x", round(pos.x), "y", round(pos.y), "z", round(pos.z),
                 "vx", round(vel.x), "vz", round(vel.z), "hspeed", round(hs), "obs", obs));

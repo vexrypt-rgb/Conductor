@@ -5,7 +5,7 @@
 #
 # <workdir> must contain server/server.jar (vanilla 1.21.11) with eula.txt and server.properties.
 # Env: OSTINATO_DIR (default ../Ostinato), GRADLE_ARGS (extra args for both Gradle builds, e.g. an init script),
-#      CLIENT_TIMEOUT (seconds, default 1200), HARNESS_SCENARIO (stage23 or evidence).
+#      CLIENT_TIMEOUT (seconds, default 1200), HARNESS_SCENARIO (stage4 or evidence).
 # Output: <workdir>/harness.jsonl (per-tick evidence), server.log, client.log.
 set -euo pipefail
 
@@ -38,7 +38,7 @@ echo "server ready"
 # Op the dev player once it joins, so the harness can change dimension with /execute.
 ( until grep -q "Dev joined the game" "$WORK/server.log" 2>/dev/null; do sleep 1; done; echo "op Dev" > "$WORK/server.in" ) &
 
-export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dfabric.addMods=$JAR -Dconductor.harness.out=$OUT -Dconductor.harness.server=localhost:25565 -Dconductor.harness.scenario=${HARNESS_SCENARIO:-stage23}"
+export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dfabric.addMods=$JAR -Dconductor.harness.out=$OUT -Dconductor.harness.server=localhost:25565 -Dconductor.harness.scenario=${HARNESS_SCENARIO:-stage4}"
 cd "$OSTINATO_DIR"
 timeout "$CLIENT_TIMEOUT" xvfb-run -a -s "-screen 0 1280x720x24" \
     ./gradlew ${GRADLE_ARGS:-} :fabric:runClient -Pavailable_loaders=fabric --no-daemon \

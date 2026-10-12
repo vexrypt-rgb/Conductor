@@ -21,12 +21,38 @@ public final class ContractService implements Conductor {
     private final DiagnosticSink sink;
     private final NavigationOperations navigation;
 
+    /** Without a release policy: the resource is never released, so navigation is never granted. */
     public ContractService(RuntimeIntegration runtime, ContextTracker contexts, DiagnosticSink sink) {
+        this(runtime, contexts, sink, ReleasePolicy.none());
+    }
+
+    public ContractService(RuntimeIntegration runtime, ContextTracker contexts, DiagnosticSink sink, ReleasePolicy policy) {
         this.runtime = Objects.requireNonNull(runtime, "runtime");
         this.contexts = Objects.requireNonNull(contexts, "contexts");
         this.sink = Objects.requireNonNull(sink, "sink");
-        this.navigation = new NavigationOperations(runtime, contexts, sink);
+        this.navigation = new NavigationOperations(runtime, contexts, sink, Objects.requireNonNull(policy, "policy"));
         contexts.addInvalidationListener(navigation::onContextInvalidated);
+    }
+
+    /**
+     * Called by the runtime integration once per in-world game tick, on the game thread, after the context has
+     * been updated. Not part of the consumer binding.
+     */
+    public void tick() {
+        if (!runtime.isGameThread()) {
+            sink.record(DiagnosticEvent.offThread("tick", "ignored off the game thread"));
+            return;
+        }
+        navigation.tick();
+    }
+
+    @Override
+    public ResourceStatus resourceStatus() {
+        if (!runtime.isGameThread()) {
+            sink.record(DiagnosticEvent.offThread("resourceStatus", "rejected before reading state"));
+            return new ResourceStatus(RejectionReason.OFF_THREAD, null, -1, "call was not on the game thread");
+        }
+        return navigation.resourceStatus();
     }
 
     @Override

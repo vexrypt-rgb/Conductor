@@ -7,7 +7,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Test runtime. Counts every read so tests can prove what a rejected call did not touch. */
-final class FakeRuntime implements RuntimeIntegration {
+class FakeRuntime implements RuntimeIntegration {
 
     volatile Thread gameThread = Thread.currentThread();
     long tick;
@@ -57,6 +57,24 @@ final class FakeRuntime implements RuntimeIntegration {
     @Override
     public Optional<NavigationPort> navigation() {
         return Optional.ofNullable(port);
+    }
+
+    /** Every navigation signal reads as quiet. */
+    void quiet() {
+        samples.put(ObservationKinds.PATH_SEGMENT_PRESENT, Sample.observed(false));
+        samples.put(ObservationKinds.NEXT_SEGMENT_PRESENT, Sample.observed(false));
+        samples.put(ObservationKinds.PATH_CALCULATION_PENDING, Sample.observed(false));
+        samples.put(ObservationKinds.CONTROLLING_PROCESS, Sample.observed(java.util.Optional.<String>empty()));
+        samples.put(ObservationKinds.TRAVEL_GOAL_ACTIVE, Sample.observed(false));
+        samples.put(ObservationKinds.FORCED_INPUTS, Sample.observed(java.util.Set.<String>of()));
+    }
+
+    /** The engine is executing a segment for {@code controller}. */
+    void busy(String controller) {
+        quiet();
+        samples.put(ObservationKinds.PATH_SEGMENT_PRESENT, Sample.observed(true));
+        samples.put(ObservationKinds.CONTROLLING_PROCESS, Sample.observed(java.util.Optional.of(controller)));
+        samples.put(ObservationKinds.FORCED_INPUTS, Sample.observed(java.util.Set.of("MOVE_FORWARD")));
     }
 
     void advance(long ticks, long nanosDelta) {

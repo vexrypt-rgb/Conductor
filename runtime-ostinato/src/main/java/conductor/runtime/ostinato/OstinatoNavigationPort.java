@@ -37,6 +37,14 @@ final class OstinatoNavigationPort implements NavigationPort {
         return !prefersSecondaryTravel.getAsBoolean();
     }
 
+    /** Ostinato routes every {@code IMovementEngine} travel request through its custom-goal process. */
+    static final String OWN_CONTROLLER = "baritone.process.CustomGoalProcess";
+
+    @Override
+    public boolean isOwnController(String controller) {
+        return OWN_CONTROLLER.equals(controller);
+    }
+
     @Override
     public Delegation travel(NavigationGoal goal) {
         PathResult result = engine.goTo(toMovementGoal(goal));

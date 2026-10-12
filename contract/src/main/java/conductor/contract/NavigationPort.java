@@ -12,6 +12,9 @@ public interface NavigationPort {
      */
     boolean routesToObservableBackend();
 
+    /** Whether {@code controller}, as reported by the CONTROLLING_PROCESS observation, is the one travel requests use. */
+    boolean isOwnController(String controller);
+
     /** Delegate one travel request to the engine. May throw. */
     Delegation travel(NavigationGoal goal);
 

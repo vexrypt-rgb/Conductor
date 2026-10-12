@@ -16,8 +16,10 @@ public enum RejectionReason {
     INVALID_ARGUMENT,
     /** The runtime offers no navigation delegation. */
     NO_NAVIGATION,
-    /** The movement resource has not been shown safe to reuse. In Stage 3 one grant is the limit; release is Stage 4. */
+    /** The movement resource is not AVAILABLE: release evidence has not held for the configured window. */
     RESOURCE_NOT_RELEASED,
+    /** This consumer already has an operation holding the resource (contract-level exclusivity). */
+    CONFLICTING_OPERATION,
     /** The request would run on a backend whose stop cannot be observed. Rejected before any engine call. */
     BACKEND_UNOBSERVABLE,
     /** The engine did not accept the request. The engine was called, so the grant is spent. */

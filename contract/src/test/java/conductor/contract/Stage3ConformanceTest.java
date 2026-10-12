@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -13,34 +14,45 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Stage 3 conformance tests from the specification: cancellation requested vs confirmed, context invalidation vs
- * resource release, identity change vs disappearance, no new grant while the resource is unsafe or uncertain,
- * off-thread calls not starting movement, contract-level exclusivity, and sink evidence for authority transitions.
+ * Stage 3 conformance tests, under the Stage 4 grant rule (a grant needs release evidence): cancellation requested
+ * vs confirmed, context invalidation vs resource release, identity change vs disappearance, no new grant while the
+ * resource is unsafe, off-thread calls not starting movement, contract-level exclusivity, and sink evidence.
  */
 class Stage3ConformanceTest {
 
-    private static final NavigationGoal GOAL = NavigationGoal.getToBlock(10, 64, -5);
+    static final NavigationGoal GOAL = NavigationGoal.getToBlock(10, 64, -5);
+    static final ReleasePolicy POLICY = new ReleasePolicy(OptionalLong.of(3), OptionalLong.empty());
 
     private FakeRuntime runtime;
     private FakePort port;
     private InMemoryDiagnosticSink sink;
     private ContextTracker contexts;
-    private Conductor conductor;
+    private ContractService conductor;
 
     @BeforeEach
     void setUp() {
         runtime = new FakeRuntime();
         port = new FakePort();
         runtime.port = port;
+        runtime.quiet();
         sink = new InMemoryDiagnosticSink(1000);
         contexts = new ContextTracker(sink);
-        conductor = new ContractService(runtime, contexts, sink);
+        conductor = new ContractService(runtime, contexts, sink, POLICY);
         contexts.onInWorld("minecraft:overworld", false, 0);
+        ticks(3);
+    }
+
+    private void ticks(int n) {
+        for (int i = 0; i < n; i++) {
+            runtime.tick++;
+            conductor.tick();
+        }
     }
 
     private OperationStatus travel() {
         OperationResult result = conductor.requestTravel(GOAL);
         assertTrue(result.isAccepted(), result::toString);
+        runtime.busy(FakePort.OWN);
         return result.status().orElseThrow();
     }
 
@@ -52,23 +64,34 @@ class Stage3ConformanceTest {
         assertTrue(status.contextValid());
         assertTrue(status.authorityHeld());
         assertEquals(List.of("route", "travel " + GOAL), port.calls);
+        assertEquals(ResourceState.QUARANTINED, conductor.resourceStatus().state(), "in use");
+    }
+
+    @Test
+    void withoutAReleasePolicyNothingIsEverGranted() {
+        ContractService strict = new ContractService(runtime, contexts, sink);
+        for (int i = 0; i < 50; i++) {
+            strict.tick();
+        }
+        assertEquals(Optional.of(RejectionReason.RESOURCE_NOT_RELEASED), strict.requestTravel(GOAL).rejection());
     }
 
     // --- cancellation requested vs confirmed ---
 
     @Test
-    void cancelIsRequestedNeverConfirmed() {
+    void cancelIsRequestedNotConfirmedWhileTheEngineStillSteers() {
         OperationId id = travel().id();
+        ticks(2);
 
         OperationStatus after = conductor.cancel(id).status().orElseThrow();
-        OperationStatus later = conductor.operationStatus(id).status().orElseThrow();
+        ticks(100); // engine keeps driving (live: up to 344 ticks)
 
+        OperationStatus later = conductor.operationStatus(id).status().orElseThrow();
         assertEquals(OperationState.CANCELLING, after.state());
         assertEquals(OperationState.CANCELLING, later.state());
-        assertTrue(after.authorityHeld(), "Cancelling still holds authority");
-        assertEquals(1, port.calls.stream().filter("cancel"::equals).count());
+        assertTrue(later.authorityHeld(), "Cancelling still holds authority");
         assertNotEquals(OperationState.CANCELLED, later.state());
-        assertNotEquals(OperationState.STOPPED_PATHING, later.state());
+        assertEquals(1, port.calls.stream().filter("cancel"::equals).count());
     }
 
     @Test
@@ -88,44 +111,36 @@ class Stage3ConformanceTest {
         assertEquals(OperationState.UNCERTAIN, conductor.cancel(id).status().orElseThrow().state());
     }
 
-    // --- no new grant while unsafe or uncertain ---
+    // --- no new grant while unsafe; exclusivity ---
 
     @Test
-    void noSecondGrantAfterCancelRequested() {
+    void conflictingRequestIsBlockedWithoutAnEngineCall() {
         conductor.cancel(travel().id());
-
-        OperationResult second = conductor.requestTravel(GOAL);
-        assertEquals(Optional.of(RejectionReason.RESOURCE_NOT_RELEASED), second.rejection());
-        assertEquals(1, port.calls.stream().filter(c -> c.startsWith("travel")).count());
-    }
-
-    @Test
-    void exclusivityRejectsAConflictingRequestWithoutAnEngineCall() {
-        travel();
         long before = port.engineCalls();
 
-        assertEquals(Optional.of(RejectionReason.RESOURCE_NOT_RELEASED), conductor.requestTravel(NavigationGoal.xz(1, 2)).rejection());
+        assertEquals(Optional.of(RejectionReason.CONFLICTING_OPERATION), conductor.requestTravel(NavigationGoal.xz(1, 2)).rejection());
         assertEquals(before, port.engineCalls());
+        assertTrue(sink.snapshot().stream().anyMatch(e -> e.type() == DiagnosticEvent.Type.INTERFERENCE && e.subject().equals("BLOCKED")));
     }
 
     @Test
-    void declinedRequestSpendsTheGrant() {
+    void declinedRequestLeavesTheResourceQuarantinedUntilEvidence() {
         port.next = new NavigationPort.Delegation(false, "BARITONE", true, "no IBaritone");
 
         assertEquals(Optional.of(RejectionReason.ENGINE_DECLINED), conductor.requestTravel(GOAL).rejection());
         port.next = new NavigationPort.Delegation(true, "BARITONE", true, "");
         assertEquals(Optional.of(RejectionReason.RESOURCE_NOT_RELEASED), conductor.requestTravel(GOAL).rejection());
+        ticks(3);
+        assertTrue(conductor.requestTravel(GOAL).isAccepted());
     }
 
     @Test
-    void unobservableRouteIsRejectedBeforeAnyEngineCallAndKeepsTheGrant() {
+    void unobservableRouteIsRejectedBeforeAnyEngineCall() {
         port.observableRoute = false;
 
         assertEquals(Optional.of(RejectionReason.BACKEND_UNOBSERVABLE), conductor.requestTravel(GOAL).rejection());
         assertEquals(0, port.engineCalls());
-
-        port.observableRoute = true;
-        assertTrue(conductor.requestTravel(GOAL).isAccepted(), "no engine call was made, so the grant was not spent");
+        assertEquals(ResourceState.AVAILABLE, conductor.resourceStatus().state());
     }
 
     @Test
@@ -148,14 +163,13 @@ class Stage3ConformanceTest {
         assertFalse(status.authorityHeld());
         assertEquals(OperationState.CANCELLING, status.state(), "invalidation is not confirmation");
         assertEquals(1, port.calls.stream().filter("cancel"::equals).count());
-
         assertEquals(Optional.of(RejectionReason.RESOURCE_NOT_RELEASED), conductor.requestTravel(GOAL).rejection(),
                 "a new epoch does not prove the old operation stopped");
         assertEquals(Optional.of(RejectionReason.AUTHORITY_INVALIDATED), conductor.cancel(id).rejection());
     }
 
     @Test
-    void sessionReplacementGrantsNothingEither() {
+    void sessionReplacementAloneGrantsNothing() {
         travel();
         contexts.onOutOfWorld(1);
         contexts.onInWorld("minecraft:overworld", false, 2);
@@ -191,6 +205,7 @@ class Stage3ConformanceTest {
         Thread other = new Thread(() -> {
             travel.set(conductor.requestTravel(GOAL));
             cancel.set(conductor.cancel(id));
+            conductor.tick();
         }, "worker");
         other.start();
         other.join();
@@ -215,8 +230,7 @@ class Stage3ConformanceTest {
         assertTrue(types.contains(DiagnosticEvent.Type.CANCEL_INVOKED));
         assertTrue(types.contains(DiagnosticEvent.Type.OPERATION_STATE_CHANGED));
         assertTrue(types.contains(DiagnosticEvent.Type.AUTHORITY_INVALIDATED));
-        assertTrue(sink.snapshot().stream().anyMatch(e -> e.type() == DiagnosticEvent.Type.OPERATION_REJECTED
-                && e.detail().startsWith("RESOURCE_NOT_RELEASED")));
+        assertTrue(types.contains(DiagnosticEvent.Type.RESOURCE_STATE_CHANGED));
         assertTrue(sink.snapshot().stream().noneMatch(e -> e.detail().contains("-> CANCELLED")));
     }
 }

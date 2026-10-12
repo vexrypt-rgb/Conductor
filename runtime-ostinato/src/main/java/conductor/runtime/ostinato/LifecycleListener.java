@@ -25,11 +25,17 @@ final class LifecycleListener implements AbstractGameEventListener {
     private final DiagnosticSink sink;
     private long lastTick = -1;
     private WeakReference<Object> lastConnection;
+    private Runnable inWorldTick = () -> {};
 
     LifecycleListener(ContextTracker contexts, GameAccess game, DiagnosticSink sink) {
         this.contexts = contexts;
         this.game = game;
         this.sink = sink;
+    }
+
+    /** Run on every in-world tick, after the context has been updated (the contract's evidence tick). */
+    void onInWorldTick(Runnable hook) {
+        this.inWorldTick = hook;
     }
 
     long lastTick() {
@@ -48,6 +54,7 @@ final class LifecycleListener implements AbstractGameEventListener {
             boolean changed = lastConnection != null && lastConnection.get() != connection;
             lastConnection = new WeakReference<>(connection);
             contexts.onInWorld(game.dimensionId(), changed, lastTick);
+            inWorldTick.run();
         } else {
             lastConnection = null;
             contexts.onOutOfWorld(lastTick);

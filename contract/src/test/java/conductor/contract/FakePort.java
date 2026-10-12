@@ -18,6 +18,13 @@ final class FakePort implements NavigationPort {
     }
 
     @Override
+    public boolean isOwnController(String controller) {
+        return OWN.equals(controller);
+    }
+
+    static final String OWN = "engine.TravelProcess";
+
+    @Override
     public Delegation travel(NavigationGoal goal) {
         calls.add("travel " + goal);
         return next;
