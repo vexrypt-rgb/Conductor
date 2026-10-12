@@ -34,7 +34,9 @@ public record DiagnosticEvent(Type type, String thread, long tick, ContextId con
         /** Module platform: subject is the resource. */
         LEASE_CHANGED,
         /** Module platform: a module threw, or broke a platform rule. */
-        MODULE_FAULT
+        MODULE_FAULT,
+        /** Module platform: an optional module feature was checked; detail says ON or OFF and why. */
+        MODULE_FEATURE
     }
 
     static DiagnosticEvent onGameThread(Type type, long tick, ContextId context, String subject, String detail) {

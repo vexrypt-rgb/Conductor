@@ -43,4 +43,10 @@ public interface Conductor {
     OperationResult operationStatus(OperationId operation);
 
     ResourceStatus resourceStatus();
+
+    /**
+     * Does {@code content} exist in the running game or engine? Use this instead of checking version numbers.
+     * ABSENT means "looked, not there"; anything uncertain is UNKNOWN.
+     */
+    ContentResult content(ContentId content);
 }

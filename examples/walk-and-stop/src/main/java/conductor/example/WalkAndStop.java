@@ -5,6 +5,7 @@ import conductor.contract.Conductor;
 import conductor.contract.ConductorModule;
 import conductor.contract.DiscoveryResult;
 import conductor.contract.FreshnessPolicy;
+import conductor.contract.ModuleContext;
 import conductor.contract.NavigationGoal;
 import conductor.contract.ObservationKinds;
 import conductor.contract.OperationId;
@@ -41,14 +42,14 @@ public final class WalkAndStop implements ConductorModule {
     }
 
     @Override
-    public void onReady(Conductor conductor) {
+    public void onReady(ModuleContext conductor) {
         DiscoveryResult discovery = conductor.discover();
         log("Conductor %s ready in %s", discovery.contractVersion(), discovery.context());
         discovery.capabilities().forEach(c -> log("  capability %s (%s): operations %s", c.id(), c.availability(), c.operations()));
     }
 
     @Override
-    public void onTick(Conductor conductor) {
+    public void onTick(ModuleContext conductor) {
         ticksInStep++;
         switch (step) {
             case WAIT_FOR_RESOURCE -> {

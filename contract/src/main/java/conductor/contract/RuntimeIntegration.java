@@ -30,6 +30,14 @@ public interface RuntimeIntegration {
      */
     <T> Sample<T> sample(ObservationKind<T> kind);
 
+    /**
+     * Whether {@code content} exists in this game/engine. Return ABSENT only after actually looking; when unsure,
+     * UNKNOWN. Read-only.
+     */
+    default ContentResult content(ContentId content) {
+        return new ContentResult(content, ContentResult.Presence.UNKNOWN, "runtime cannot check content");
+    }
+
     /** Navigation delegation, if this runtime offers it (Stage 3). */
     default Optional<NavigationPort> navigation() {
         return Optional.empty();

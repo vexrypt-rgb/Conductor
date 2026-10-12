@@ -3,6 +3,8 @@ package conductor.runtime.ostinato;
 import conductor.contract.BlockPoint;
 import conductor.contract.CapabilityAvailability;
 import conductor.contract.CapabilityDescriptor;
+import conductor.contract.ContentId;
+import conductor.contract.ContentResult;
 import conductor.contract.NavigationPort;
 import conductor.contract.ObservationKind;
 import conductor.contract.RuntimeIntegration;
@@ -31,15 +33,25 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
     static final String NAVIGATION = "navigation";
     static final String SECONDARY_BACKEND = "navigation.secondary-backend";
     static final String PLAYER = "player";
+    static final String CONTENT = "content";
 
     private final GameAccess game;
     private final LifecycleListener lifecycle;
     private final OstinatoSignals signals;
     private final SecondaryBackendAccess secondary;
     private final NavigationPort navigation;
+    private final EngineFeatures engineFeatures;
 
     OstinatoRuntimeIntegration(GameAccess game, LifecycleListener lifecycle, OstinatoSignals signals,
                                SecondaryBackendAccess secondary, NavigationPort navigation) {
+        this(game, lifecycle, signals, secondary, navigation,
+                EngineFeatures.ofLoader(baritone.api.IBaritone.class.getClassLoader()));
+    }
+
+    OstinatoRuntimeIntegration(GameAccess game, LifecycleListener lifecycle, OstinatoSignals signals,
+                               SecondaryBackendAccess secondary, NavigationPort navigation,
+                               EngineFeatures engineFeatures) {
+        this.engineFeatures = engineFeatures;
         this.game = game;
         this.lifecycle = lifecycle;
         this.signals = signals;
@@ -73,7 +85,30 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
                 navigation != null ? NAVIGATION_OPERATIONS : List.of());
         CapabilityDescriptor player = new CapabilityDescriptor(PLAYER, CapabilityAvailability.AVAILABLE,
                 "read-only player state", List.of(PLAYER_POSITION), List.of());
-        return List.of(primary, secondaryDescriptor(), player);
+        return List.of(primary, secondaryDescriptor(), player, contentDescriptor());
+    }
+
+    private CapabilityDescriptor contentDescriptor() {
+        String detail;
+        try {
+            detail = "item/block/entity/effect ids via built-in registries; engine features present: "
+                    + engineFeatures.present();
+        } catch (RuntimeException | LinkageError e) {
+            detail = "item/block/entity/effect ids via built-in registries; engine feature probe failed: " + e;
+        }
+        return new CapabilityDescriptor(CONTENT, CapabilityAvailability.AVAILABLE, detail, List.of(), List.of("content"));
+    }
+
+    @Override
+    public ContentResult content(ContentId content) {
+        if (content.kind() == ContentId.Kind.ENGINE) {
+            return engineFeatures.check(content);
+        }
+        ContentResult.Presence presence = game.registryPresence(content.kind(), content.id());
+        if (presence == null) {
+            return new ContentResult(content, ContentResult.Presence.UNKNOWN, "no built-in registry answer for this id");
+        }
+        return new ContentResult(content, presence, "built-in registry");
     }
 
     private CapabilityDescriptor secondaryDescriptor() {

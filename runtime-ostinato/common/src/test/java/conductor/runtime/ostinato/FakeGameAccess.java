@@ -35,4 +35,17 @@ final class FakeGameAccess implements GameAccess {
     public conductor.contract.BlockPoint playerBlock() {
         return player;
     }
+
+    /** "kind:id" entries that exist; kinds in {@code unsupported} have no registry. */
+    final java.util.Set<String> registry = new java.util.HashSet<>();
+    final java.util.Set<conductor.contract.ContentId.Kind> unsupported = java.util.EnumSet.of(conductor.contract.ContentId.Kind.ENGINE);
+
+    @Override
+    public conductor.contract.ContentResult.Presence registryPresence(conductor.contract.ContentId.Kind kind, String id) {
+        if (unsupported.contains(kind) || !id.contains(":")) {
+            return null;
+        }
+        return registry.contains(kind + ":" + id) ? conductor.contract.ContentResult.Presence.PRESENT
+                : conductor.contract.ContentResult.Presence.ABSENT;
+    }
 }

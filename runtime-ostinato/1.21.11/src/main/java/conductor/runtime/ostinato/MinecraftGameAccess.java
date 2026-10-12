@@ -2,7 +2,12 @@ package conductor.runtime.ostinato;
 
 import baritone.api.utils.IPlayerContext;
 import conductor.contract.BlockPoint;
+import conductor.contract.ContentId;
+import conductor.contract.ContentResult;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.level.Level;
 
@@ -43,6 +48,25 @@ final class MinecraftGameAccess implements GameAccess {
         }
         BlockPos p = ctx.player().blockPosition();
         return new BlockPoint(p.getX(), p.getY(), p.getZ());
+    }
+
+    @Override
+    public ContentResult.Presence registryPresence(ContentId.Kind kind, String id) {
+        Identifier key = Identifier.tryParse(id);
+        if (key == null) {
+            return null;
+        }
+        Registry<?> registry = switch (kind) {
+            case ITEM -> BuiltInRegistries.ITEM;
+            case BLOCK -> BuiltInRegistries.BLOCK;
+            case ENTITY -> BuiltInRegistries.ENTITY_TYPE;
+            case EFFECT -> BuiltInRegistries.MOB_EFFECT;
+            default -> null;
+        };
+        if (registry == null) {
+            return null;
+        }
+        return registry.containsKey(key) ? ContentResult.Presence.PRESENT : ContentResult.Presence.ABSENT;
     }
 
     private static String dimension(Level level) {

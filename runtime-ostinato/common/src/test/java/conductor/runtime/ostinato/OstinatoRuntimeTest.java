@@ -15,6 +15,8 @@ import conductor.contract.Availability;
 import conductor.contract.CapabilityAvailability;
 import conductor.contract.CapabilityDescriptor;
 import conductor.contract.Conductor;
+import conductor.contract.ContentId;
+import conductor.contract.ContentResult;
 import conductor.contract.ContextId;
 import conductor.contract.ContextTracker;
 import conductor.contract.ContractService;
@@ -66,6 +68,10 @@ class OstinatoRuntimeTest {
     private Conductor conductor;
     private int tickCount;
 
+    /** Ostinato classes this fake build contains: a 1.21.4-like build with PvP but no spear or mace code. */
+    private final Set<String> engineClasses = new java.util.HashSet<>(Set.of(
+            "baritone.process.PvpProcess", "baritone.process.PveProcess"));
+
     @BeforeEach
     void setUp() {
         baritone = mock(IBaritone.class);
@@ -83,7 +89,8 @@ class OstinatoRuntimeTest {
         contexts = new ContextTracker(sink);
         lifecycle = new LifecycleListener(contexts, game, sink);
         OstinatoRuntimeIntegration runtime = new OstinatoRuntimeIntegration(game, lifecycle,
-                new OstinatoSignals(baritone, secondary), secondary, null);
+                new OstinatoSignals(baritone, secondary), secondary, null,
+                new EngineFeatures(engineClasses::contains));
         conductor = new ContractService(runtime, contexts, sink);
     }
 
@@ -159,7 +166,8 @@ class OstinatoRuntimeTest {
         CapabilityDescriptor secondaryCap = result.capabilities().stream()
                 .filter(c -> c.id().equals(OstinatoRuntimeIntegration.SECONDARY_BACKEND)).findFirst().orElseThrow();
         assertEquals(CapabilityAvailability.UNAVAILABLE, secondaryCap.availability());
-        result.capabilities().forEach(c -> assertTrue(c.operations().isEmpty(), c.id()));
+        result.capabilities().stream().filter(c -> !c.id().equals(OstinatoRuntimeIntegration.CONTENT))
+                .forEach(c -> assertTrue(c.operations().isEmpty(), c.id()));
         verifyNoInteractions(pathing, control, customGoal, inputs);
     }
 
@@ -229,5 +237,44 @@ class OstinatoRuntimeTest {
         assertEquals(Optional.of(before), contexts.current(), "off-thread lifecycle event did not move the context");
         verifyNoInteractions(pathing, control, customGoal, inputs);
         assertEquals(2, sink.snapshot().stream().filter(e -> e.type() == DiagnosticEvent.Type.OFF_THREAD_VIOLATION).count());
+    }
+
+    // --- content detection ---
+
+    @Test
+    void registryContentIsPresentOrAbsentOnlyAfterLooking() {
+        game.registry.add("ITEM:minecraft:mace");
+        assertEquals(ContentResult.Presence.PRESENT, conductor.content(ContentId.item("minecraft:mace")).presence());
+        assertEquals(ContentResult.Presence.ABSENT, conductor.content(ContentId.item("minecraft:iron_spear")).presence());
+        assertEquals(ContentResult.Presence.UNKNOWN, conductor.content(ContentId.item("not an id")).presence(),
+                "a malformed id is UNKNOWN, never ABSENT");
+        verifyNoInteractions(pathing, control, customGoal, inputs);
+    }
+
+    @Test
+    void engineFeaturesFollowTheBuildAndUnknownIdsStayUnknown() {
+        assertEquals(ContentResult.Presence.PRESENT, conductor.content(ContentId.engine("ostinato:pvp")).presence());
+        assertEquals(ContentResult.Presence.ABSENT, conductor.content(ContentId.engine("ostinato:combat/spear")).presence());
+        assertEquals(ContentResult.Presence.UNKNOWN, conductor.content(ContentId.engine("ostinato:teleport")).presence());
+
+        engineClasses.add("baritone.process.CombatSpear");
+        assertEquals(ContentResult.Presence.PRESENT, conductor.content(ContentId.engine("ostinato:combat/spear")).presence());
+    }
+
+    @Test
+    void discoveryListsTheEngineFeaturesPresent() {
+        tick(TickEvent.Type.IN);
+        CapabilityDescriptor content = conductor.discover().capabilities().stream()
+                .filter(c -> c.id().equals(OstinatoRuntimeIntegration.CONTENT)).findFirst().orElseThrow();
+        assertTrue(content.detail().contains("[ostinato:pvp, ostinato:pve]"), content.detail());
+    }
+
+    @Test
+    void realProbeFindsTheCombatProcessesEveryTargetBuildHas() {
+        // These tests run against each target's Ostinato build; PvP and PvE exist in all of them.
+        EngineFeatures real = EngineFeatures.ofLoader(IBaritone.class.getClassLoader());
+        for (String id : java.util.List.of("ostinato:pvp", "ostinato:pve")) {
+            assertEquals(ContentResult.Presence.PRESENT, real.check(ContentId.engine(id)).presence(), id);
+        }
     }
 }

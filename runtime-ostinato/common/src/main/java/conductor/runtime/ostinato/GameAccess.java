@@ -22,4 +22,11 @@ interface GameAccess {
 
     /** Game thread only. The block the player stands in, or null without a player. */
     conductor.contract.BlockPoint playerBlock();
+
+    /**
+     * Whether a built-in registry has {@code id}. PRESENT or ABSENT after looking; null when {@code kind} has no
+     * built-in registry here or the id is malformed (the caller reports UNKNOWN). Built-in registries are frozen at
+     * startup, so this is valid in and out of a world.
+     */
+    conductor.contract.ContentResult.Presence registryPresence(conductor.contract.ContentId.Kind kind, String id);
 }

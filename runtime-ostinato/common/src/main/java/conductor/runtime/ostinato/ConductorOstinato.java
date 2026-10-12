@@ -3,7 +3,6 @@ package conductor.runtime.ostinato;
 import baritone.api.IBaritone;
 import baritone.api.movement.IMovementEngine;
 import baritone.movement.MovementBackends;
-import conductor.contract.Conductor;
 import conductor.contract.ContextTracker;
 import conductor.contract.ContractService;
 import conductor.contract.DiagnosticSink;
@@ -31,7 +30,7 @@ public final class ConductorOstinato {
      * {@code HybridMovementEngine} instance, held for this consumer. There is no current context until the next
      * in-world tick.
      */
-    public static Conductor install(IBaritone baritone, DiagnosticSink sink, ReleasePolicy policy) {
+    public static ContractService install(IBaritone baritone, DiagnosticSink sink, ReleasePolicy policy) {
         Objects.requireNonNull(baritone, "baritone");
         GameAccess game = new MinecraftGameAccess(baritone.getPlayerContext());
         if (!game.isGameThread()) {
@@ -42,11 +41,11 @@ public final class ConductorOstinato {
     }
 
     /** Without a release policy: discovery and observation work, but navigation is never granted. */
-    public static Conductor install(IBaritone baritone, DiagnosticSink sink) {
+    public static ContractService install(IBaritone baritone, DiagnosticSink sink) {
         return install(baritone, sink, ReleasePolicy.none());
     }
 
-    static Conductor install(IBaritone baritone, DiagnosticSink sink, ReleasePolicy policy, GameAccess game,
+    static ContractService install(IBaritone baritone, DiagnosticSink sink, ReleasePolicy policy, GameAccess game,
                              SecondaryBackendAccess secondary, IMovementEngine engine, BooleanSupplier prefersSecondaryTravel) {
         Objects.requireNonNull(sink, "sink");
         Objects.requireNonNull(policy, "policy");

@@ -15,6 +15,7 @@ class FakeRuntime implements RuntimeIntegration {
     final Map<ObservationKind<?>, Object> samples = new HashMap<>();
     RuntimeException failure;
     NavigationPort port;
+    final Map<ContentId, ContentResult.Presence> content = new HashMap<>();
     final AtomicInteger sampleCalls = new AtomicInteger();
     final AtomicInteger stateReads = new AtomicInteger();
 
@@ -52,6 +53,14 @@ class FakeRuntime implements RuntimeIntegration {
             throw failure;
         }
         return (Sample<T>) samples.get(kind);
+    }
+
+    @Override
+    public ContentResult content(ContentId id) {
+        ContentResult.Presence p = content.get(id);
+        return p == null
+                ? new ContentResult(id, ContentResult.Presence.UNKNOWN, "fake: not configured")
+                : new ContentResult(id, p, "fake");
     }
 
     @Override

@@ -47,6 +47,25 @@ public final class ContractService implements Conductor {
     }
 
     @Override
+    public ContentResult content(ContentId content) {
+        if (!runtime.isGameThread()) {
+            sink.record(DiagnosticEvent.offThread("content", "rejected before reading the game"));
+            return new ContentResult(content, ContentResult.Presence.UNKNOWN, "call was not on the game thread");
+        }
+        if (content == null) {
+            throw new IllegalArgumentException("content is null");
+        }
+        try {
+            ContentResult r = runtime.content(content);
+            return r != null ? r : new ContentResult(content, ContentResult.Presence.UNKNOWN, "runtime returned nothing");
+        } catch (RuntimeException | LinkageError e) {
+            sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.PROVIDER_FAULT, runtime.currentTick(),
+                    contexts.current().orElse(null), "content " + content, String.valueOf(e)));
+            return new ContentResult(content, ContentResult.Presence.UNKNOWN, "lookup failed: " + e);
+        }
+    }
+
+    @Override
     public ResourceStatus resourceStatus() {
         if (!runtime.isGameThread()) {
             sink.record(DiagnosticEvent.offThread("resourceStatus", "rejected before reading state"));

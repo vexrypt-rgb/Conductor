@@ -25,6 +25,7 @@ TenorClef alone is 723 files with 36 mixins into Minecraft. It will not become a
 | D3 | **Resource leases with priorities.** Every shared resource in §1 is leasable. A lease is held by at most one module. Equal or lower priority: the request is denied (first holder wins). Higher priority: **preemption**. The holder is notified, its contract operations on that resource are cancelled, and the lease is handed over only when the resource is shown free: by release evidence for MOVEMENT (Stage 4 rules), or by the holder's acknowledgement for resources without evidence signals yet. Priorities are fixed levels, not a scheduler: BACKGROUND < NORMAL < HIGH < SAFETY. | "no automatic preemption" |
 | D4 | **Inter-module communication.** Typed **topics** (publish/subscribe), delivered on the game thread at the end of the tick in publish order, so there are no re-entrant calls. Typed **services** (provide/look up). Modules declare the services they **require**, and the manager starts them in dependency order. | none |
 | D5 | **Management.** Lifecycle per module: `DISCOVERED → RUNNING ⇄ DISABLED`, plus `BLOCKED` (missing dependency) and `FAILED` (threw). Enable/disable at runtime; disabling revokes leases (with cancel), withdraws services and subscriptions, and blocks dependents. Failure isolation: an exception stops only that module. The manager publishes a `ModuleManagement` service, so a UI, chat or command module can drive it. | "no lifecycle manager" (from the original no-expansion fences) |
+| D7 | **Content-based features, never version checks.** Modules ask `content(ContentId)` whether an item, block, entity type, effect or engine feature exists (PRESENT / ABSENT / UNKNOWN; ABSENT only after looking). A module declares optional `ModuleFeature`s with the content each needs. Before `onReady`, the host turns a feature on only if all of it is PRESENT, and logs every decision. Worked example: the spear part of a combat module is off on 1.21.4 while the rest runs. | version-specific builds of a module |
 | D6 | **Engine activity attribution.** A module holding MOVEMENT may declare the engine processes it drives (a native TenorClef bridge driving `MineProcess`, say). Activity by those processes is that module's, not interference. Activity nobody declared stays DETECTED interference, as in Stage 4. | none |
 
 **Unchanged:**
@@ -39,17 +40,18 @@ TenorClef alone is 723 files with 36 mixins into Minecraft. It will not become a
 ```java
 public interface ConductorModule {
     ReleasePolicy releasePolicy();
-    void onReady(Conductor conductor);
-    default void onTick(Conductor conductor) {}
+    void onReady(ModuleContext conductor);
+    default void onTick(ModuleContext conductor) {}
     default Priority priority() { return Priority.NORMAL; }            // default for this module's leases
     default Set<ServiceKey<?>> requires() { return Set.of(); }         // started only when these are provided
-    default void onLeaseGranted(Conductor c, Lease lease) {}            // a pending request was granted
-    default void onLeaseRevoked(Conductor c, Lease lease, ModuleId by) {} // stop using it now
-    default void onDisable(Conductor conductor) {}
+    default List<ModuleFeature> features() { return List.of(); }      // optional parts, see D7
+    default void onLeaseGranted(ModuleContext c, Lease lease) {}            // a pending request was granted
+    default void onLeaseRevoked(ModuleContext c, Lease lease, ModuleId by) {} // stop using it now
+    default void onDisable(ModuleContext conductor) {}
 }
 ```
 
-`Conductor` (per module) adds:
+`ModuleContext` (per module, extends `Conductor`) adds:
 
 ```java
 ModuleId self();
@@ -61,6 +63,9 @@ List<Lease> leases();                                      // everything current
 <T> Subscription subscribe(Topic<T> topic, Consumer<T> handler);
 <T> void provide(ServiceKey<T> key, T service);
 <T> Optional<T> service(ServiceKey<T> key);
+FeatureStatus feature(String name);                        // D7
+Map<String, FeatureStatus> features();
+void declareEngineProcesses(Set<String> processes);        // D6, native modules
 ```
 
 Navigation needs the MOVEMENT lease. `requestTravel` takes it automatically when it is free, and gives it back when the operation ends. To keep MOVEMENT across several trips, acquire it explicitly.
@@ -87,4 +92,13 @@ What is verified, and what is still only design, is tracked in §6 as the work l
 
 ## 6. Verification log
 
-(Filled in as each part is implemented and tested.)
+Each part is listed as it is implemented and tested, with evidence labels.
+
+| Part | Status | Evidence |
+|---|---|---|
+| D1 many modules, per-module context | implemented | **Verified (unit):** `PlatformConformanceTest`. The host mod starts every `"conductor"` entrypoint. Multi-module live run: not yet. |
+| D3 leases, priorities, preemption | implemented | **Verified (unit):** first holder wins; higher priority preempts; MOVEMENT hand-over waits for release evidence (a mutation that removed the evidence gate was caught); scoped travel lease. |
+| D4 topics, services, dependency order | implemented | **Verified (unit):** end-of-tick delivery in order, delivery cap, `requires()` blocking and unblocking. |
+| D5 management, failure isolation | implemented | **Verified (unit):** disable revokes leases and cancels travel; a throwing module becomes FAILED and the others keep running. |
+| D6 engine-process attribution | implemented | **Verified (unit).** No native module exists yet to exercise it live. |
+| D7 content detection and features | implemented | **Verified (unit):** `VersionFeatureTest` (contract): the same module gets `[melee, spear, mace]` on a 1.21.11-like runtime and `[melee]` on a 1.21.4-like one; UNKNOWN keeps a feature off. `OstinatoRuntimeTest` (adapter, run against both versions' Ostinato builds): registry lookups, engine-feature probes, and discovery listing. **Verified (source):** 1.21.11 registers 7 spear items; 1.21.4 has none; `CombatSpear` and `CombatMace` exist only on Ostinato main. Live check of `content()` in a running game: not yet. |

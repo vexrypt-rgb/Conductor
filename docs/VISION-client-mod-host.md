@@ -1,17 +1,52 @@
-# Vision: Conductor as a host for any client-side mod
+# Vision: Conductor as the unified, version-agnostic Minecraft modding platform
 
-**Goal (project owner, 2026-10-12):** Conductor should eventually host *any* kind of client-side mod as a module, for example a utility/"hack" client module for an anarchy server like 2b2t, or a legit PvP client module, written once and run on several Minecraft versions.
+**North star (project owner, 2026-10-12):** treat Conductor as a project that may become **the single, unified, version-agnostic platform for Minecraft mods**. A mod is written once against Conductor's contract and runs on every Minecraft version Conductor supports, next to every other Conductor mod.
+
+**Earlier goal, same day, now a subset of the north star:** host *any* kind of client-side mod as a module. Examples: a utility/"hack" client module for an anarchy server like 2b2t, or a legit PvP client module.
+
+## 0. What the north star means for every design decision
+
+Every change to Conductor should be judged by one question: *does this still work if Conductor becomes the only platform mods target?* In practice:
+
+1. **The contract is the product.** Modules depend only on `conductor.contract`. It must stay pure Java, versioned, and backwards compatible:
+   - adding is fine;
+   - removing or changing meaning needs a new major contract version and a migration note.
+
+   Anything version-specific belongs in a runtime adapter, never in the contract.
+2. **Ask about things, not versions.** Modules never branch on a Minecraft version number. They ask whether a thing exists (`content(ContentId.item("minecraft:iron_spear"))`) and declare features that switch off cleanly when it doesn't (`ModuleFeature`).
+
+   This keeps working on versions released after the module was written. Spears are the worked example: [TUTORIAL.md](TUTORIAL.md) §7b.
+3. **Capabilities, not hooks.** A module asks for "navigation" or "the HOTBAR lease", not "a mixin into `MultiPlayerGameMode`". Each capability comes from an adapter per version and is listed in discovery, so a module can see what this game offers before using it.
+4. **Many mods, one game.** Shared things (movement, look, hotbar, clicks, screens, chat) are leased, with priorities and evidence-based hand-over ([MODULE-PLATFORM.md](MODULE-PLATFORM.md)). A platform that hosts every mod must stop them fighting over the same controls.
+5. **Honest answers.** UNKNOWN is never reported as ABSENT, and "cancelling" is never reported as "cancelled". A platform everyone depends on cannot guess.
+6. **Existing mods are welcome as they are.** Native modules (version-specific, mixins allowed) join the same leases, topics and services. Moving to contract-only is gradual and never a precondition.
+
+What it would still take to get there (none of it exists yet; each item is future work):
+
+| Gap | Why it matters for "the only platform" |
+|---|---|
+| A runtime without Ostinato (`runtime-vanilla`) | Most mods are not bots. Ostinato should be one optional capability provider. |
+| More Minecraft versions per adapter | "Version-agnostic" is only as wide as the adapters that exist. Today: 1.21.11 and 1.21.4. |
+| Loader independence (Fabric today; NeoForge, Quilt) | The contract is loader-free already. Each loader needs a host mod. |
+| Rendering, input, world-scan, packet, sound and GUI capabilities | Most mod types need at least one (see §2). |
+| Data-driven content (enchantments, biomes, recipes) | These live in per-world registries, not built-in ones. `content()` answers UNKNOWN for them today. |
+| Contract versioning checks at load time | A module built for contract 2.x must be refused cleanly by a 1.x host, not crash. |
+| Server-side and common (both sides) modules | Conductor is client-only today. |
+| Sandboxing or permissions | Today every module is trusted code in the same JVM. |
 
 This document is a gap analysis, not a promise. It compares the goal with what Conductor is today, says what each kind of module would need, and points out which of the project's own core decisions would have to change. Every item here is **future work**.
 
 ## 1. Where Conductor is today
 
-Conductor today is a **safe, version-independent wrapper around one Ostinato capability: travel**. A module can:
+Conductor today is a **safe, version-independent wrapper around Ostinato, with a module platform on top**. A module can:
 - see what the bot engine is doing;
 - send it somewhere;
-- stop it, and get proof that it has stopped.
+- stop it, and get proof that it has stopped;
+- run next to other modules, sharing controls through leases with priorities and preemption;
+- talk to other modules through topics and services;
+- switch parts of itself on or off depending on what the game and engine actually contain (content detection).
 
-It works on two Minecraft versions, with one module at a time. See [TUTORIAL.md](TUTORIAL.md) §10 for the full list of current limitations.
+It works on two Minecraft versions (1.21.11 and 1.21.4), with many modules at once. See [TUTORIAL.md](TUTORIAL.md) §10 for the full list of current limitations.
 
 The hard part, built over Stages 1–4, is the **method**:
 - stopping is proven with evidence rather than assumed;
@@ -36,7 +71,7 @@ The method carries over to new capabilities. The capabilities themselves do not 
 
 ## 3. What would have to change (decisions for the project owner)
 
-These points conflict with decisions recorded in the original specification. They are listed so you can decide deliberately, not so they are quietly ignored.
+These points conflicted with decisions recorded in the original specification. Points 1 and 2 have since been decided by the project owner (full design rights, 2026-10-12), and are implemented as described in [MODULE-PLATFORM.md](MODULE-PLATFORM.md) D1 and D3. The rest are still open.
 
 1. **More than one module at a time.** Stage 3 made Conductor single-consumer. Hosting many modules needs:
    - per-module identity;

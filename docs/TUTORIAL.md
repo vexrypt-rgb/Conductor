@@ -13,6 +13,8 @@ This guide explains what Conductor is, everything it can do today, and how to bu
 8. [Supporting another Minecraft version](#8-supporting-another-minecraft-version)
 9. [Adding a new capability (combat, mining, ...)](#9-adding-a-new-capability)
 10. [Limits you should know about](#10-limits-you-should-know-about)
+11. [Many modules side by side: leases, topics, services, management](#11-many-modules-side-by-side)
+12. [One jar, every version: optional features (the spear example)](#12-one-jar-every-version-optional-features)
 
 ---
 
@@ -42,6 +44,13 @@ What Conductor gives you today:
 | Stop it, and know when it has *really* stopped | `cancel(...)`, `operationStatus(...)` |
 | Know whether the bot is free to use | `resourceStatus()` |
 | See why anything happened | the diagnostic sink |
+| Share the controls with other modules | leases: `acquire(...)`, `release(...)` (§11) |
+| Talk to other modules | topics: `publish`/`subscribe`; services: `provide`/`service` (§11) |
+| Turn other modules on and off | the `ModuleManagement` service (§11) |
+| Ask whether an item, block, mob, effect or engine feature exists in *this* game | `content(...)` (§12) |
+| Ship parts of your module that only work where their content exists | `features()`, `feature(...)` (§12) |
+
+> **Long-term goal.** Conductor is being built so that it could become *the* unified, version-agnostic platform for Minecraft mods: write a mod once, run it on every supported version next to every other mod. See [VISION-client-mod-host.md](VISION-client-mod-host.md) §0 for what that means and what is still missing.
 
 ---
 
@@ -141,11 +150,14 @@ A module implements `ConductorModule`:
 
 ```java
 public interface ConductorModule {
-    ReleasePolicy releasePolicy();                  // how long the bot must look idle before it counts as free
-    void onReady(Conductor conductor);              // once, when you're in a world
-    default void onTick(Conductor conductor) {}     // every game tick (20 per second)
+    ReleasePolicy releasePolicy();                     // how long the bot must look idle before it counts as free
+    void onReady(ModuleContext conductor);             // once, when you're in a world
+    default void onTick(ModuleContext conductor) {}    // every game tick (20 per second)
+    // optional, see §11 and §12: priority(), requires(), features(), onLeaseGranted, onLeaseRevoked, onDisable
 }
 ```
+
+`ModuleContext` is your handle to Conductor. It has everything in §5, plus the multi-module tools in §11 and §12.
 
 **You never have to think about threads:** these methods are always called on the game thread.
 
@@ -159,7 +171,7 @@ public ReleasePolicy releasePolicy() {
 }
 
 @Override
-public void onTick(Conductor conductor) {
+public void onTick(ModuleContext conductor) {
     ticksInStep++;
     switch (step) {
         case WAIT_FOR_RESOURCE -> {
@@ -358,6 +370,7 @@ Every refusal has a reason. Here is what each one means and what to do.
 | `AUTHORITY_INVALIDATED` | The operation's context changed, so it can no longer act | Start a new operation once the bot is free |
 | `NO_NAVIGATION` | The runtime has no travel support | Check `discover()` |
 | `INVALID_ARGUMENT` | null goal or id | Fix the call |
+| `LEASE_HELD` | Another module holds MOVEMENT | Wait, or acquire MOVEMENT at a higher priority (§11.1) |
 
 ---
 
@@ -415,18 +428,22 @@ Hard limits, by design: no universal scheduler, no automatic preemption between 
 Conductor is young. Here is everything it **cannot** do today, so you can plan around it. The long-term goal of hosting any kind of client mod, and what it would take, is in [VISION-client-mod-host.md](VISION-client-mod-host.md).
 
 **What it can do**
-- **Travel is the only action.** No mining, building, farming, combat, elytra or following yet (see [deferred-candidates.md](deferred-candidates.md)).
+- **Travel is the only engine action.** No mining, building, farming, combat, elytra or following through the contract yet (see [deferred-candidates.md](deferred-candidates.md)). `content()` can tell you whether the engine *build* contains them (for example `ostinato:combat/spear`), but you can't drive them through Conductor yet.
 - **No rendering, HUD, chat, keybinds, inventory, packets, camera or GUI.** A module can draw nothing and send nothing through Conductor. It can still use Minecraft directly, but then Conductor's safety rules don't cover that code.
 - **No arrival signal.** A trip that ends on its own is `UNCERTAIN` ("outcome not established"). Check the player's position yourself.
 
 **How many modules, and where**
-- **One module per game.** Conductor serves a single consumer. If several modules are installed, the Conductor mod starts the first one it finds and logs the others as not started.
+- **Many modules, but trusted ones.** All installed modules run side by side (§11). They share one JVM: a module that ignores leases and touches Minecraft directly can't be stopped by Conductor, only noticed (MOVEMENT) or not at all (the other resources).
+- **Only MOVEMENT has evidence-backed hand-over.** LOOK, HOTBAR, INTERACT, SCREEN and CHAT are handed over as soon as the holder's `onLeaseRevoked` returns. Conductor can't check that the holder really let go.
+- **Preempting MOVEMENT is as slow as the engine's stop** (up to 17 s seen on 1.21.11). A SAFETY module that must act at once should not depend on MOVEMENT.
 - **Modules are version-agnostic only if they stay inside the contract.** A module that imports Minecraft classes works, but is tied to one version and outside Conductor's safety rules.
 - **Modules can't read the diagnostic sink at runtime yet** (only in tests).
 - **Ostinato only.** Conductor needs Ostinato, a Baritone fork. It is not a general mod loader.
 - **Fabric client only.** Forge and NeoForge are untested.
 - **Minecraft 1.21.11 and 1.21.4 only.** Ostinato's 26.3 branch (Java 25) has no adapter yet. The 1.16.1 branch's API differs too much to reuse as is.
-- **No hot reload.** Modules load at game start and cannot be unloaded.
+- **No hot reload.** Modules load at game start. Disabling a module stops it logically; its code stays loaded.
+- **`content()` covers built-in registries only.** Items, blocks, entity types and effects work. Data-driven things (enchantments, biomes, recipes, damage types) are UNKNOWN, so a feature that needs them stays off.
+- **Engine features mean "the code is in this build".** PRESENT for `ostinato:combat/spear` says the Ostinato build has spear code, not that a combat capability exists or is running.
 
 **How the engine behaves**
 - **Stops take as long as Ostinato takes.** After `cancel()` the bot usually finishes its current stretch of path. Live, that was up to 344 ticks (17 s) and 122 blocks on a long path. Conductor reports this honestly but cannot make it faster.
@@ -440,3 +457,149 @@ Conductor is young. Here is everything it **cannot** do today, so you can plan a
 - **Tested on:** flat local test worlds (stairs, trench, water, long paths, mining), the Baritone backend, about 25 live cancel trials, and one full live run per Minecraft version.
 - **Not tested:** elytra, boats, heavy parkour, Tungsten, real servers (latency, anticheat), long play sessions.
 - **The live harness hangs on loading errors.** If a mod fails to load, Fabric opens an error window that nobody can close in a headless run. The run then waits for the script's timeout instead of failing at once.
+
+---
+
+## 11. Many modules side by side
+
+Every installed module runs at the same time. Each gets its own `ModuleContext`, so Conductor always knows who asked for what. Modules coordinate in three ways.
+
+### 11.1 Leases: who may use a control right now
+
+Shared controls are **resources**, in `Resources`:
+
+| Resource | What it covers | Hand-over |
+|---|---|---|
+| `MOVEMENT` | pathing and movement keys | waits for **release evidence** (Stage 4 rules), like `requestTravel` |
+| `LOOK` | player rotation | immediate, once the holder's `onLeaseRevoked` returns |
+| `HOTBAR` | selected slot, inventory moves | same |
+| `INTERACT` | attack / use clicks | same |
+| `SCREEN` | open GUIs and containers | same |
+| `CHAT` | sending messages and commands | same |
+
+```java
+LeaseResult r = conductor.acquire(Resources.HOTBAR);                  // at your module's priority()
+LeaseResult r = conductor.acquire(Resources.MOVEMENT, Priority.HIGH); // or a chosen one
+switch (r.status()) {
+    case GRANTED -> useIt(r.lease().orElseThrow());
+    case PENDING -> { }        // you outrank the holder; onLeaseGranted is called once it's yours
+    case DENIED  -> log("held by %s: %s", r.holder(), r.detail());
+}
+conductor.release(lease);                                           // when done
+```
+
+The rules:
+- **Priorities:** `BACKGROUND < NORMAL < HIGH < SAFETY`. Set your module's default with `priority()`.
+- **A free resource is granted.** MOVEMENT is free only once evidence shows the bot idle.
+- **Equal or lower priority than the holder:** DENIED. The first holder wins.
+- **Higher priority:** **preemption.** The holder's `onLeaseRevoked(conductor, lease, by)` is called (stop using it *now*), and its travel operations are cancelled. The lease is then yours: at once for the five non-evidence resources, or, for MOVEMENT, as PENDING until the engine is shown idle.
+- **`requestTravel` takes MOVEMENT for you** if it is free, and gives it back when the trip ends. If another module holds MOVEMENT, travel is refused with `LEASE_HELD`. Hold MOVEMENT yourself to keep it across several trips.
+
+### 11.2 Topics and services: talking to other modules
+
+```java
+// any module can define a typed topic; share the constant in a small API jar, or just agree on name + type
+static final Topic<String> FIGHT = new Topic<>("autotune:fight", String.class);
+
+conductor.publish(FIGHT, "engaged");                                  // delivered at the end of this tick, in order
+Subscription s = conductor.subscribe(FIGHT, msg -> log("fight: %s", msg));
+
+// services: one provider, many users
+static final ServiceKey<Waypoints> WAYPOINTS = new ServiceKey<>("maps:waypoints", Waypoints.class);
+conductor.provide(WAYPOINTS, myWaypoints);                            // in the provider's onReady
+conductor.service(WAYPOINTS).ifPresent(w -> w.add("base", here));     // in any user
+```
+
+Declare services you can't run without in `requires()`. Conductor then starts you only once they are provided, and stops you (state `BLOCKED`) if the provider goes away.
+
+Conductor's own topics: `Topics.LEASES` (every grant, revoke and release) and `Topics.MODULES` (lifecycle changes).
+
+### 11.3 Management
+
+Each module is `DISCOVERED`, `RUNNING`, `DISABLED`, `BLOCKED` (missing service) or `FAILED` (it threw). An exception in one module stops only that module.
+
+Any module can drive the others through a service. This is how a GUI or chat-command module would offer toggles:
+
+```java
+ModuleManagement m = conductor.service(ModuleManagement.KEY).orElseThrow();
+m.modules().forEach(i -> log("%s %s", i.id(), i.state()));
+m.disable(someId, "user toggled it off");   // its leases are revoked, its travel cancelled, its services withdrawn
+m.enable(someId);
+```
+
+### 11.4 Modules that use Minecraft directly (native modules)
+
+Big existing mods (TenorClef, Ostinato's own Autotune) won't become contract-only overnight. They can still join as **native modules**: a module that also uses Minecraft or engine classes is tied to one version, but it takes the same leases and uses the same topics and services. If it drives Ostinato processes itself, it declares them while holding MOVEMENT:
+
+```java
+conductor.declareEngineProcesses(Set.of("baritone.process.MineProcess"));
+```
+
+Conductor then counts that process's activity as yours, not as interference. See [MODULE-PLATFORM.md](MODULE-PLATFORM.md) for the full design.
+
+---
+
+## 12. One jar, every version: optional features
+
+Minecraft versions differ in what exists. 1.21.11 has spears; 1.21.4 doesn't. A combat module shouldn't need two builds, or a check like `if (version >= 1.21.11)`. Instead, it says **what each part needs**, and Conductor switches that part off where the thing doesn't exist. The rest of the module runs normally.
+
+### 12.1 Ask about things, never versions
+
+```java
+ContentResult r = conductor.content(ContentId.item("minecraft:iron_spear"));
+// PRESENT: it exists in this game.  ABSENT: Conductor looked, and it doesn't.  UNKNOWN: Conductor couldn't tell.
+```
+
+| Kind | Example | Answered from |
+|---|---|---|
+| `ContentId.item(...)` | `minecraft:mace` | the game's item registry |
+| `ContentId.block(...)` | `minecraft:crafter` | block registry |
+| `ContentId.entity(...)` | `minecraft:breeze` | entity type registry |
+| `ContentId.effect(...)` | `minecraft:wind_charged` | effect registry |
+| `ContentId.engine(...)` | `ostinato:combat/spear` | the engine build (discovery's `content` capability lists those present) |
+
+Because you ask about the thing, a module written today keeps working on a version released next year. If that version adds spears, the spear part simply switches on.
+
+### 12.2 Declare features
+
+```java
+public final class CombatModule implements ConductorModule {
+
+    @Override
+    public List<ModuleFeature> features() {
+        return List.of(
+            ModuleFeature.of("spear", "lunge with a spear when the target is in reach",
+                    ContentId.item("minecraft:iron_spear")),
+            ModuleFeature.of("mace", "smash attacks after a fall",
+                    ContentId.item("minecraft:mace")),
+            ModuleFeature.of("wind", "wind-charge jumps",
+                    ContentId.item("minecraft:wind_charge")));
+    }
+
+    @Override
+    public void onTick(ModuleContext conductor) {
+        meleeTick(conductor);                                    // always: every version has swords
+        if (conductor.feature("spear").enabled()) {
+            spearTick(conductor);                                // only where spears exist
+        }
+        if (conductor.feature("mace").enabled()) {
+            maceTick(conductor);
+        }
+    }
+}
+```
+
+Conductor checks every feature **once, before `onReady`**, and logs the decision to the diagnostic sink (`MODULE_FEATURE`, for example `spear OFF: off: item:minecraft:iron_spear ABSENT`). `conductor.features()` returns all of them, for showing in a settings screen.
+
+On 1.21.11 this module runs melee, spear, mace and wind. On 1.21.4 it runs melee, mace and wind. There is no spear code path to configure, and no spear kits to worry about.
+
+The rules:
+- **A feature is on only if everything it requires is PRESENT.** UNKNOWN counts as off. A feature is never switched on by a guess.
+- **Features with no requirements are always on.** Use them as named switches if you like.
+- **Keep the off path clean.** When a feature is off, don't reference its items at all: no kit entries, no settings, no HUD rows.
+- **Combine requirements** when a part needs several things, including an engine feature: `ModuleFeature.of("spear", "...", ContentId.item("minecraft:iron_spear"), ContentId.engine("ostinato:combat/spear"))`.
+
+### 12.3 Testing it without Minecraft
+
+Give your fake runtime a content table and run the same module twice. `contract/src/test/java/conductor/contract/VersionFeatureTest.java` does exactly this: a 1.21.11-like runtime turns on `[melee, spear, mace]`, and a 1.21.4-like runtime turns on `[melee]`.
+

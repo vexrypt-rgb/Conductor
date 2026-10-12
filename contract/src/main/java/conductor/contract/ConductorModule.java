@@ -33,6 +33,14 @@ public interface ConductorModule {
         return Priority.NORMAL;
     }
 
+    /**
+     * Optional parts of this module that need content which may not exist everywhere (see {@link ModuleFeature}).
+     * Conductor checks them when the module starts; ask {@link ModuleContext#feature(String)} which are on.
+     */
+    default java.util.List<ModuleFeature> features() {
+        return java.util.List.of();
+    }
+
     /** Services that must be provided before this module starts. */
     default Set<ServiceKey<?>> requires() {
         return Set.of();

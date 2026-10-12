@@ -1,6 +1,7 @@
 package conductor.host;
 
 import conductor.contract.ConductorModule;
+import conductor.contract.InMemoryDiagnosticSink;
 import conductor.runtime.ostinato.ConductorBootstrap;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
@@ -8,14 +9,13 @@ import net.fabricmc.loader.api.entrypoint.EntrypointContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The Conductor mod for one Minecraft version. Finds every module declared under the {@code "conductor"}
- * entrypoint in any mod's {@code fabric.mod.json} and starts it.
- * <p>
- * Conductor currently serves one consumer, so only the first module found is started; the others are named in the
- * log as not started.
+ * entrypoint in any mod's {@code fabric.mod.json} and starts them all, side by side.
  */
 public final class ConductorHostMod implements ClientModInitializer {
 
@@ -29,13 +29,13 @@ public final class ConductorHostMod implements ClientModInitializer {
             LOG.info("Conductor loaded; no modules declared a \"conductor\" entrypoint");
             return;
         }
-        EntrypointContainer<ConductorModule> first = found.get(0);
-        LOG.info("Conductor starting module {} from mod {}", first.getEntrypoint().getClass().getName(),
-                first.getProvider().getMetadata().getId());
-        for (EntrypointContainer<ConductorModule> other : found.subList(1, found.size())) {
-            LOG.warn("Conductor serves one module at a time; not starting {} from mod {}",
-                    other.getEntrypoint().getClass().getName(), other.getProvider().getMetadata().getId());
+        Map<String, ConductorModule> modules = new LinkedHashMap<>();
+        for (EntrypointContainer<ConductorModule> c : found) {
+            String id = c.getProvider().getMetadata().getId();
+            // several entrypoints in one mod get distinct ids from the host (id, id#2, ...)
+            modules.put(modules.containsKey(id) ? id + "/" + c.getEntrypoint().getClass().getSimpleName() : id, c.getEntrypoint());
         }
-        ConductorBootstrap.start(first.getEntrypoint());
+        LOG.info("Conductor starting {} module(s): {}", modules.size(), modules.keySet());
+        ConductorBootstrap.start(modules, new InMemoryDiagnosticSink(50_000));
     }
 }

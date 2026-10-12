@@ -4,21 +4,24 @@ import baritone.api.BaritoneAPI;
 import baritone.api.IBaritone;
 import baritone.api.event.events.TickEvent;
 import baritone.api.event.listener.AbstractGameEventListener;
-import conductor.contract.Conductor;
+import conductor.contract.ContractService;
 import conductor.contract.ConductorModule;
 import conductor.contract.DiagnosticSink;
 import conductor.contract.InMemoryDiagnosticSink;
+import conductor.contract.ModuleHost;
 import conductor.contract.ReleasePolicy;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Starts a {@link ConductorModule} on Ostinato. The Conductor mod calls this for modules it finds; modules
- * themselves never need to.
+ * Starts {@link ConductorModule}s on Ostinato, side by side under one {@link ModuleHost}. The Conductor mod calls
+ * this for the modules it finds; modules themselves never need to.
  * <p>
  * A background thread waits until the player is in a world. All further work happens on the game thread: install
  * Conductor on the primary Baritone, call {@link ConductorModule#onReady}, then {@link ConductorModule#onTick} every
@@ -31,69 +34,62 @@ public final class ConductorBootstrap {
 
     private ConductorBootstrap() {}
 
-    /** Start {@code module} with its own release policy and a fresh in-memory diagnostic sink. */
+    /** Start one module, with a fresh in-memory diagnostic sink. */
     public static void start(ConductorModule module) {
-        start(module, module.releasePolicy());
+        start(new LinkedHashMap<>(Map.of(module.getClass().getName(), module)), new InMemoryDiagnosticSink(10_000));
     }
 
-    /** Start {@code module} with a fresh in-memory diagnostic sink. */
-    public static void start(ConductorModule module, ReleasePolicy policy) {
-        start(module, policy, new InMemoryDiagnosticSink(10_000));
-    }
-
-    public static void start(ConductorModule module, ReleasePolicy policy, DiagnosticSink sink) {
-        Objects.requireNonNull(module, "module");
-        Objects.requireNonNull(policy, "policy");
+    /**
+     * Start every module in {@code modules} (requested id → module) side by side on one Conductor core. The core
+     * uses the longest release windows any module asks for ({@link ModuleHost#combinedPolicy}).
+     */
+    public static void start(Map<String, ConductorModule> modules, DiagnosticSink sink) {
+        Objects.requireNonNull(modules, "modules");
         Objects.requireNonNull(sink, "sink");
-        Thread waiter = new Thread(() -> waitThenInstall(module, policy, sink), "conductor-bootstrap");
+        Map<String, ConductorModule> copy = new LinkedHashMap<>(modules);
+        Thread waiter = new Thread(() -> waitThenInstall(copy, sink), "conductor-bootstrap");
         waiter.setDaemon(true);
         waiter.start();
     }
 
-    private static void waitThenInstall(ConductorModule module, ReleasePolicy policy, DiagnosticSink sink) {
+    private static void waitThenInstall(Map<String, ConductorModule> modules, DiagnosticSink sink) {
         try {
             while (true) {
                 Minecraft mc = Minecraft.getInstance();
                 if (mc != null && mc.submit(() -> mc.player != null && mc.level != null).get(30, TimeUnit.SECONDS)) {
-                    mc.submit(() -> install(module, policy, sink)).get(30, TimeUnit.SECONDS);
+                    mc.submit(() -> install(modules, sink)).get(30, TimeUnit.SECONDS);
                     return;
                 }
                 Thread.sleep(250);
             }
         } catch (Exception e) {
-            LOG.error("Conductor bootstrap failed; module {} not started", module.getClass().getName(), e);
+            LOG.error("Conductor bootstrap failed; modules {} not started", modules.keySet(), e);
         }
     }
 
     /** Game thread. */
-    private static void install(ConductorModule module, ReleasePolicy policy, DiagnosticSink sink) {
+    private static void install(Map<String, ConductorModule> modules, DiagnosticSink sink) {
         IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
-        Conductor conductor = ConductorOstinato.install(baritone, sink, policy);
+        ReleasePolicy policy = ModuleHost.combinedPolicy(modules.values());
+        ContractService core = ConductorOstinato.install(baritone, sink, policy);
+        ModuleHost host = new ModuleHost(core);
+        modules.forEach((id, module) -> LOG.info("Conductor registered module {}", host.register(id, module)));
+        LOG.info("Conductor core installed; release policy {}", policy);
         // Registered after Conductor's own listener, so each tick the context and evidence are already updated.
-        // onReady waits for the first such tick, when the context exists.
         baritone.getGameEventHandler().registerEventListener(new AbstractGameEventListener() {
-            private boolean ready;
-
             @Override
             public void onTick(TickEvent event) {
                 if (event.getType() != TickEvent.Type.IN) {
                     return;
                 }
-                if (!ready) {
-                    ready = true;
-                    call(module, () -> module.onReady(conductor));
+                try {
+                    host.tick();
+                } catch (RuntimeException e) {
+                    // the host isolates module faults itself; this guards against a platform bug taking the game down
+                    LOG.error("Conductor module host failed this tick", e);
                 }
-                call(module, () -> module.onTick(conductor));
             }
         });
     }
 
-    /** A failing module must not take the game tick down with it. */
-    private static void call(ConductorModule module, Runnable callback) {
-        try {
-            callback.run();
-        } catch (RuntimeException e) {
-            LOG.error("Conductor module {} threw", module.getClass().getName(), e);
-        }
-    }
 }

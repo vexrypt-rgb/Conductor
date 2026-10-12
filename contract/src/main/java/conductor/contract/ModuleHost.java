@@ -123,6 +123,7 @@ public final class ModuleHost {
                     changed = true;
                 } else if ((e.state == ModuleState.DISCOVERED || e.state == ModuleState.BLOCKED)) {
                     if (missing.isEmpty()) {
+                        evaluateFeatures(e);
                         setState(e, ModuleState.RUNNING, "started");
                         call(e, () -> e.module.onReady(e.context));
                         handleFaults();
@@ -132,6 +133,31 @@ public final class ModuleHost {
                     }
                 }
             }
+        }
+    }
+
+    /** Check each optional feature's content once per start; the module reads the result via its context. */
+    private void evaluateFeatures(Entry e) {
+        e.features.clear();
+        List<ModuleFeature> declared;
+        try {
+            declared = e.module.features();
+        } catch (RuntimeException ex) {
+            faults.add(new Fault(e, ex));
+            return;
+        }
+        if (declared == null) {
+            return;
+        }
+        for (ModuleFeature f : declared) {
+            List<ContentResult> checks = new ArrayList<>();
+            for (ContentId c : f.requires()) {
+                checks.add(core.content(c));
+            }
+            FeatureStatus status = FeatureStatus.evaluate(f, checks);
+            e.features.put(f.name(), status);
+            sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.MODULE_FEATURE, core.currentTick(),
+                    core.currentContext().orElse(null), e.id.value(), f.name() + " " + (status.enabled() ? "ON" : "OFF") + ": " + status.reason()));
         }
     }
 
@@ -478,6 +504,7 @@ public final class ModuleHost {
         final List<Sub<?>> subscriptions = new ArrayList<>();
         final List<ServiceKey<?>> provided = new ArrayList<>();
         final Set<String> declaredControllers = new HashSet<>();
+        final Map<String, FeatureStatus> features = new LinkedHashMap<>();
 
         Entry(ModuleId id, ConductorModule module) {
             this.id = id;
@@ -535,6 +562,22 @@ public final class ModuleHost {
         @Override
         public ResourceStatus resourceStatus() {
             return core.resourceStatus();
+        }
+
+        @Override
+        public ContentResult content(ContentId content) {
+            return core.content(content);
+        }
+
+        @Override
+        public FeatureStatus feature(String name) {
+            FeatureStatus s = e.features.get(name);
+            return s != null ? s : new FeatureStatus(name, false, List.of(), "not declared by this module");
+        }
+
+        @Override
+        public Map<String, FeatureStatus> features() {
+            return Map.copyOf(e.features);
         }
 
         @Override

@@ -44,6 +44,12 @@ public interface ModuleContext extends Conductor {
 
     <T> Optional<T> service(ServiceKey<T> key);
 
+    /** Whether this module's optional feature {@code name} is on (see {@link ConductorModule#features()}). */
+    FeatureStatus feature(String name);
+
+    /** All of this module's optional features, as checked when it started. */
+    java.util.Map<String, FeatureStatus> features();
+
     /**
      * Native modules only: the engine processes (as reported by CONTROLLING_PROCESS) this module drives directly.
      * While it holds MOVEMENT, their activity counts as this module's rather than as interference.
