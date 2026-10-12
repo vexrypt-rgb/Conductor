@@ -18,4 +18,6 @@ include 'contract'
     project(":runtime-ostinato-${mc}").projectDir = file("runtime-ostinato/${mc}")
     include "live-harness-${mc}"
     project(":live-harness-${mc}").projectDir = file("live-harness/${mc}")
+    include "example-walk-and-stop-${mc}"
+    project(":example-walk-and-stop-${mc}").projectDir = file("examples/walk-and-stop/${mc}")
 }

@@ -12,12 +12,16 @@ Conductor is the modularity and capability-contract layer for Ostinato. It evolv
 | 3. Single-consumer navigation delegation | Complete; 54/54 tests pass; verified live | [docs/stage3-navigation.md](docs/stage3-navigation.md) |
 | 4. Ownership, resource safety, interference classification | Complete; 70/70 tests; verified live on 1.21.11 | [docs/stage4-release.md](docs/stage4-release.md) |
 
+**New here? Start with the [tutorial](docs/TUTORIAL.md)**: what Conductor does, every capability, and how to build a module (worked example in [`examples/walk-and-stop`](examples/walk-and-stop)).
+
 Deferred capability candidates (combat and others): [docs/deferred-candidates.md](docs/deferred-candidates.md)
 
 ## Layout
 
-- `contract/`: the normative contract and Java binding (`conductor.contract.Conductor`). Pure Java 21, no Minecraft dependency.
-- `runtime-ostinato/`: runtime integration and version adapter for Ostinato `main` (Minecraft 1.21.11). Observations are read-only; navigation delegates to one held `IMovementEngine`.
+- `contract/`: the normative contract, the Java binding (`Conductor`) and the module interface (`ConductorModule`). Pure Java 21, no Minecraft dependency.
+- `runtime-ostinato/`: the runtime adapter for Ostinato. Shared code is in `common/`; `1.21.11/` (Ostinato `main`) and `1.21.4/` (Ostinato `1.21.4`) differ only in `MinecraftGameAccess`. Includes `ConductorBootstrap`, which starts a module.
+- `examples/walk-and-stop/`: example module, built for both versions.
+- `live-harness/`: test-only mod for live runs, built for both versions.
 
 ## Live harness
 

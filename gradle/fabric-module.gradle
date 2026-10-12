@@ -1,5 +1,6 @@
-// Live test harness for one Minecraft version: a client Fabric mod (test tooling, not shipped). Applied by
-// live-harness/<mc>/build.gradle, which sets ext.mc. Shared sources in live-harness/common.
+// A client Fabric mod built on Conductor, for one Minecraft version. Applied by <module>/<mc>/build.gradle, which
+// sets ext.mc (a key of mcTargets) and ext.commonDir (the module's shared source folder, e.g. 'examples/walk-and-stop/common').
+// Used by the live harness and by modules; see docs/TUTORIAL.md.
 apply plugin: 'xyz.wagyourtail.unimined'
 
 def target = rootProject.mcTargets[mc]
@@ -13,8 +14,8 @@ repositories {
 }
 
 sourceSets {
-    main.java.srcDirs += rootProject.file('live-harness/common/src/main/java')
-    main.resources.srcDirs += rootProject.file('live-harness/common/src/main/resources')
+    main.java.srcDirs += rootProject.file("${commonDir}/src/main/java")
+    main.resources.srcDirs += rootProject.file("${commonDir}/src/main/resources")
 }
 
 unimined.minecraft {

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "conductor_example_walk_and_stop",
+  "version": "${version}",
+  "name": "Conductor example: walk and stop",
+  "description": "Example Conductor module: walks 20 blocks, cancels, and waits until the stop is confirmed.",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["conductor.example.WalkAndStopMod"]
+  },
+  "depends": {
+    "fabricloader": "*",
+    "minecraft": "${mc}",
+    "baritone": "*"
+  }
+}
