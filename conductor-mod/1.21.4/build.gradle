@@ -1,3 +1,3 @@
 ext.mc = '1.21.4'
-ext.commonDir = 'examples/walk-and-stop/common'
+ext.commonDir = 'conductor-mod/common'
 apply from: rootProject.file('gradle/fabric-module.gradle')

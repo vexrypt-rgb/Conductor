@@ -12,12 +12,17 @@ rootProject.name = 'conductor'
 
 include 'contract'
 
-// One runtime adapter and one live harness per Minecraft version (see mcTargets in build.gradle).
+// Version-agnostic modules: plain Java, built once, depend on the contract only.
+include 'example-walk-and-stop'
+project(':example-walk-and-stop').projectDir = file('examples/walk-and-stop')
+
+// Per Minecraft version (see mcTargets in build.gradle): the runtime adapter, the Conductor mod that hosts modules,
+// and the live test harness.
 ['1.21.11', '1.21.4'].each { mc ->
     include "runtime-ostinato-${mc}"
     project(":runtime-ostinato-${mc}").projectDir = file("runtime-ostinato/${mc}")
     include "live-harness-${mc}"
     project(":live-harness-${mc}").projectDir = file("live-harness/${mc}")
-    include "example-walk-and-stop-${mc}"
-    project(":example-walk-and-stop-${mc}").projectDir = file("examples/walk-and-stop/${mc}")
+    include "conductor-mod-${mc}"
+    project(":conductor-mod-${mc}").projectDir = file("conductor-mod/${mc}")
 }

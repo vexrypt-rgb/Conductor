@@ -5,7 +5,8 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Observation kinds defined by the contract for Stage 2: raw, read-only signals about the movement resource.
+ * Observation kinds defined by the contract: raw, read-only signals about the movement resource, plus the player's
+ * position.
  * <p>
  * Each kind is one raw signal. None of them, alone or combined, is defined here as evidence that pathing stopped,
  * that overrides were cleared, or that the resource is safe. Those evidence rules belong to Stage 4. See
@@ -53,8 +54,12 @@ public final class ObservationKinds {
             "SECONDARY_BACKEND_STOPPING",
             "The secondary travel backend reports a cancelled search that has not yet wound down.");
 
+    public static final ObservationKind<BlockPoint> PLAYER_POSITION = new ObservationKind<>(
+            "PLAYER_POSITION",
+            "The block the player is standing in.");
+
     public static final List<ObservationKind<?>> ALL = List.of(
             PATH_SEGMENT_PRESENT, NEXT_SEGMENT_PRESENT, PATH_CALCULATION_PENDING, CONTROLLING_PROCESS,
             TRAVEL_GOAL_ACTIVE, FORCED_INPUTS, SECONDARY_BACKEND_BOUND, SECONDARY_BACKEND_PATHING,
-            SECONDARY_BACKEND_STOPPING);
+            SECONDARY_BACKEND_STOPPING, PLAYER_POSITION);
 }

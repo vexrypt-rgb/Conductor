@@ -17,7 +17,8 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Starts a {@link ConductorModule} on Ostinato: one call from a Fabric client entrypoint.
+ * Starts a {@link ConductorModule} on Ostinato. The Conductor mod calls this for modules it finds; modules
+ * themselves never need to.
  * <p>
  * A background thread waits until the player is in a world. All further work happens on the game thread: install
  * Conductor on the primary Baritone, call {@link ConductorModule#onReady}, then {@link ConductorModule#onTick} every
@@ -29,6 +30,11 @@ public final class ConductorBootstrap {
     private static final Logger LOG = LoggerFactory.getLogger("conductor");
 
     private ConductorBootstrap() {}
+
+    /** Start {@code module} with its own release policy and a fresh in-memory diagnostic sink. */
+    public static void start(ConductorModule module) {
+        start(module, module.releasePolicy());
+    }
 
     /** Start {@code module} with a fresh in-memory diagnostic sink. */
     public static void start(ConductorModule module, ReleasePolicy policy) {

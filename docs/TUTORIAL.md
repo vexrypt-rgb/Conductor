@@ -23,14 +23,14 @@ This guide explains what Conductor is, everything it can do today, and how to bu
 **Conductor** sits on top of Ostinato and gives your code a **small, safe, version-independent way to use it**:
 
 ```
- your module  ──►  Conductor (the contract)  ──►  runtime adapter for your Minecraft version  ──►  Ostinato
+ your module (one jar, any version)  ──►  Conductor contract  ──►  Conductor mod for this Minecraft version  ──►  Ostinato
 ```
 
-- **Your module** only talks to Conductor. It never touches Baritone internals.
+- **Your module** only talks to the Conductor contract. It never imports Minecraft, Fabric or Baritone classes.
 - **The contract** (`contract/`) is plain Java with no Minecraft code. It holds the rules.
-- **The runtime adapter** (`runtime-ostinato/`) is the only part that knows Minecraft and Ostinato. There is one per Minecraft version (today **1.21.11** and **1.21.4**), built from the same shared code.
+- **The Conductor mod** (`conductor-mod/`, built on `runtime-ostinato/`) is the only part that knows Minecraft and Ostinato. There is one per Minecraft version (today **1.21.11** and **1.21.4**), built from the same shared code. It finds your module and runs it.
 
-So you write a module once, and it builds for every supported Minecraft version.
+So **your module is one jar that works on every supported Minecraft version**. You install the Conductor mod that matches your game, plus your module. The same example jar was run live on both 1.21.11 and 1.21.4.
 
 What Conductor gives you today:
 
@@ -62,9 +62,11 @@ Keep these in mind and none of the rejections in §6 will surprise you.
 
 You need:
 - **JDK 21**
-- **An Ostinato checkout for each Minecraft version you build for**, with its classes compiled:
+- **An Ostinato checkout for each Minecraft version you build the Conductor mod for**, with its classes compiled:
   - `main` branch, for 1.21.11: put it next to Conductor as `../Ostinato`
   - `1.21.4` branch: put it next to Conductor as `../Ostinato-1.21.4`, or pass `-PostinatoDir_1_21_4=/path`
+
+  Writing a **module** needs none of this: a module only needs the `contract` project.
 
 ```sh
 # 1. compile Ostinato's classes (once per checkout)
@@ -72,11 +74,18 @@ You need:
 (cd ../Ostinato-1.21.4 && ./gradlew compileJava compileApiJava)
 
 # 2. build and test Conductor
-./gradlew test                         # contract tests, plus the adapter tests on both Minecraft versions
-./gradlew :example-walk-and-stop-1.21.11:build
+./gradlew test                                # contract tests, plus the adapter tests on both Minecraft versions
+./gradlew :conductor-mod-1.21.11:build :conductor-mod-1.21.4:build
+./gradlew :example-walk-and-stop:build        # a module: one jar for every version
 ```
 
-Project names always end in the Minecraft version: `runtime-ostinato-1.21.4`, `example-walk-and-stop-1.21.4`, and so on. The mod jar you install is the one **without** `-dev` in `<project>/<mc>/build/libs/`.
+What to install in your game's `mods/` folder:
+
+| Jar | Where it's built | Per version? |
+|---|---|---|
+| Ostinato | Ostinato's own build | yes |
+| **Conductor mod** | `conductor-mod/<mc>/build/libs/conductor-mod-<mc>-<v>.jar` (not the `-dev` one) | yes: pick your game's version |
+| **Your module** | `examples/walk-and-stop/build/libs/example-walk-and-stop-<v>.jar` | **no: the same jar everywhere** |
 
 ---
 
@@ -84,79 +93,71 @@ Project names always end in the Minecraft version: `runtime-ostinato-1.21.4`, `e
 
 We'll build the example that ships in [`examples/walk-and-stop`](../examples/walk-and-stop). It waits until the bot is free, walks 20 blocks east, cancels after 2 seconds, and waits until the stop is confirmed.
 
-### Step 1: create the folders
+A module is **one Java class plus a `fabric.mod.json`**.
+
+### Step 1: create the project
 
 ```
 examples/my-module/
-  common/src/main/java/...            ← your code (shared by every Minecraft version)
-  common/src/main/resources/fabric.mod.json
-  1.21.11/build.gradle                ← tiny, one per Minecraft version
-  1.21.4/build.gradle
+  build.gradle
+  src/main/java/my/pkg/MyModule.java
+  src/main/resources/fabric.mod.json
 ```
 
-Each per-version `build.gradle` is three lines:
+`build.gradle`: the module sees **only** the contract, so the compiler itself stops you from using version-specific classes:
 
 ```groovy
-ext.mc = '1.21.11'
-ext.commonDir = 'examples/my-module/common'
-apply from: rootProject.file('gradle/fabric-module.gradle')
+dependencies {
+    compileOnly project(':contract')
+}
 ```
 
-Register the projects in `settings.gradle`, **inside** the existing `['1.21.11', '1.21.4'].each { mc -> ... }` loop, next to the example's two lines:
+Register it in `settings.gradle`, next to the example:
 
 ```groovy
-    include "my-module-${mc}"
-    project(":my-module-${mc}").projectDir = file("examples/my-module/${mc}")
+include 'my-module'
+project(':my-module').projectDir = file('examples/my-module')
 ```
 
-### Step 2: describe the mod (`fabric.mod.json`)
+### Step 2: declare the module (`fabric.mod.json`)
 
-`${mc}` and `${version}` are filled in for you at build time:
+The `"conductor"` entrypoint is how the Conductor mod finds your module. You need no Fabric startup code.
 
 ```json
 {
   "schemaVersion": 1,
   "id": "my_module",
-  "version": "${version}",
+  "version": "1.0.0",
   "name": "My module",
   "environment": "client",
-  "entrypoints": { "client": ["my.pkg.MyModuleMod"] },
-  "depends": { "fabricloader": "*", "minecraft": "${mc}", "baritone": "*" }
+  "entrypoints": { "conductor": ["my.pkg.MyModule"] },
+  "depends": { "conductor": "*" }
 }
 ```
 
-### Step 3: start your module (the entrypoint)
+### Step 3: write the module
 
-This is the **only** Ostinato-specific line in your module:
-
-```java
-public final class WalkAndStopMod implements ClientModInitializer {
-    @Override
-    public void onInitializeClient() {
-        // How long the bot must look idle before Conductor calls it free. No default on purpose;
-        // 20 ticks (1 s) covered every stop seen in testing.
-        ReleasePolicy policy = new ReleasePolicy(OptionalLong.of(20), OptionalLong.of(1200));
-        ConductorBootstrap.start(new WalkAndStop(), policy);
-    }
-}
-```
-
-`ConductorBootstrap` waits until you are in a world, installs Conductor, and then calls your module. **You never have to think about threads:** your module's methods are always called on the game thread.
-
-### Step 4: write the module
-
-A module implements `ConductorModule`, which has two methods:
+A module implements `ConductorModule`:
 
 ```java
 public interface ConductorModule {
+    ReleasePolicy releasePolicy();                  // how long the bot must look idle before it counts as free
     void onReady(Conductor conductor);              // once, when you're in a world
     default void onTick(Conductor conductor) {}     // every game tick (20 per second)
 }
 ```
 
-Here is the heart of the example (full file: [`WalkAndStop.java`](../examples/walk-and-stop/common/src/main/java/conductor/example/WalkAndStop.java)):
+**You never have to think about threads:** these methods are always called on the game thread.
+
+Here is the heart of the example (full file: [`WalkAndStop.java`](../examples/walk-and-stop/src/main/java/conductor/example/WalkAndStop.java)):
 
 ```java
+@Override
+public ReleasePolicy releasePolicy() {
+    // No default on purpose; 20 ticks (1 s) covered every stop seen in testing. Give up proving a stop after 60 s.
+    return new ReleasePolicy(OptionalLong.of(20), OptionalLong.of(1200));
+}
+
 @Override
 public void onTick(Conductor conductor) {
     ticksInStep++;
@@ -176,7 +177,7 @@ public void onTick(Conductor conductor) {
         case STOPPING -> {
             OperationState state = conductor.operationStatus(operation).status().orElseThrow().state();
             if (state == OperationState.CANCELLED) {                  // really stopped
-                LOG.info("stop confirmed after {} ticks", ticksInStep);
+                log("stop confirmed after %d ticks", ticksInStep);
                 next(Step.DONE);
             }
         }
@@ -185,10 +186,16 @@ public void onTick(Conductor conductor) {
 }
 
 private void walk(Conductor conductor) {
-    BlockPos here = Minecraft.getInstance().player.blockPosition();
-    OperationResult result = conductor.requestTravel(NavigationGoal.getToBlock(here.getX() + 20, here.getY(), here.getZ()));
+    // The player's position comes from Conductor, not from Minecraft classes.
+    Optional<BlockPoint> here = conductor.observe(ObservationKinds.PLAYER_POSITION, FreshnessPolicy.sameTick())
+            .observation().flatMap(o -> o.observedValue());
+    if (here.isEmpty()) {
+        return;                                                       // try again next tick
+    }
+    BlockPoint target = here.get().offset(20, 0, 0);
+    OperationResult result = conductor.requestTravel(NavigationGoal.getToBlock(target.x(), target.y(), target.z()));
     if (!result.isAccepted()) {
-        LOG.info("travel refused: {} ({})", result.rejection().orElseThrow(), result.detail());
+        log("travel refused: %s (%s)", result.rejection().orElseThrow(), result.detail());
         return;                                                       // try again next tick
     }
     operation = result.status().orElseThrow().id();
@@ -198,13 +205,15 @@ private void walk(Conductor conductor) {
 
 The pattern to remember is **a small state machine driven by `onTick`**. Never wait or sleep inside a module: just check again on the next tick.
 
-### Step 5: build and run
+### Step 4: build and run
 
 ```sh
-./gradlew :my-module-1.21.11:build
+./gradlew :my-module:build
 ```
 
-Copy the non-`-dev` jar into your Minecraft `mods/` folder, next to Ostinato. Today **only one Conductor module can run per game** (see §10).
+Put `examples/my-module/build/libs/my-module-<v>.jar` into your `mods/` folder, together with Ostinato and the **Conductor mod for your Minecraft version**. That's all: the same module jar works on every version.
+
+> **Version-agnostic rule:** import only `conductor.contract.*` and the JDK. If you import a Minecraft class, your module is tied to one version again. Ask Conductor for what you need instead, and if Conductor doesn't offer it yet, see §9.
 
 ---
 
@@ -220,6 +229,7 @@ Returns the contract version, the current context, and a list of **capabilities*
 |---|---|---|---|
 | `navigation` | `AVAILABLE` on Ostinato | `requestTravel`, `cancel`, `operationStatus` | the 6 engine kinds below |
 | `navigation.secondary-backend` | `AVAILABLE` only if Tungsten is installed | none | the 3 `SECONDARY_BACKEND_*` kinds |
+| `player` | `AVAILABLE` | none | `PLAYER_POSITION` |
 
 ### 5.2 `observe(kind, freshnessPolicy)`: read what the engine is doing
 
@@ -243,6 +253,7 @@ if (r.isAccepted()) {
 | `SECONDARY_BACKEND_BOUND` | Boolean | Tungsten is installed and linked | |
 | `SECONDARY_BACKEND_PATHING` | Boolean | Tungsten is moving | Only `true` is trustworthy; Tungsten's `false` is reported as UNKNOWN |
 | `SECONDARY_BACKEND_STOPPING` | Boolean | Tungsten is winding down | Same as above |
+| `PLAYER_POSITION` | `BlockPoint(x, y, z)` | The block the player stands in | Use this instead of Minecraft's position classes |
 
 **Freshness policies.** You must always pass one; there is no default.
 - `FreshnessPolicy.sameTick()`: only a reading from this exact tick counts.
@@ -313,7 +324,7 @@ Everything important is written to an in-process log you can read with `sink.sna
 | `PROVIDER_FAULT` | the engine threw while being read |
 | `OFF_THREAD_VIOLATION` | someone called from the wrong thread |
 
-To keep the sink, pass your own: `ConductorBootstrap.start(module, policy, mySink)`.
+The Conductor mod creates the sink. Reading it from a module is not exposed yet; in tests (§7) you build `ContractService` with your own sink and read it directly.
 
 ### 5.8 Interference: what Conductor can and can't see
 
@@ -352,13 +363,20 @@ Every refusal has a reason. Here is what each one means and what to do.
 
 ## 7. Testing your module
 
-**Unit tests without Minecraft.** The contract is plain Java, so you can test module logic against a fake runtime: implement `RuntimeIntegration` and `NavigationPort` with whatever values you want. See `contract/src/test/java/conductor/contract/FakeRuntime.java` and `FakePort.java` for small, complete examples. Build a `ContractService` around them, call `tick()` to simulate game ticks, and drive your module's `onTick` yourself.
+**Unit tests without Minecraft.** Modules and the contract are plain Java, so you can test a module against a fake runtime: implement `RuntimeIntegration` and `NavigationPort` with whatever values you want. See `contract/src/test/java/conductor/contract/FakeRuntime.java` and `FakePort.java` for small, complete examples. Build a `ContractService` around them, call `tick()` to simulate game ticks, and drive your module's `onTick` yourself.
 
 **Live tests in a real game.** `scripts/live-run.sh` starts a local server and Ostinato's client under a virtual display, with the live harness mod. It records every reading, plus the player's real position and speed, every tick:
 
 ```sh
+# Conductor's own scenarios (Stage 4 checks, evidence trials)
 MC=1.21.4 OSTINATO_DIR=../Ostinato-1.21.4 scripts/live-run.sh /tmp/run   # needs /tmp/run/server/server.jar (vanilla, same version)
 python3 scripts/analyze-live.py /tmp/run/harness.jsonl
+
+# your module, in a real game: load the Conductor mod plus your module; the harness only joins the world and waits
+HARNESS_SCENARIO=connect-only HARNESS_HOLD=60 \
+EXTRA_MODS=conductor-mod/1.21.4/build/libs/conductor-mod-1.21.4-0.4.0.jar:examples/my-module/build/libs/my-module-0.4.0.jar \
+MC=1.21.4 OSTINATO_DIR=../Ostinato-1.21.4 scripts/live-run.sh /tmp/run
+grep my-module /tmp/run/client.log
 ```
 
 Read the script header for the details.
@@ -372,8 +390,8 @@ Thanks to the shared code, a new version is mostly configuration:
 1. **Check the Ostinato branch.** It must have the same API Conductor uses: `IMovementEngine`, `IPathingBehavior`, `IPathingControlManager`, `IInputOverrideHandler`, the event bus. `git diff` those files against `main`.
 2. **Add the version to `mcTargets`** in `build.gradle`, with its Parchment and Fabric Loader versions (copy them from that branch's build files) and where its Ostinato checkout lives.
 3. **Create `runtime-ostinato/<mc>/`** with a 2-line `build.gradle` and its own `MinecraftGameAccess.java`. That class holds every Minecraft call that can differ between versions (thread check, dimension name, connection). For 1.21.4 versus 1.21.11 the only difference was `dimension().location()` versus `dimension().identifier()`.
-4. **Create `live-harness/<mc>/`** with a `build.gradle` and `Compat.java`. Do the same for each module (only `build.gradle` is needed if your module has no version-specific code).
-5. **Add the version** to the list in `settings.gradle`.
+4. **Create `conductor-mod/<mc>/` and `live-harness/<mc>/`**, each with a 3-line `build.gradle` (copy an existing one and change `mc`). The harness also needs its `Compat.java`.
+5. **Add the version** to the list in `settings.gradle`. Existing modules need **nothing**: they keep working, because they never touch Minecraft.
 6. **Run `./gradlew test`**: the same adapter tests now run on the new version too. Then do a live run with `MC=<version>`.
 
 ---
@@ -402,7 +420,9 @@ Conductor is young. Here is everything it **cannot** do today, so you can plan a
 - **No arrival signal.** A trip that ends on its own is `UNCERTAIN` ("outcome not established"). Check the player's position yourself.
 
 **How many modules, and where**
-- **One module per game.** Conductor serves a single consumer; a second install is refused. Each module jar currently bundles its own copy of Conductor, so two modules would also clash.
+- **One module per game.** Conductor serves a single consumer. If several modules are installed, the Conductor mod starts the first one it finds and logs the others as not started.
+- **Modules are version-agnostic only if they stay inside the contract.** A module that imports Minecraft classes works, but is tied to one version and outside Conductor's safety rules.
+- **Modules can't read the diagnostic sink at runtime yet** (only in tests).
 - **Ostinato only.** Conductor needs Ostinato, a Baritone fork. It is not a general mod loader.
 - **Fabric client only.** Forge and NeoForge are untested.
 - **Minecraft 1.21.11 and 1.21.4 only.** Ostinato's 26.3 branch (Java 25) has no adapter yet. The 1.16.1 branch's API differs too much to reuse as is.
@@ -416,7 +436,7 @@ Conductor is young. Here is everything it **cannot** do today, so you can plan a
 - **Human input is invisible.** Keys pressed by a person are not seen by Conductor.
 
 **Building and testing**
-- **Building needs local Ostinato checkouts** with compiled classes. There are no published artifacts yet.
+- **Building the Conductor mod needs local Ostinato checkouts** with compiled classes. There are no published artifacts yet. Modules need only the `contract` project.
 - **Tested on:** flat local test worlds (stairs, trench, water, long paths, mining), the Baritone backend, about 25 live cancel trials, and one full live run per Minecraft version.
 - **Not tested:** elytra, boats, heavy parkour, Tungsten, real servers (latency, anticheat), long play sessions.
 - **The live harness hangs on loading errors.** If a mod fails to load, Fabric opens an error window that nobody can close in a headless run. The run then waits for the script's timeout instead of failing at once.

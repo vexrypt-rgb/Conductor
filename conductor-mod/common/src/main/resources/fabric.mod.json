@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "conductor",
+  "version": "${version}",
+  "name": "Conductor",
+  "description": "Version-agnostic module host for Ostinato. This build is for Minecraft ${mc}.",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["conductor.host.ConductorHostMod"]
+  },
+  "depends": {
+    "fabricloader": "*",
+    "minecraft": "${mc}",
+    "baritone": "*"
+  }
+}

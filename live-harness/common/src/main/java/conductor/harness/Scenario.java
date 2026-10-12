@@ -100,6 +100,14 @@ final class Scenario implements Runnable {
         }
         Thread.sleep(5000); // let chunks arrive
 
+        if ("connect-only".equals(System.getProperty("conductor.harness.scenario"))) {
+            // Module test: the Conductor mod runs the installed modules; the harness only joins and waits.
+            int hold = Integer.getInteger("conductor.harness.holdSeconds", 60);
+            event("in world; holding for installed modules", "seconds", hold);
+            Thread.sleep(hold * 1000L);
+            return;
+        }
+
         InMemoryDiagnosticSink sink = new InMemoryDiagnosticSink(10_000);
         IBaritone baritone = onGame(() -> BaritoneAPI.getProvider().getPrimaryBaritone());
         // Release windows chosen from the evidence runs (docs/live-run-2026-10-12.md): control signals clear before
@@ -165,22 +173,21 @@ final class Scenario implements Runnable {
                 "pos", String.valueOf(onGame(() -> mc.player.blockPosition())), "target", String.valueOf(here.offset(-30, 0, 0)));
         waitResource(ResourceState.AVAILABLE, 400);
 
-        // 3. a foreign process holds the resource: grant refused, interference detected
-        recorder.phase = "S4 mining";
-        cmd("fill " + (here.getX() - 25) + " " + here.getY() + " " + (here.getZ() + 4) + " " + (here.getX() - 23) + " "
-                + (here.getY() + 2) + " " + (here.getZ() + 6) + " minecraft:oak_log");
+        // 3. a foreign process holds the resource: grant refused, interference detected. ExploreProcess is used
+        //    because mining by name deadlocks the game on Ostinato 1.21.4 (docs/live-run-1.21.4.md).
+        recorder.phase = "S4 foreign process";
         onGame(() -> {
-            baritone.getMineProcess().mineByName(0, "oak_log");
+            baritone.getExploreProcess().explore(here.getX() + 200, here.getZ() + 200);
             return null;
         });
         waitTicks(40);
-        event("S4 request while mining", "result", String.valueOf(onGame(() -> conductor.requestTravel(NavigationGoal.xz(0, 0)))),
+        event("S4 request while another process steers", "result", String.valueOf(onGame(() -> conductor.requestTravel(NavigationGoal.xz(0, 0)))),
                 "resource", String.valueOf(onGame(conductor::resourceStatus)));
         onGame(() -> {
-            baritone.getMineProcess().cancel();
+            baritone.getPathingBehavior().cancelEverything();
             return null;
         });
-        event("S4 mining stopped; resource available again", "ok", waitResource(ResourceState.AVAILABLE, 600));
+        event("S4 foreign process stopped; resource available again", "ok", waitResource(ResourceState.AVAILABLE, 2000));
 
         // 4. water: cancel takes effect at the edge, then drowning protection takes over (detected)
         recorder.phase = "S4 water";

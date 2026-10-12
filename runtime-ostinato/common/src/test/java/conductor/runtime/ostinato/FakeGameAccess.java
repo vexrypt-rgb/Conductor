@@ -28,4 +28,11 @@ final class FakeGameAccess implements GameAccess {
     public Object connectionIdentity() {
         return connection;
     }
+
+    conductor.contract.BlockPoint player = new conductor.contract.BlockPoint(1, 64, -2);
+
+    @Override
+    public conductor.contract.BlockPoint playerBlock() {
+        return player;
+    }
 }

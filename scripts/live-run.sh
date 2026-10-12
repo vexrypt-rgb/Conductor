@@ -8,7 +8,10 @@
 # Env: MC (Minecraft version of the harness, default 1.21.11; see mcTargets in build.gradle),
 #      OSTINATO_DIR (the Ostinato checkout for that version, default ../Ostinato),
 #      GRADLE_ARGS (extra args for both Gradle builds, e.g. an init script or -PostinatoDir_1_21_4=...),
-#      CLIENT_TIMEOUT (seconds, default 1200), HARNESS_SCENARIO (stage4 or evidence).
+#      CLIENT_TIMEOUT (seconds, default 1200),
+#      HARNESS_SCENARIO (stage4, evidence, or connect-only: join and wait while installed modules run),
+#      EXTRA_MODS (colon-separated jars to load too, e.g. the Conductor mod and module jars),
+#      HARNESS_HOLD (seconds connect-only waits, default 60).
 # Output: <workdir>/harness.jsonl (per-tick evidence), server.log, client.log.
 set -euo pipefail
 
@@ -42,7 +45,8 @@ echo "server ready"
 # Op the dev player once it joins, so the harness can change dimension with /execute.
 ( until grep -q "Dev joined the game" "$WORK/server.log" 2>/dev/null; do sleep 1; done; echo "op Dev" > "$WORK/server.in" ) &
 
-export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dfabric.addMods=$JAR -Dconductor.harness.out=$OUT -Dconductor.harness.server=localhost:25565 -Dconductor.harness.scenario=${HARNESS_SCENARIO:-stage4}"
+MODS="$JAR${EXTRA_MODS:+:$EXTRA_MODS}"
+export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dfabric.addMods=$MODS -Dconductor.harness.out=$OUT -Dconductor.harness.server=localhost:25565 -Dconductor.harness.scenario=${HARNESS_SCENARIO:-stage4} -Dconductor.harness.holdSeconds=${HARNESS_HOLD:-60}"
 cd "$OSTINATO_DIR"
 timeout "$CLIENT_TIMEOUT" xvfb-run -a -s "-screen 0 1280x720x24" \
     ./gradlew ${GRADLE_ARGS:-} :fabric:runClient -Pavailable_loaders=fabric --no-daemon \

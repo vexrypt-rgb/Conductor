@@ -19,4 +19,7 @@ interface GameAccess {
 
     /** Game thread only. Identity of the current server connection, compared by reference; may be null. */
     Object connectionIdentity();
+
+    /** Game thread only. The block the player stands in, or null without a player. */
+    conductor.contract.BlockPoint playerBlock();
 }

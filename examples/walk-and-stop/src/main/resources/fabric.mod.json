@@ -6,11 +6,9 @@
   "description": "Example Conductor module: walks 20 blocks, cancels, and waits until the stop is confirmed.",
   "environment": "client",
   "entrypoints": {
-    "client": ["conductor.example.WalkAndStopMod"]
+    "conductor": ["conductor.example.WalkAndStop"]
   },
   "depends": {
-    "fabricloader": "*",
-    "minecraft": "${mc}",
-    "baritone": "*"
+    "conductor": "*"
   }
 }

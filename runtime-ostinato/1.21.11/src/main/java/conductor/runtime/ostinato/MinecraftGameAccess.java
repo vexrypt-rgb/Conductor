@@ -1,6 +1,8 @@
 package conductor.runtime.ostinato;
 
 import baritone.api.utils.IPlayerContext;
+import conductor.contract.BlockPoint;
+import net.minecraft.core.BlockPos;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.level.Level;
 
@@ -32,6 +34,15 @@ final class MinecraftGameAccess implements GameAccess {
     @Override
     public Object connectionIdentity() {
         return ctx.minecraft().getConnection();
+    }
+
+    @Override
+    public BlockPoint playerBlock() {
+        if (ctx.player() == null) {
+            return null;
+        }
+        BlockPos p = ctx.player().blockPosition();
+        return new BlockPoint(p.getX(), p.getY(), p.getZ());
     }
 
     private static String dimension(Level level) {

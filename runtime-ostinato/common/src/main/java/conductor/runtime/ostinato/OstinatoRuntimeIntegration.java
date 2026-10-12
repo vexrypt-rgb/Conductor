@@ -1,5 +1,6 @@
 package conductor.runtime.ostinato;
 
+import conductor.contract.BlockPoint;
 import conductor.contract.CapabilityAvailability;
 import conductor.contract.CapabilityDescriptor;
 import conductor.contract.NavigationPort;
@@ -15,6 +16,7 @@ import static conductor.contract.ObservationKinds.FORCED_INPUTS;
 import static conductor.contract.ObservationKinds.NEXT_SEGMENT_PRESENT;
 import static conductor.contract.ObservationKinds.PATH_CALCULATION_PENDING;
 import static conductor.contract.ObservationKinds.PATH_SEGMENT_PRESENT;
+import static conductor.contract.ObservationKinds.PLAYER_POSITION;
 import static conductor.contract.ObservationKinds.SECONDARY_BACKEND_BOUND;
 import static conductor.contract.ObservationKinds.SECONDARY_BACKEND_PATHING;
 import static conductor.contract.ObservationKinds.SECONDARY_BACKEND_STOPPING;
@@ -28,6 +30,7 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
 
     static final String NAVIGATION = "navigation";
     static final String SECONDARY_BACKEND = "navigation.secondary-backend";
+    static final String PLAYER = "player";
 
     private final GameAccess game;
     private final LifecycleListener lifecycle;
@@ -68,7 +71,9 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
                 List.of(PATH_SEGMENT_PRESENT, NEXT_SEGMENT_PRESENT, PATH_CALCULATION_PENDING, CONTROLLING_PROCESS,
                         TRAVEL_GOAL_ACTIVE, FORCED_INPUTS),
                 navigation != null ? NAVIGATION_OPERATIONS : List.of());
-        return List.of(primary, secondaryDescriptor());
+        CapabilityDescriptor player = new CapabilityDescriptor(PLAYER, CapabilityAvailability.AVAILABLE,
+                "read-only player state", List.of(PLAYER_POSITION), List.of());
+        return List.of(primary, secondaryDescriptor(), player);
     }
 
     private CapabilityDescriptor secondaryDescriptor() {
@@ -87,7 +92,12 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> Sample<T> sample(ObservationKind<T> kind) {
+        if (kind == PLAYER_POSITION) {
+            BlockPoint at = game.playerBlock();
+            return (Sample<T>) (at == null ? Sample.notObserved("no player") : Sample.observed(at));
+        }
         return signals.read(kind);
     }
 
