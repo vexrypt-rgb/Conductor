@@ -1,0 +1,56 @@
+// Runtime integration + version adapter for Ostinato `main` (Minecraft 1.21.11).
+// Compiles against a local Ostinato checkout's compiled classes; Ostinato is not modified or repackaged.
+// Build Ostinato first: (cd <ostinatoDir> && ./gradlew compileJava compileApiJava)
+plugins {
+    id 'xyz.wagyourtail.unimined' version '1.4.2-SNAPSHOT'
+}
+
+def ostinatoDir = file(findProperty('ostinatoDir') ?: "${rootDir}/../Ostinato")
+def ostinatoClasses = files("${ostinatoDir}/build/classes/java/api", "${ostinatoDir}/build/classes/java/main")
+
+repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
+    maven { url = 'https://maven.parchmentmc.net/' }
+    mavenCentral()
+}
+
+// Same Minecraft version and mapping layers as Ostinato main (Ostinato gradle.properties at dfce2a2).
+unimined.minecraft(sourceSets.main, true) {
+    version '1.21.11'
+    mappings {
+        intermediary()
+        mojmap()
+        parchment('1.21.11', '2025.12.20')
+    }
+    runs.off = true
+    defaultRemapJar = false
+}
+
+dependencies {
+    implementation project(':contract')
+    compileOnly ostinatoClasses
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+
+    testImplementation ostinatoClasses
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.mockito:mockito-core:5.14.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+sourceSets {
+    test {
+        compileClasspath += main.compileClasspath
+        runtimeClasspath += main.compileClasspath + main.runtimeClasspath
+    }
+}
+
+test {
+    useJUnitPlatform()
+    jvmArgs '-XX:+EnableDynamicAgentLoading'
+    doFirst {
+        if (!file("${ostinatoDir}/build/classes/java/main").isDirectory()) {
+            throw new GradleException("Ostinato classes not found under ${ostinatoDir}; build Ostinato first or pass -PostinatoDir=...")
+        }
+    }
+}

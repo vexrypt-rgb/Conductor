@@ -1,0 +1,17 @@
+subprojects {
+    apply plugin: 'java'
+
+    group = 'conductor'
+    version = '0.2.0-stage2'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.release = 21
+    }
+}
