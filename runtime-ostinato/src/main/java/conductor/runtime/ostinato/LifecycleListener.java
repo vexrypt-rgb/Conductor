@@ -18,7 +18,7 @@ import java.lang.ref.WeakReference;
  * Ostinato raises tick events from {@code MixinMinecraft.runTick}, IN when player and world are present and OUT
  * otherwise, and world events from {@code Minecraft.setLevel} (primary Baritone only).
  */
-final class LifecycleListener extends AbstractGameEventListener {
+final class LifecycleListener implements AbstractGameEventListener {
 
     private final ContextTracker contexts;
     private final GameAccess game;

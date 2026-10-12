@@ -15,7 +15,7 @@ repositories {
 }
 
 // Same Minecraft version and mapping layers as Ostinato main (Ostinato gradle.properties at dfce2a2).
-unimined.minecraft(sourceSets.main, true) {
+unimined.minecraft {
     version '1.21.11'
     mappings {
         intermediary()

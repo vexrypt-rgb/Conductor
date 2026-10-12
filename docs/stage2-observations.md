@@ -123,4 +123,16 @@ Every test runs off-game with fakes and mocks. **No runtime test against a live 
 
 ## 7. Results
 
-Pending: `contract` tests pass (23/23, run locally). `runtime-ostinato` has not been compiled or tested yet; it waits on an Ostinato build.
+Run on 2026-10-12 with `./gradlew clean test` (JDK 21, Gradle 8.14.4). `runtime-ostinato` was compiled against Ostinato `dfce2a2` classes built from a clean tree, with Minecraft 1.21.11 under mojmap and Parchment `2025.12.20`.
+
+| Suite | Tests | Failures |
+|---|---|---|
+| `conductor.contract.Stage2ConformanceTest` | 18 | 0 |
+| `conductor.contract.ContractTypesTest` | 5 | 0 |
+| `conductor.runtime.ostinato.OstinatoRuntimeTest` | 7 | 0 |
+
+**Mutation check on the read-only guarantee.** A `getPathingBehavior().cancelEverything()` call was temporarily injected into `OstinatoSignals`. `pathingSignalsAreReadOnly` then failed with Mockito `NoInteractionsWanted` pointing at the injected line. The injection was reverted and the suite re-run clean.
+
+**Not covered:** no test has run inside a live Minecraft client. Behaviour of the real `Minecraft.isSameThread()`, `getConnection()`, tick and world event ordering, and Tungsten reflection is untested at runtime (Reported or Unknown, see §4).
+
+**Build environment note (not part of the repository).** In this environment Maven Central answered HTTP 429 for artifacts it does not host, and the Gradle plugin portal redirects to Central. Both builds were therefore run with a local init script that routes Central through Google's mirror. Ostinato's shared classes were built with `compileJava compileApiJava`, and no Ostinato file was changed. Neither workaround is committed.
