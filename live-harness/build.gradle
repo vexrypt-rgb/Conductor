@@ -1,0 +1,40 @@
+// Live test harness: a Fabric client mod that installs Conductor in a running Ostinato client, runs the Stage 2/3
+// scenarios and the Stage 4 evidence trials, and writes one JSON line per tick. Test tooling only; not shipped.
+// Run with scripts/live-run.sh.
+plugins {
+    id 'xyz.wagyourtail.unimined' version '1.4.2-SNAPSHOT'
+}
+
+def ostinatoDir = file(findProperty('ostinatoDir') ?: "${rootDir}/../Ostinato")
+def ostinatoClasses = files("${ostinatoDir}/build/classes/java/api", "${ostinatoDir}/build/classes/java/main")
+
+repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
+    maven { url = 'https://maven.parchmentmc.net/' }
+    mavenCentral()
+}
+
+unimined.minecraft {
+    version '1.21.11'
+    mappings {
+        intermediary()
+        mojmap()
+        parchment('1.21.11', '2025.12.20')
+    }
+    fabric {
+        loader '0.19.5'
+    }
+    runs.off = true
+}
+
+dependencies {
+    implementation project(':contract')
+    implementation project(':runtime-ostinato')
+    compileOnly ostinatoClasses
+}
+
+// Ship contract + runtime-ostinato inside the mod so the remap covers their Minecraft references too.
+jar {
+    from project(':contract').sourceSets.main.output
+    from project(':runtime-ostinato').sourceSets.main.output
+}
