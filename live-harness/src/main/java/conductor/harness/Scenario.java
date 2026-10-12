@@ -40,8 +40,8 @@ final class Scenario implements Runnable {
     private static final int OBSERVE_AFTER_CANCEL = 200;
 
     private final JsonLog log;
-    private final Minecraft mc = Minecraft.getInstance();
-    private TickRecorder recorder;
+    final Minecraft mc = Minecraft.getInstance();
+    TickRecorder recorder;
 
     Scenario(JsonLog log) {
         this.log = log;
@@ -110,6 +110,12 @@ final class Scenario implements Runnable {
             return null;
         });
         waitTicks(5);
+
+        if ("evidence".equals(System.getProperty("conductor.harness.scenario"))) {
+            new EvidenceTrials(this, baritone).run();
+            dumpSink(sink);
+            return;
+        }
 
         // ---- Stage 2, live ----
         recorder.phase = "S2";
@@ -200,13 +206,17 @@ final class Scenario implements Runnable {
                 String.valueOf(onGame(() -> conductor.requestTravel(NavigationGoal.xz(5, 5)))));
         event("D discover", "context", String.valueOf(onGame(conductor::discover).context()));
 
+        dumpSink(sink);
+    }
+
+    private void dumpSink(InMemoryDiagnosticSink sink) {
         for (DiagnosticEvent e : sink.snapshot()) {
             log.write(JsonLog.obj("type", "sink", "event", e.type().name(), "thread", e.thread(), "tick", e.tick(),
                     "context", String.valueOf(e.context()), "subject", e.subject(), "detail", e.detail()));
         }
     }
 
-    private boolean waitIdle(int consecutive, int maxTicks) throws InterruptedException {
+    boolean waitIdle(int consecutive, int maxTicks) throws InterruptedException {
         long start = recorder.ticks;
         long idleSince = -1;
         while (recorder.ticks - start < maxTicks) {
@@ -226,18 +236,18 @@ final class Scenario implements Runnable {
         return false;
     }
 
-    private void waitTicks(long n) throws InterruptedException {
+    void waitTicks(long n) throws InterruptedException {
         long target = recorder.ticks + n;
         while (recorder.ticks < target) {
             Thread.sleep(10);
         }
     }
 
-    private <T> T onGame(Supplier<T> work) throws Exception {
+    <T> T onGame(Supplier<T> work) throws Exception {
         return mc.submit(work).get(60, TimeUnit.SECONDS);
     }
 
-    private void event(String name, Object... kv) {
+    void event(String name, Object... kv) {
         Object[] all = new Object[kv.length + 6];
         all[0] = "type";
         all[1] = "event";
