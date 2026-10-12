@@ -41,6 +41,7 @@ What Conductor gives you today:
 | Ask what is available | `discover()` |
 | Read what the bot engine is doing | `observe(...)`, `revalidate(...)` |
 | Send the bot somewhere | `requestTravel(...)` |
+| Make it fight players or mobs (Ostinato's own combat) | `requestCombat(...)` (§5.9) |
 | Stop it, and know when it has *really* stopped | `cancel(...)`, `operationStatus(...)` |
 | Know whether the bot is free to use | `resourceStatus()` |
 | See why anything happened | the diagnostic sink |
@@ -348,6 +349,27 @@ The Conductor mod creates the sink. Reading it from a module is not exposed yet;
 | Tungsten installed | **DETECTED** only when it reports `true`, otherwise **UNDETECTABLE** | Bot never counted as free |
 | A human pressing keys | **UNDETECTABLE** | Not claimed |
 
+### 5.9 Combat: `requestCombat(goal)`
+
+Combat hands a fight to Ostinato's own combat code: `PvpProcess` for players, `PveProcess` for mobs, the same code behind its `#pvp` and `#pve` commands. Conductor doesn't fight; it starts, watches and stops the engine's fight with the same safety rules as travel.
+
+```java
+OperationResult r = conductor.requestCombat(CombatGoal.hostiles());   // or players(), player("Alex"), mob("minecraft:zombie")
+OperationId fight = r.status().orElseThrow().id();
+
+Optional<String> target = conductor.observe(ObservationKinds.COMBAT_TARGET, FreshnessPolicy.sameTick())
+        .observation().flatMap(o -> o.observedValue()).flatMap(t -> t);  // "minecraft:zombie Zombie", or empty
+
+conductor.cancel(fight);          // CANCELLING; CANCELLED only once the evidence shows the bot let go
+```
+
+What to know:
+- **Combat and travel share the bot's movement.** Only one of them runs at a time (`CONFLICTING_OPERATION`), and both need `resourceStatus()` to be `AVAILABLE`.
+- **The engine picks the weapons** from what the player carries: sword, axe, shield, and on engine builds that have the code, spear, mace, wind charges and so on. Ask `content(ContentId.engine("ostinato:combat/spear"))` to find out which (see §12).
+- **The use key is part of the stop evidence.** Ostinato raises shields and eats by holding the game's use key directly. Conductor therefore waits until `USE_KEY_HELD` is false before calling the bot free. A person holding right-click also keeps the bot "busy".
+- **A fight doesn't end on its own.** With no target, the engine waits for one. Cancel when you're done; the worked example stops after a while without a target.
+- **Inventory:** `ObservationKinds.INVENTORY_ITEMS` gives the inventory as item id → count, so you can check a kit without Minecraft classes.
+
 ---
 
 ## 6. When Conductor says no
@@ -370,6 +392,7 @@ Every refusal has a reason. Here is what each one means and what to do.
 | `AUTHORITY_INVALIDATED` | The operation's context changed, so it can no longer act | Start a new operation once the bot is free |
 | `NO_NAVIGATION` | The runtime has no travel support | Check `discover()` |
 | `INVALID_ARGUMENT` | null goal or id | Fix the call |
+| `NO_COMBAT` | The runtime has no combat support | Check `discover()` |
 | `LEASE_HELD` | Another module holds MOVEMENT | Wait, or acquire MOVEMENT at a higher priority (§11.1) |
 
 ---
@@ -411,7 +434,7 @@ Thanks to the shared code, a new version is mostly configuration:
 
 ## 9. Adding a new capability
 
-Navigation is the only capability today. Combat (PvP/PvE, including the `autotune` branch), mining, building, farming, elytra and others are listed in [`deferred-candidates.md`](deferred-candidates.md). They are **not available yet**, and each must pass a gate first. This is the process navigation went through; follow it for any new capability:
+Navigation and combat are the engine capabilities today. Mining, building, farming, elytra, following and others are listed in [`deferred-candidates.md`](deferred-candidates.md). They are **not available yet**, and each must pass a gate first. Combat is the latest to go through it: its audit found the use-key gap that §5.9 describes. This is the process navigation went through; follow it for any new capability:
 
 1. **Audit** how the feature starts, stops and steers, labelling each fact Verified, Reported or Unknown (example: [`stage1-audit.md`](stage1-audit.md)). Pay special attention to: does "stop" really stop? Which keys and processes does it use?
 2. **Observe before you act.** Add read-only `ObservationKind`s for the feature's signals and test them live with the harness.
@@ -419,7 +442,7 @@ Navigation is the only capability today. Combat (PvP/PvE, including the `autotun
 4. **Prove stops with evidence.** Use the live harness to find which signals really track control (for navigation: path segment plus forced keys). Release only on those.
 5. **Classify interference** (BLOCKED / DETECTED / UNDETECTABLE / NOT_APPLICABLE).
 
-Hard limits, by design: no universal scheduler, no automatic preemption between features, no changes to Ostinato's process scheduling, and no new stop mechanisms that Ostinato doesn't already have. Combat in particular shares the movement controls, so it needs the project owner's go-ahead.
+Hard limits, by design: no changes to Ostinato's process scheduling, and no new stop mechanisms that Ostinato doesn't already have. Sharing between modules goes through leases (§11), not through a new engine scheduler.
 
 ---
 
@@ -428,7 +451,9 @@ Hard limits, by design: no universal scheduler, no automatic preemption between 
 Conductor is young. Here is everything it **cannot** do today, so you can plan around it. The long-term goal of hosting any kind of client mod, and what it would take, is in [VISION-client-mod-host.md](VISION-client-mod-host.md).
 
 **What it can do**
-- **Travel is the only engine action.** No mining, building, farming, combat, elytra or following through the contract yet (see [deferred-candidates.md](deferred-candidates.md)). `content()` can tell you whether the engine *build* contains them (for example `ostinato:combat/spear`), but you can't drive them through Conductor yet.
+- **Travel and combat are the only engine actions.** No mining, building, farming, elytra or following through the contract yet (see [deferred-candidates.md](deferred-candidates.md)).
+- **Combat is all-or-nothing per goal.** You choose whom to fight; the engine chooses weapons and tactics. There is no contract control over individual weapons, and no per-weapon engine settings exist to drive. `content()` tells you what the engine build can do (for example `ostinato:combat/spear`).
+- **The Autotune Combat System is engine code.** It lives on Ostinato's `autotune` branch (1.21.11 only). Where that build runs, `ostinato:pvp/autotune` is PRESENT and its tuning happens inside the engine's fight. Conductor can't tune it, and on 1.21.4 there is no Autotune to switch on.
 - **No rendering, HUD, chat, keybinds, inventory, packets, camera or GUI.** A module can draw nothing and send nothing through Conductor. It can still use Minecraft directly, but then Conductor's safety rules don't cover that code.
 - **No arrival signal.** A trip that ends on its own is `UNCERTAIN` ("outcome not established"). Check the player's position yourself.
 
@@ -599,7 +624,11 @@ The rules:
 - **Keep the off path clean.** When a feature is off, don't reference its items at all: no kit entries, no settings, no HUD rows.
 - **Combine requirements** when a part needs several things, including an engine feature: `ModuleFeature.of("spear", "...", ContentId.item("minecraft:iron_spear"), ContentId.engine("ostinato:combat/spear"))`.
 
-### 12.3 Testing it without Minecraft
+### 12.3 The worked example: [`examples/agnostic-combat`](../examples/agnostic-combat/src/main/java/conductor/example/combat/AgnosticCombat.java)
+
+A complete combat module: one jar for every version. Its spear, mace and wind parts each require **both** the item and the engine's code for it. So on 1.21.4, the spear part is off because spears don't exist, and the mace part is off because Ostinato's 1.21.4 build has no mace code (although the mace item exists there). Its kit is built from the features that are on, and only that kit is checked and reported. It fights at `HIGH` priority, publishes what it's doing on the `agnostic-combat:fight` topic, and stops with proof.
+
+### 12.4 Testing it without Minecraft
 
 Give your fake runtime a content table and run the same module twice. `contract/src/test/java/conductor/contract/VersionFeatureTest.java` does exactly this: a 1.21.11-like runtime turns on `[melee, spear, mace]`, and a 1.21.4-like runtime turns on `[melee]`.
 
