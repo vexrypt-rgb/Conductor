@@ -10,7 +10,7 @@ Conductor is the modularity and capability-contract layer for Ostinato. It evolv
 | 1. Audit | Complete (documentation only) | [docs/stage1-audit.md](docs/stage1-audit.md) |
 | 2. Discovery + read-only observations | Complete; verified live | [docs/stage2-observations.md](docs/stage2-observations.md) |
 | 3. Single-consumer navigation delegation | Complete; 54/54 tests pass; verified live | [docs/stage3-navigation.md](docs/stage3-navigation.md) |
-| 4. Ownership, resource safety, interference classification | Not started; first live evidence collected | [docs/live-run-2026-10-12.md](docs/live-run-2026-10-12.md) |
+| 4. Ownership, resource safety, interference classification | Complete; 70/70 tests; verified live on 1.21.11 | [docs/stage4-release.md](docs/stage4-release.md) |
 
 Deferred capability candidates (combat and others): [docs/deferred-candidates.md](docs/deferred-candidates.md)
 

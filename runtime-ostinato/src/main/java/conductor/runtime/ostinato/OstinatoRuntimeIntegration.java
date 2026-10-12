@@ -64,7 +64,7 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
     @Override
     public List<CapabilityDescriptor> capabilities() {
         CapabilityDescriptor primary = new CapabilityDescriptor(NAVIGATION, CapabilityAvailability.AVAILABLE,
-                "Ostinato IMovementEngine boundary; single consumer, one grant per installation (Stage 3)",
+                "Ostinato IMovementEngine boundary; single consumer; grants need release evidence (Stage 4)",
                 List.of(PATH_SEGMENT_PRESENT, NEXT_SEGMENT_PRESENT, PATH_CALCULATION_PENDING, CONTROLLING_PROCESS,
                         TRAVEL_GOAL_ACTIVE, FORCED_INPUTS),
                 navigation != null ? NAVIGATION_OPERATIONS : List.of());

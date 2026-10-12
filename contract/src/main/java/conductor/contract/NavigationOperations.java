@@ -74,9 +74,10 @@ final class NavigationOperations {
             }
         } else if (!evidence.quiet() && resource == ResourceState.AVAILABLE) {
             setResource(ResourceState.QUARANTINED, "activity observed: " + evidence.reason());
-            if (!operationActive()) {
-                interference(InterferenceClass.DETECTED, evidence.controller().orElse("engine activity"),
-                        "engine became active while no contract operation was running");
+            // a named controller was already recorded by noteForeignControl
+            if (!operationActive() && evidence.controller().isEmpty()) {
+                interference(InterferenceClass.DETECTED, "engine activity",
+                        "engine became active while no contract operation was running: " + evidence.reason());
             }
         }
     }
@@ -172,6 +173,7 @@ final class NavigationOperations {
         }
 
         id = new OperationId(nextId++, current.get());
+        state = null; // a new operation has no previous state
         contextValid = true;
         authorityHeld = true;
         cancelTick = -1;
