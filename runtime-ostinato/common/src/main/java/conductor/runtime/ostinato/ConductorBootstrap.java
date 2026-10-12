@@ -69,15 +69,23 @@ public final class ConductorBootstrap {
     private static void install(ConductorModule module, ReleasePolicy policy, DiagnosticSink sink) {
         IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
         Conductor conductor = ConductorOstinato.install(baritone, sink, policy);
+        // Registered after Conductor's own listener, so each tick the context and evidence are already updated.
+        // onReady waits for the first such tick, when the context exists.
         baritone.getGameEventHandler().registerEventListener(new AbstractGameEventListener() {
+            private boolean ready;
+
             @Override
             public void onTick(TickEvent event) {
-                if (event.getType() == TickEvent.Type.IN) {
-                    call(module, () -> module.onTick(conductor));
+                if (event.getType() != TickEvent.Type.IN) {
+                    return;
                 }
+                if (!ready) {
+                    ready = true;
+                    call(module, () -> module.onReady(conductor));
+                }
+                call(module, () -> module.onTick(conductor));
             }
         });
-        call(module, () -> module.onReady(conductor));
     }
 
     /** A failing module must not take the game tick down with it. */
