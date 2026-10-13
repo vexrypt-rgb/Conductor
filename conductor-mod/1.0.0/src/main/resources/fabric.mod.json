@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "conductor",
+  "version": "${version}",
+  "name": "Conductor",
+  "description": "Version-agnostic module platform for Minecraft. Needs no other mod. Hosts behaviour modules on clients and server modules on dedicated servers. This build is for Minecraft ${mc}, which has no content modules.",
+  "environment": "*",
+  "entrypoints": {
+    "preLaunch": ["conductor.host.ConductorPreLaunch"],
+    "client": ["conductor.host.ConductorHostMod"]
+  },
+  "mixins": [
+    "conductor.mixins.json",
+    {"config": "conductor-server.mixins.json", "environment": "server"}
+  ],
+  "depends": {
+    "fabricloader": "*",
+    "minecraft": "${mc}"
+  }
+}
