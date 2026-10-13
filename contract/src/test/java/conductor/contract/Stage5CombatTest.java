@@ -173,4 +173,17 @@ class Stage5CombatTest {
         assertEquals(Resources.MOVEMENT, held.get(0).resource());
         assertTrue(held.get(0).scoped(), "taken for the combat operation only");
     }
+
+    @Test
+    void anOwnerCanStillReadHowItsOperationEndedAfterANewOneBegan() {
+        OperationResult walk = conductor.requestTravel(NavigationGoal.xz(10, 10));
+        OperationId trip = walk.status().orElseThrow().id();
+        conductor.cancel(trip);
+        ticks(WINDOW);                                         // fake engine already quiet: CANCELLED
+        assertEquals(OperationState.CANCELLED, state(trip));
+        fight();                                               // a new operation replaces the current one
+        assertEquals(OperationState.CANCELLED, state(trip), "the trip's final state is kept for its owner");
+        assertEquals(Optional.of(RejectionReason.AUTHORITY_INVALIDATED), conductor.cancel(trip).rejection());
+    }
 }
+

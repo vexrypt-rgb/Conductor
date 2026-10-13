@@ -1,21 +1,23 @@
 package conductor.host;
 
-import conductor.contract.ConductorModule;
 import conductor.contract.InMemoryDiagnosticSink;
 import conductor.runtime.ostinato.ConductorBootstrap;
+import conductor.runtime.ostinato.ModuleDiscovery;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
-import net.fabricmc.loader.api.entrypoint.EntrypointContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
- * The Conductor mod for one Minecraft version. Finds every module declared under the {@code "conductor"}
- * entrypoint in any mod's {@code fabric.mod.json} and starts them all, side by side.
+ * Fabric boot shim: the only Fabric-specific code in Conductor. It answers two questions Fabric knows the answer
+ * to (where the game directory is, and when client code may start) and hands over to loader-free code.
+ * <p>
+ * Modules are not Fabric mods. They are plain jars with a {@code META-INF/services/conductor.contract.ConductorModule}
+ * entry, put in {@code <game dir>/conductor/modules} (or the folder named by {@code -Dconductor.modulesDir}). See
+ * {@link ModuleDiscovery}. A shim for another loader would make the same two calls.
  */
 public final class ConductorHostMod implements ClientModInitializer {
 
@@ -23,19 +25,20 @@ public final class ConductorHostMod implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        List<EntrypointContainer<ConductorModule>> found =
-                FabricLoader.getInstance().getEntrypointContainers("conductor", ConductorModule.class);
-        if (found.isEmpty()) {
-            LOG.info("Conductor loaded; no modules declared a \"conductor\" entrypoint");
+        String override = System.getProperty("conductor.modulesDir");
+        Path dir = override != null ? Path.of(override) : FabricLoader.getInstance().getGameDir().resolve("conductor/modules");
+        try {
+            Files.createDirectories(dir);
+        } catch (Exception e) {
+            LOG.warn("Conductor cannot create the modules folder {}: {}", dir, e.toString());
+        }
+        ModuleDiscovery.Found found = ModuleDiscovery.discover(dir, ConductorHostMod.class.getClassLoader());
+        found.problems().forEach(p -> LOG.warn("Conductor module problem: {}", p));
+        if (found.modules().isEmpty()) {
+            LOG.info("Conductor loaded; no modules in {} or on the classpath", dir);
             return;
         }
-        Map<String, ConductorModule> modules = new LinkedHashMap<>();
-        for (EntrypointContainer<ConductorModule> c : found) {
-            String id = c.getProvider().getMetadata().getId();
-            // several entrypoints in one mod get distinct ids from the host (id, id#2, ...)
-            modules.put(modules.containsKey(id) ? id + "/" + c.getEntrypoint().getClass().getSimpleName() : id, c.getEntrypoint());
-        }
-        LOG.info("Conductor starting {} module(s): {}", modules.size(), modules.keySet());
-        ConductorBootstrap.start(modules, new InMemoryDiagnosticSink(50_000));
+        LOG.info("Conductor starting {} module(s) from {} and the classpath: {}", found.modules().size(), dir, found.modules().keySet());
+        ConductorBootstrap.start(found.modules(), new InMemoryDiagnosticSink(50_000));
     }
 }

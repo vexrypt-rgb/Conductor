@@ -28,7 +28,7 @@ This guide explains what Conductor is, everything it can do today, and how to bu
  your module (one jar, any version)  ──►  Conductor contract  ──►  Conductor mod for this Minecraft version  ──►  Ostinato
 ```
 
-- **Your module** only talks to the Conductor contract. It never imports Minecraft, Fabric or Baritone classes.
+- **Your module** only talks to the Conductor contract. It never imports Minecraft, mod-loader (Fabric, Forge, NeoForge) or Baritone classes. It isn't even a Fabric mod: it's a plain jar ([LOADER-INDEPENDENCE.md](LOADER-INDEPENDENCE.md)).
 - **The contract** (`contract/`) is plain Java with no Minecraft code. It holds the rules.
 - **The Conductor mod** (`conductor-mod/`, built on `runtime-ostinato/`) is the only part that knows Minecraft and Ostinato. There is one per Minecraft version (today **1.21.11** and **1.21.4**), built from the same shared code. It finds your module and runs it.
 
@@ -89,13 +89,13 @@ You need:
 ./gradlew :example-walk-and-stop:build        # a module: one jar for every version
 ```
 
-What to install in your game's `mods/` folder:
+What to install:
 
-| Jar | Where it's built | Per version? |
-|---|---|---|
-| Ostinato | Ostinato's own build | yes |
-| **Conductor mod** | `conductor-mod/<mc>/build/libs/conductor-mod-<mc>-<v>.jar` (not the `-dev` one) | yes: pick your game's version |
-| **Your module** | `examples/walk-and-stop/build/libs/example-walk-and-stop-<v>.jar` | **no: the same jar everywhere** |
+| Jar | Where it goes | Where it's built | Per version? |
+|---|---|---|---|
+| Ostinato | `mods/` | Ostinato's own build | yes |
+| **Conductor mod** | `mods/` | `conductor-mod/<mc>/build/libs/conductor-mod-<mc>-<v>.jar` (not the `-dev` one) | yes: pick your game's version |
+| **Your modules** | **`conductor/modules/`** in the game directory (created on first start) | `examples/walk-and-stop/build/libs/example-walk-and-stop-<v>.jar` | **no: the same jar everywhere, under any loader** |
 
 ---
 
@@ -103,7 +103,7 @@ What to install in your game's `mods/` folder:
 
 We'll build the example that ships in [`examples/walk-and-stop`](../examples/walk-and-stop). It waits until the bot is free, walks 20 blocks east, cancels after 2 seconds, and waits until the stop is confirmed.
 
-A module is **one Java class plus a `fabric.mod.json`**.
+A module is **one Java class plus a one-line service file**. It is a plain jar, not a Fabric (or Forge) mod.
 
 ### Step 1: create the project
 
@@ -111,7 +111,7 @@ A module is **one Java class plus a `fabric.mod.json`**.
 examples/my-module/
   build.gradle
   src/main/java/my/pkg/MyModule.java
-  src/main/resources/fabric.mod.json
+  src/main/resources/META-INF/services/conductor.contract.ConductorModule
 ```
 
 `build.gradle`: the module sees **only** the contract, so the compiler itself stops you from using version-specific classes:
@@ -129,21 +129,15 @@ include 'my-module'
 project(':my-module').projectDir = file('examples/my-module')
 ```
 
-### Step 2: declare the module (`fabric.mod.json`)
+### Step 2: declare the module (one line)
 
-The `"conductor"` entrypoint is how the Conductor mod finds your module. You need no Fabric startup code.
+`src/main/resources/META-INF/services/conductor.contract.ConductorModule` contains the name of your module class:
 
-```json
-{
-  "schemaVersion": 1,
-  "id": "my_module",
-  "version": "1.0.0",
-  "name": "My module",
-  "environment": "client",
-  "entrypoints": { "conductor": ["my.pkg.MyModule"] },
-  "depends": { "conductor": "*" }
-}
 ```
+my.pkg.MyModule
+```
+
+This is the JDK's standard service mechanism (`java.util.ServiceLoader`); no mod loader is involved. Conductor names the module after the jar file (`my-module-1.0.0`). Several modules in one jar: one class name per line.
 
 ### Step 3: write the module
 
@@ -224,7 +218,7 @@ The pattern to remember is **a small state machine driven by `onTick`**. Never w
 ./gradlew :my-module:build
 ```
 
-Put `examples/my-module/build/libs/my-module-<v>.jar` into your `mods/` folder, together with Ostinato and the **Conductor mod for your Minecraft version**. That's all: the same module jar works on every version.
+Put `examples/my-module/build/libs/my-module-<v>.jar` into `<game dir>/conductor/modules/`. Ostinato and the **Conductor mod for your Minecraft version** go in `mods/` as usual. That's all: the same module jar works on every version. (For testing, `-Dconductor.modulesDir=/some/folder` points Conductor at another folder.)
 
 > **Version-agnostic rule:** import only `conductor.contract.*` and the JDK. If you import a Minecraft class, your module is tied to one version again. Ask Conductor for what you need instead, and if Conductor doesn't offer it yet, see §9.
 
@@ -408,9 +402,11 @@ Every refusal has a reason. Here is what each one means and what to do.
 MC=1.21.4 OSTINATO_DIR=../Ostinato-1.21.4 scripts/live-run.sh /tmp/run   # needs /tmp/run/server/server.jar (vanilla, same version)
 python3 scripts/analyze-live.py /tmp/run/harness.jsonl
 
-# your module, in a real game: load the Conductor mod plus your module; the harness only joins the world and waits
-HARNESS_SCENARIO=connect-only HARNESS_HOLD=60 \
-EXTRA_MODS=conductor-mod/1.21.4/build/libs/conductor-mod-1.21.4-0.4.0.jar:examples/my-module/build/libs/my-module-0.4.0.jar \
+# your module, in a real game: the Conductor mod as a mod, your module jar in a modules folder;
+# the harness only joins the world and waits. SERVER_ON_JOIN can script the server (items, mobs, difficulty).
+mkdir -p /tmp/modules && cp examples/my-module/build/libs/my-module-0.4.0.jar /tmp/modules/
+HARNESS_SCENARIO=connect-only HARNESS_HOLD=60 CONDUCTOR_MODULES=/tmp/modules \
+EXTRA_MODS=conductor-mod/1.21.4/build/libs/conductor-mod-1.21.4-0.4.0.jar \
 MC=1.21.4 OSTINATO_DIR=../Ostinato-1.21.4 scripts/live-run.sh /tmp/run
 grep my-module /tmp/run/client.log
 ```
@@ -464,7 +460,8 @@ Conductor is young. Here is everything it **cannot** do today, so you can plan a
 - **Modules are version-agnostic only if they stay inside the contract.** A module that imports Minecraft classes works, but is tied to one version and outside Conductor's safety rules.
 - **Modules can't read the diagnostic sink at runtime yet** (only in tests).
 - **Ostinato only.** Conductor needs Ostinato, a Baritone fork. It is not a general mod loader.
-- **Fabric client only.** Forge and NeoForge are untested.
+- **Boots on Fabric only, today.** Modules don't depend on any loader. Conductor's only Fabric code is a 40-line boot shim, but Ostinato is a Fabric mod, so the game runs Fabric anyway. Forge/NeoForge shims and a loader-free boot are planned: [LOADER-INDEPENDENCE.md](LOADER-INDEPENDENCE.md).
+- **Modules in `conductor/modules/` are not transformed.** They get no Mixin and no remapping, which is exactly right for contract modules. Native modules that need Minecraft classes ship inside their own mod and are found on the game's classpath through the same service file.
 - **Minecraft 1.21.11 and 1.21.4 only.** Ostinato's 26.3 branch (Java 25) has no adapter yet. The 1.16.1 branch's API differs too much to reuse as is.
 - **No hot reload.** Modules load at game start. Disabling a module stops it logically; its code stays loaded.
 - **`content()` covers built-in registries only.** Items, blocks, entity types and effects work. Data-driven things (enchantments, biomes, recipes, damage types) are UNKNOWN, so a feature that needs them stays off.

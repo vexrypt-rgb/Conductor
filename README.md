@@ -21,7 +21,7 @@ Conductor is the modularity and capability-contract layer for Ostinato. It evolv
 - Travel and combat are the only engine actions. Mining, building and the rest are still deferred.
 - No rendering/HUD, chat, keybinds, packets or GUI capabilities.
 - Modules are trusted code. Leases coordinate them but can't stop a module that bypasses Conductor.
-- Ostinato and Fabric client only, on Minecraft 1.21.11 and 1.21.4.
+- Boots on Fabric only, on Minecraft 1.21.11 and 1.21.4. Modules themselves don't depend on any loader. Ostinato is a Fabric mod.
 - Stops take as long as Ostinato's engine takes (up to about 17 s observed).
 
 Full list: [tutorial §10](docs/TUTORIAL.md#10-limits-you-should-know-about).
@@ -34,8 +34,8 @@ Deferred capability candidates (combat and others): [docs/deferred-candidates.md
 
 - `contract/`: the normative contract, the Java binding (`Conductor`) and the module interface (`ConductorModule`). Pure Java 21, no Minecraft dependency.
 - `runtime-ostinato/`: the runtime adapter for Ostinato. Shared code is in `common/`; `1.21.11/` (Ostinato `main`) and `1.21.4/` (Ostinato `1.21.4`) differ only in `MinecraftGameAccess`. Includes `ConductorBootstrap`, which starts a module.
-- `conductor-mod/`: the Fabric mod (one per Minecraft version) that hosts every installed module.
-- `examples/walk-and-stop/`, `examples/agnostic-combat/`: example modules. Each is one jar for every version.
+- `conductor-mod/`: the Conductor mod (one per Minecraft version) that hosts every module. Its only loader-specific part is a 40-line Fabric boot shim ([docs/LOADER-INDEPENDENCE.md](docs/LOADER-INDEPENDENCE.md)).
+- `examples/walk-and-stop/`, `examples/agnostic-combat/`: example modules. Each is a plain jar (not a Fabric mod) for every version, and goes in `<game dir>/conductor/modules/`.
 - `live-harness/`: test-only mod for live runs, built for both versions.
 
 ## Live harness

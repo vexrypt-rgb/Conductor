@@ -21,6 +21,7 @@ TenorClef alone is 723 files with 36 mixins into Minecraft. It will not become a
 | # | Decision | Replaces |
 |---|---|---|
 | D1 | **Many modules at once.** Each module gets its own `Conductor` handle, bound to its `ModuleId`. | Stage 3 single consumer |
+| D8 | **Modules are plain jars.** A module is declared in `META-INF/services/conductor.contract.ConductorModule` and found by `ModuleDiscovery` in `<game dir>/conductor/modules` or on the game's classpath. No loader metadata. The loader is touched only by a thin boot shim ([LOADER-INDEPENDENCE.md](LOADER-INDEPENDENCE.md)). | `"conductor"` Fabric entrypoint |
 | D2 | **Two kinds of module, one coordination system.** *Contract modules* import only `conductor.contract` and are version-agnostic (one jar). *Native modules* may use Minecraft, Fabric or the engine directly, so they are version-specific, and they cooperate through the same leases, events and services. Existing mods join as native modules first and move features to contract capabilities over time. | contract-only modules |
 | D3 | **Resource leases with priorities.** Every shared resource in §1 is leasable. A lease is held by at most one module. Equal or lower priority: the request is denied (first holder wins). Higher priority: **preemption**. The holder is notified, its contract operations on that resource are cancelled, and the lease is handed over only when the resource is shown free: by release evidence for MOVEMENT (Stage 4 rules), or by the holder's acknowledgement for resources without evidence signals yet. Priorities are fixed levels, not a scheduler: BACKGROUND < NORMAL < HIGH < SAFETY. | "no automatic preemption" |
 | D4 | **Inter-module communication.** Typed **topics** (publish/subscribe), delivered on the game thread at the end of the tick in publish order, so there are no re-entrant calls. Typed **services** (provide/look up). Modules declare the services they **require**, and the manager starts them in dependency order. | none |
@@ -96,8 +97,9 @@ Each part is listed as it is implemented and tested, with evidence labels.
 
 | Part | Status | Evidence |
 |---|---|---|
-| D1 many modules, per-module context | implemented | **Verified (unit):** `PlatformConformanceTest`. The host mod starts every `"conductor"` entrypoint. Multi-module live run: not yet. |
-| D3 leases, priorities, preemption | implemented | **Verified (unit):** first holder wins; higher priority preempts; MOVEMENT hand-over waits for release evidence (a mutation that removed the evidence gate was caught); scoped travel lease. |
+| D1 many modules, per-module context | implemented | **Verified (unit):** `PlatformConformanceTest`. **Verified (live, both versions):** two modules side by side, loaded as plain jars ([live-run-combat.md](live-run-combat.md) §Multi-module). |
+| D3 leases, priorities, preemption | implemented | **Verified (unit):** first holder wins; higher priority preempts; MOVEMENT hand-over waits for release evidence (a mutation that removed the evidence gate was caught); scoped travel lease. **Verified (live, both versions):** a HIGH combat module preempted a NORMAL walker mid-walk; the lease was granted only after the stop was proven. |
+| Module discovery without a loader | implemented | **Verified (unit):** `ModuleDiscoveryTest` compiles and jars real modules, finds them through `META-INF/services`, and reports a broken entry without losing the others. **Verified (live, both versions).** |
 | D4 topics, services, dependency order | implemented | **Verified (unit):** end-of-tick delivery in order, delivery cap, `requires()` blocking and unblocking. |
 | D5 management, failure isolation | implemented | **Verified (unit):** disable revokes leases and cancels travel; a throwing module becomes FAILED and the others keep running. |
 | D6 engine-process attribution | implemented | **Verified (unit).** No native module exists yet to exercise it live. |

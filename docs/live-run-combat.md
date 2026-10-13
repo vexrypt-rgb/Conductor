@@ -39,3 +39,33 @@
 - Preempting a running fight by a SAFETY module, live. This is unit-tested in `PlatformConformanceTest` and `Stage5CombatTest`.
 - Autotune (the `autotune` branch was not built for this run).
 - Real servers: latency, anticheat.
+
+## Multi-module: a walker preempted by the combat module (2026-10-13)
+
+**Question:** can two independent modules share the bot? `walk-and-stop` runs at NORMAL priority and `agnostic-combat` at HIGH (`-Dagnostic.combat.startDelay=40`). Can the fight take over mid-walk, safely, on both versions?
+
+**Answer: yes. Verified live on both versions,** with both modules loaded as **plain jars from a modules folder**, without Fabric metadata (`CONDUCTOR_MODULES`, see [LOADER-INDEPENDENCE.md](LOADER-INDEPENDENCE.md)). Jar SHA-256: combat `7919d925…`, walker `e6ec13e5…`.
+
+| Step | 1.21.11 | 1.21.4 |
+|---|---|---|
+| Discovery | `Conductor starting 2 module(s) from …/modules`: both found through `META-INF/services` | same |
+| Walker starts | `requestTravel` 20 blocks east: EXECUTING (scoped MOVEMENT lease, NORMAL) | same |
+| Combat takes over | `acquire(MOVEMENT)` at HIGH → **PENDING**, "granted once the resource is shown idle"; the walker's trip is cancelled by the host | same |
+| Hand-over | lease granted only after release evidence; the walker sees its trip end (`stop confirmed after 43 ticks`) | lease granted; walker `stop confirmed after 1 tick` (1.21.4 cancels at once, finding L1) |
+| Fight | engaged hostiles; zombie and naturally spawned mobs (see note) fought | zombie killed |
+| End | cancel → CANCELLED after 20 ticks; lease released | same |
+| Module faults | none | none |
+
+**Bug found and fixed on the way.** In the first 1.21.4 run (`multi-module-before-fix-1.21.4.log.gz`), the walker never logged its stop:
+- 1.21.4 stops immediately, so the combat module's operation began before the walker looked again;
+- the walker's `operationStatus` for its old operation then came back `UNKNOWN_OPERATION`, and the walker module faulted silently.
+
+Fixes:
+- Conductor now keeps the final status of earlier operations for their owners (`Stage5CombatTest.anOwnerCanStillReadHowItsOperationEndedAfterANewOneBegan`).
+- A module that faults is now also written to the game log, not only to the diagnostic sink.
+
+The re-run and the plain-jar runs show the walker reading its result.
+
+**Note on mobs (1.21.11):** although `spawn-monsters=false`, hostile mobs spawned naturally on the 1.21.11 server once the difficulty was set to easy at midnight. In the earlier 1.21.11 multi-module run the bot was killed by them (`Dev was slain by Zombie`), with the module still running correctly. This is test-world setup, not Conductor behaviour. Likely cause (Unknown): 1.21.11 moved that setting to a game rule.
+
+Evidence: `docs/evidence/module-runs/multi-module-*.log.gz`.

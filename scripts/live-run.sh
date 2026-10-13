@@ -10,7 +10,8 @@
 #      GRADLE_ARGS (extra args for both Gradle builds, e.g. an init script or -PostinatoDir_1_21_4=...),
 #      CLIENT_TIMEOUT (seconds, default 1200),
 #      HARNESS_SCENARIO (stage4, evidence, or connect-only: join and wait while installed modules run),
-#      EXTRA_MODS (colon-separated jars to load too, e.g. the Conductor mod and module jars),
+#      EXTRA_MODS (colon-separated Fabric mods to load too, e.g. the Conductor mod),
+#      CONDUCTOR_MODULES (folder of plain module jars for Conductor to load; default <game dir>/conductor/modules),
 #      HARNESS_HOLD (seconds connect-only waits, default 60),
 #      SERVER_ON_JOIN (server console commands sent after the player joins and is opped, separated by ';';
 #                      "sleep N" waits N seconds, e.g. "difficulty easy;sleep 5;execute at Dev run summon minecraft:zombie ~6 ~ ~").
@@ -60,7 +61,7 @@ echo "server ready"
 ) &
 
 MODS="$JAR${EXTRA_MODS:+:$EXTRA_MODS}"
-export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dfabric.addMods=$MODS -Dconductor.harness.out=$OUT -Dconductor.harness.server=localhost:25565 -Dconductor.harness.scenario=${HARNESS_SCENARIO:-stage4} -Dconductor.harness.holdSeconds=${HARNESS_HOLD:-60}"
+export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dfabric.addMods=$MODS -Dconductor.harness.out=$OUT -Dconductor.harness.server=localhost:25565 -Dconductor.harness.scenario=${HARNESS_SCENARIO:-stage4} -Dconductor.harness.holdSeconds=${HARNESS_HOLD:-60}${CONDUCTOR_MODULES:+ -Dconductor.modulesDir=$CONDUCTOR_MODULES}"
 cd "$OSTINATO_DIR"
 timeout "$CLIENT_TIMEOUT" xvfb-run -a -s "-screen 0 1280x720x24" \
     ./gradlew ${GRADLE_ARGS:-} :fabric:runClient -Pavailable_loaders=fabric --no-daemon \

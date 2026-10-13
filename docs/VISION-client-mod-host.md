@@ -19,7 +19,8 @@ Every change to Conductor should be judged by one question: *does this still wor
 3. **Capabilities, not hooks.** A module asks for "navigation" or "the HOTBAR lease", not "a mixin into `MultiPlayerGameMode`". Each capability comes from an adapter per version and is listed in discovery, so a module can see what this game offers before using it.
 4. **Many mods, one game.** Shared things (movement, look, hotbar, clicks, screens, chat) are leased, with priorities and evidence-based hand-over ([MODULE-PLATFORM.md](MODULE-PLATFORM.md)). A platform that hosts every mod must stop them fighting over the same controls.
 5. **Honest answers.** UNKNOWN is never reported as ABSENT, and "cancelling" is never reported as "cancelled". A platform everyone depends on cannot guess.
-6. **Existing mods are welcome as they are.** Native modules (version-specific, mixins allowed) join the same leases, topics and services. Moving to contract-only is gradual and never a precondition.
+6. **No mod loader is a dependency.** Loaders (Fabric, Forge, NeoForge) and Mojang's mappings are *references*, used once per version or per loader inside a thin shim or adapter. Modules and the contract never depend on them.
+7. **Existing mods are welcome as they are.** Native modules (version-specific, mixins allowed) join the same leases, topics and services. Moving to contract-only is gradual and never a precondition.
 
 What it would still take to get there (none of it exists yet; each item is future work):
 
@@ -27,7 +28,7 @@ What it would still take to get there (none of it exists yet; each item is futur
 |---|---|
 | A runtime without Ostinato (`runtime-vanilla`) | Most mods are not bots. Ostinato should be one optional capability provider. |
 | More Minecraft versions per adapter | "Version-agnostic" is only as wide as the adapters that exist. Today: 1.21.11 and 1.21.4. |
-| Loader independence (Fabric today; NeoForge, Quilt) | The contract is loader-free already. Each loader needs a host mod. |
+| Loader independence | Modules and discovery are loader-free (plain jars, `META-INF/services`). Conductor's only Fabric code is a 40-line boot shim. Still to do: NeoForge/Forge shims, and a loader-free boot for engine-free modules. See [LOADER-INDEPENDENCE.md](LOADER-INDEPENDENCE.md). |
 | Rendering, input, world-scan, packet, sound and GUI capabilities | Most mod types need at least one (see §2). |
 | Data-driven content (enchantments, biomes, recipes) | These live in per-world registries, not built-in ones. `content()` answers UNKNOWN for them today. |
 | Contract versioning checks at load time | A module built for contract 2.x must be refused cleanly by a 1.x host, not crash. |

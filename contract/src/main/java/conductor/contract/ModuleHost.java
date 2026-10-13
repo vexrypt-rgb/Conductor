@@ -22,6 +22,9 @@ import java.util.function.Consumer;
  */
 public final class ModuleHost {
 
+    private static final System.Logger FAULT_LOG = System.getLogger("conductor");
+
+
     /** Upper bound on topic deliveries per tick, so a publish loop cannot stall the game. */
     static final int MAX_DELIVERIES_PER_TICK = 10_000;
 
@@ -422,6 +425,8 @@ public final class ModuleHost {
             if (f.entry.state == ModuleState.RUNNING || f.entry.state == ModuleState.BLOCKED || f.entry.state == ModuleState.DISCOVERED) {
                 sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.MODULE_FAULT, core.currentTick(),
                         core.currentContext().orElse(null), f.entry.id.value(), String.valueOf(f.error)));
+                // also to the log: a stopped module must be visible without reading the sink
+                FAULT_LOG.log(System.Logger.Level.WARNING, "module " + f.entry.id.value() + " stopped (FAILED)", f.error);
                 stop(f.entry, ModuleState.FAILED, "threw " + f.error);
             }
         }

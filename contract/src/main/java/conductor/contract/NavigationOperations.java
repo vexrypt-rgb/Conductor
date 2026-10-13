@@ -47,6 +47,15 @@ final class NavigationOperations {
     /** The running operation's own engine process, and how to stop it; set when an operation is accepted. */
     private java.util.function.Predicate<String> ownController = controller -> false;
     private Runnable engineCancel;
+    /** Final status of earlier operations, so an owner can still read how its operation ended after a new one began. */
+    private final java.util.LinkedHashMap<OperationId, Finished> finished = new java.util.LinkedHashMap<>() {
+        @Override
+        protected boolean removeEldestEntry(java.util.Map.Entry<OperationId, Finished> eldest) {
+            return size() > 64;
+        }
+    };
+
+    private record Finished(ModuleId owner, OperationStatus status) {}
 
     NavigationOperations(RuntimeIntegration runtime, ContextTracker contexts, DiagnosticSink sink, ReleasePolicy policy) {
         this.runtime = runtime;
@@ -238,6 +247,9 @@ final class NavigationOperations {
                     "engine declined (" + delegation.backend() + "): " + delegation.detail());
         }
 
+        if (id != null) {
+            finished.put(id, new Finished(owner, snapshot()));
+        }
         id = new OperationId(nextId++, contexts.current().orElseThrow());
         owner = requester;
         ownController = own;
@@ -264,6 +276,10 @@ final class NavigationOperations {
         if (operation == null) {
             return reject(RejectionReason.INVALID_ARGUMENT, "cancel", "operation is null");
         }
+        Finished done = finished.get(operation);
+        if (done != null && done.owner().equals(caller)) {
+            return OperationResult.rejected(RejectionReason.AUTHORITY_INVALIDATED, done.status(), "operation already ended");
+        }
         if (!operation.equals(id) || !caller.equals(owner)) {
             return reject(RejectionReason.UNKNOWN_OPERATION, "cancel", "not an operation of this consumer: " + operation);
         }
@@ -288,6 +304,10 @@ final class NavigationOperations {
     }
 
     OperationResult status(ModuleId caller, OperationId operation) {
+        Finished done = operation == null ? null : finished.get(operation);
+        if (done != null && done.owner().equals(caller)) {
+            return OperationResult.accepted(done.status());
+        }
         if (operation == null || !operation.equals(id) || !caller.equals(owner)) {
             return OperationResult.rejected(RejectionReason.UNKNOWN_OPERATION, null, "not an operation of this consumer");
         }

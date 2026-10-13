@@ -6,6 +6,7 @@ import conductor.contract.ContentId;
 import conductor.contract.FeatureStatus;
 import conductor.contract.FreshnessPolicy;
 import conductor.contract.Lease;
+import conductor.contract.LeaseResult;
 import conductor.contract.ModuleContext;
 import conductor.contract.ModuleFeature;
 import conductor.contract.ModuleId;
@@ -16,6 +17,7 @@ import conductor.contract.OperationState;
 import conductor.contract.Priority;
 import conductor.contract.ReleasePolicy;
 import conductor.contract.ResourceState;
+import conductor.contract.Resources;
 import conductor.contract.Topic;
 
 import java.util.ArrayList;
@@ -38,7 +40,11 @@ import java.util.OptionalLong;
  * Settings (JVM system properties): {@code agnostic.combat.goal} = {@code hostiles} (default), {@code players},
  * {@code player:<name>} or {@code mob:<entity id>}; {@code agnostic.combat.idleStop} = ticks without a target, after a
  * fight, before stopping (default 100); {@code agnostic.combat.giveUp} = ticks without ever seeing a target before
- * stopping (default 1200).
+ * stopping (default 1200); {@code agnostic.combat.startDelay} = ticks to wait before the first fight (default 0).
+ * <p>
+ * Working next to other modules: if a lower-priority module holds the movement lease (say, a walker), this module
+ * takes it at HIGH priority. Conductor cancels the walker's trip and hands the lease over only once the bot is shown
+ * to have stopped, then the fight starts.
  */
 public final class AgnosticCombat implements ConductorModule {
 
@@ -67,6 +73,11 @@ public final class AgnosticCombat implements ConductorModule {
     private final CombatGoal goal = parseGoal(System.getProperty("agnostic.combat.goal", "hostiles"));
     private final int idleStop = Integer.getInteger("agnostic.combat.idleStop", 100);
     private final int giveUp = Integer.getInteger("agnostic.combat.giveUp", 1200);
+    private final int startDelay = Integer.getInteger("agnostic.combat.startDelay", 0);
+
+    /** MOVEMENT taken explicitly from another module; null when not held (or held only for one operation). */
+    private Lease movementLease;
+    private boolean leasePending;
 
     private List<KitPart> kit = List.of();
     private String lastKitReport = "";
@@ -125,8 +136,8 @@ public final class AgnosticCombat implements ConductorModule {
         }
         switch (step) {
             case WAIT_FOR_RESOURCE -> {
-                if (conductor.resourceStatus().state() == ResourceState.AVAILABLE) {
-                    engage(conductor);
+                if (ticksInStep > startDelay) {
+                    takeMovement(conductor);
                 }
             }
             case FIGHTING -> fight(conductor);
@@ -135,6 +146,11 @@ public final class AgnosticCombat implements ConductorModule {
                 if (state == OperationState.CANCELLED || state == OperationState.UNCERTAIN) {
                     log("stop %s after %d ticks", state == OperationState.CANCELLED ? "confirmed" : "NOT confirmed", ticksInStep);
                     conductor.publish(FIGHT, "stopped " + state);
+                    if (movementLease != null) {
+                        conductor.release(movementLease);
+                        log("movement lease released");
+                        movementLease = null;
+                    }
                     next(Step.DONE);
                 }
             }
@@ -144,10 +160,53 @@ public final class AgnosticCombat implements ConductorModule {
     }
 
     @Override
+    public void onLeaseGranted(ModuleContext conductor, Lease lease) {
+        if (lease.resource().equals(Resources.MOVEMENT)) {
+            log("movement lease granted after the other module's stop was confirmed");
+            movementLease = lease;
+            leasePending = false;
+        }
+    }
+
+    @Override
     public void onLeaseRevoked(ModuleContext conductor, Lease lease, ModuleId by) {
+        movementLease = null;
         log("%s taken by %s; fight handed over", lease.resource().name(), by);
         conductor.publish(FIGHT, "preempted by " + by);
         next(Step.WAIT_FOR_RESOURCE);
+    }
+
+    /** Start a fight when the bot is free, or take MOVEMENT from a lower-priority module that holds it. */
+    private void takeMovement(ModuleContext conductor) {
+        if (movementLease != null) {
+            engage(conductor);
+            return;
+        }
+        if (leasePending) {
+            return; // onLeaseGranted follows once the holder's stop is confirmed
+        }
+        Optional<Lease> held = conductor.leases().stream()
+                .filter(l -> l.resource().equals(Resources.MOVEMENT) && !l.holder().equals(conductor.self())).findFirst();
+        if (held.isEmpty()) {
+            if (conductor.resourceStatus().state() == ResourceState.AVAILABLE) {
+                engage(conductor); // free: requestCombat takes MOVEMENT for this fight only
+            }
+            return;
+        }
+        LeaseResult r = conductor.acquire(Resources.MOVEMENT); // at priority() = HIGH
+        switch (r.status()) {
+            case GRANTED -> {
+                movementLease = r.lease().orElseThrow();
+                engage(conductor);
+            }
+            case PENDING -> {
+                leasePending = true;
+                log("taking MOVEMENT from %s: %s", held.get().holder(), r.detail());
+                conductor.publish(FIGHT, "preempting " + held.get().holder());
+            }
+            case DENIED -> {
+            } // an equal or higher priority holder: wait
+        }
     }
 
     private void engage(ModuleContext conductor) {
