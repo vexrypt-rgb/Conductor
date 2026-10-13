@@ -2,6 +2,7 @@
 """conductor-convert: read a Fabric, Quilt, Forge or NeoForge mod jar and say what it would take to run it on Conductor.
 
     python3 conductor_convert.py <mod.jar> [--out <dir>] [--json]
+    python3 conductor_convert.py --census [--tiny mappings.tiny --mojmap client_mappings.txt] <mod.jar>...
 
 Without --out it prints a readiness report. With --out it also writes a Conductor content-module skeleton:
   - the mod's assets/ and data/, minus loader-only JSON (listed in the report);
@@ -53,6 +54,15 @@ INTERMEDIARY = {
     "net/minecraft/client/renderer/blockentity/BlockEntityRenderer": "net/minecraft/class_827",
 }
 TO_MOJANG = {v: k for k, v in INTERMEDIARY.items()}
+# Mob archetypes (intermediary names are the same in 1.21.4 and 1.21.11; Mojang's packages moved in 1.21.11)
+ARCHETYPES = {
+    "net/minecraft/class_1642": "ZOMBIE", "net/minecraft/world/entity/monster/Zombie": "ZOMBIE",
+    "net/minecraft/world/entity/monster/zombie/Zombie": "ZOMBIE",
+    "net/minecraft/class_1628": "SPIDER", "net/minecraft/world/entity/monster/Spider": "SPIDER",
+    "net/minecraft/world/entity/monster/spider/Spider": "SPIDER",
+    "net/minecraft/class_1452": "PIG", "net/minecraft/world/entity/animal/Pig": "PIG",
+    "net/minecraft/world/entity/animal/pig/Pig": "PIG",
+}
 
 def short(name):
     return name.rsplit("/", 1)[-1]
@@ -232,7 +242,70 @@ def class_info(data):
         refs.update(re.findall(r"L([A-Za-z_$][\w/$]*);", s))
     this = utf8[classes[this_i]]
     sup = utf8[classes[super_i]] if super_i else None
+    class_info.last_mixin_targets = mixin_targets(data, pos + 8 + 2 * n_if, utf8)
     return this, sup, ifaces, refs
+
+def mixin_targets(data, pos, utf8):
+    """Targets of a class's @Mixin annotation (value = classes, targets = names), or [] when it has none."""
+    u2 = lambda p: struct.unpack(">H", data[p:p + 2])[0]
+    u4 = lambda p: struct.unpack(">I", data[p:p + 4])[0]
+    for _ in range(2):  # fields, then methods: skip them and their attributes
+        n = u2(pos)
+        pos += 2
+        for _ in range(n):
+            ac = u2(pos + 6)
+            pos += 8
+            for _ in range(ac):
+                pos += 6 + u4(pos + 2)
+    targets = []
+    def element(p):
+        tag = chr(data[p])
+        p += 1
+        if tag in "BCDFIJSZsc":
+            if tag == "c":
+                targets.append(("class", utf8.get(u2(p), "")))
+            elif tag == "s":
+                targets.append(("string", utf8.get(u2(p), "")))
+            return p + 2
+        if tag == "e":
+            return p + 4
+        if tag == "@":
+            return annotation(p, collect=False)
+        if tag == "[":
+            n = u2(p)
+            p += 2
+            for _ in range(n):
+                p = element(p)
+            return p
+        raise ValueError("bad element tag " + tag)
+    def annotation(p, collect):
+        type_name = utf8.get(u2(p), "")
+        pairs = u2(p + 2)
+        p += 4
+        for _ in range(pairs):
+            name = utf8.get(u2(p), "")
+            before = len(targets)
+            p = element(p + 2)
+            if not (collect and type_name == "Lorg/spongepowered/asm/mixin/Mixin;" and name in ("value", "targets")):
+                del targets[before:]
+        return p
+    n = u2(pos)
+    pos += 2
+    for _ in range(n):
+        name, length = utf8.get(u2(pos), ""), u4(pos + 2)
+        if name in ("RuntimeInvisibleAnnotations", "RuntimeVisibleAnnotations"):
+            count, p = u2(pos + 6), pos + 8
+            for _ in range(count):
+                p = annotation(p, collect=True)
+        pos += 6 + length
+    out = []
+    for kind, v in targets:
+        if kind == "class":
+            m = re.match(r"L(.+);$", v)
+            out.append(m.group(1) if m else v)
+        else:
+            out.append(v.replace(".", "/"))
+    return out
 
 def mojang(name):
     return TO_MOJANG.get(name, name)
@@ -247,7 +320,7 @@ def read_metadata(z):
     meta = {"loader": "unknown", "id": None, "version": None, "name": None, "minecraft": None, "mixin_configs": []}
     meta["loaders"] = [label for path, label in METADATA_FILES if path in names] or ["unknown"]
     if "fabric.mod.json" in names:
-        d = json.loads(z.read("fabric.mod.json").decode("utf-8", "replace"))
+        d = json.loads(z.read("fabric.mod.json").decode("utf-8", "replace"), strict=False)  # some mods ship raw control chars
         meta.update(loader="Fabric", id=d.get("id"), version=d.get("version"), name=d.get("name"),
                     minecraft=(d.get("depends") or {}).get("minecraft"),
                     entrypoints=sorted((d.get("entrypoints") or {}).keys()))
@@ -351,12 +424,14 @@ def analyse(jar_path):
              old_data_layout=old_layout, loader_only=loader_only, assets=len(assets), data=len(data))
 
     # classes
-    infos, problems = {}, []
+    infos, problems, declared_targets = {}, [], {}
     for n in names:
         if n.endswith(".class") and not n.startswith("META-INF/versions/"):
             try:
                 this, sup, ifaces, refs = class_info(z.read(n))
                 infos[this] = (mojang(sup) if sup else None, [mojang(i) for i in ifaces], {mojang(x) for x in refs})
+                if class_info.last_mixin_targets:
+                    declared_targets[this] = class_info.last_mixin_targets
             except Exception as e:  # noqa: BLE001 - report and carry on
                 problems.append(f"{n}: {e}")
     def base_of(cls, seen=()):
@@ -365,6 +440,15 @@ def analyse(jar_path):
             seen = seen + (sup,)
             sup = infos[sup][0]
         return BEHAVIOUR_BASES.get(sup)
+    def archetype_of(cls):
+        seen, sup = set(), infos.get(cls, (None,))[0]
+        while sup and sup not in seen:
+            if sup in ARCHETYPES:
+                return ARCHETYPES[sup]
+            seen.add(sup)
+            sup = infos.get(sup, (None,))[0]
+        return None
+    archetypes = {cls.replace("/", "."): a for cls in infos for a in [archetype_of(cls)] if a}
     behaviour = {}
     for cls in infos:
         kind = base_of(cls)
@@ -398,13 +482,14 @@ def analyse(jar_path):
             problems.append(f"mixin config {cfg} not in the jar")
         except ValueError as e:
             problems.append(f"mixin config {cfg}: {e}")
-    mixin_targets = set()
+    targets = {}
     for side, m in mixins:
-        info = infos.get(m.replace(".", "/"))
-        if info:
-            mixin_targets.update(x for x in info[2] if x.startswith("net/minecraft/") and x != m.replace(".", "/"))
-    r.update(classes=len(infos), behaviour={k: sorted(v) for k, v in sorted(behaviour.items())}, registration=registration,
+        for t in declared_targets.get(m.replace(".", "/"), []):
+            t = mojang(t)
+            targets[t] = targets.get(t, 0) + 1
+    r.update(mob_archetypes=dict(sorted(archetypes.items())), classes=len(infos), behaviour={k: sorted(v) for k, v in sorted(behaviour.items())}, registration=registration,
              loader_apis={k: sorted(v) for k, v in sorted(loader_apis.items())}, hints=hints, mixins=mixins,
+             mixin_targets=dict(sorted(targets.items())),
              class_problems=problems)
 
     # verdict
@@ -419,13 +504,13 @@ def verdict(r, code_kinds, declarable_items):
         reasons.append(f"{len(r['mixins'])} Mixin(s) into Minecraft: native module (tied to one Minecraft version)")
     for kind, n in code_kinds.items():
         reasons.append(f"{n} class(es) with custom {kind} behaviour: needs code Conductor can't declare yet")
-    if r["entities"]:
-        reasons.append(f"{len(r['entities'])} entit(y/ies): mobs are phase 2")
+    if len(r["entities"]) > len(r["mob_archetypes"]):
+        reasons.append(f"{len(r['entities']) - len(r['mob_archetypes'])} entit(y/ies) not built on a declarable archetype: need code")
     if r["shaped_blocks"]:
         reasons.append(f"{len(r['shaped_blocks'])} block(s) whose states match no Conductor block shape: need code")
     if not reasons:
         level = "READY: everything found is declarable or data"
-    elif not r["mixins"] and set(code_kinds) <= {"item", "block"} and not r["entities"] and len(r["shaped_blocks"]) < len(r["blocks"]) + 1:
+    elif not r["mixins"] and set(code_kinds) <= {"item", "block", "entity"} and len(r["entities"]) <= len(r["mob_archetypes"]) and len(r["shaped_blocks"]) < len(r["blocks"]) + 1:
         level = "PARTIAL: data and simple items/blocks port; custom item/block behaviour stays behind"
     else:
         level = "NATIVE: the code needs a native (version-specific) module; data and simple content still port"
@@ -459,7 +544,8 @@ def report(r):
             f"| Blocks with other states | {len(r['shaped_blocks'])} | not declarable: their states match no Conductor block shape |",
             f"| Block items | {len(r['block_items'])} | made with their block |",
             f"| Spawn eggs | {len(r['spawn_eggs'])} | phase 2 (with the mobs) |",
-            f"| Entities | {len(r['entities'])} | phase 2 |",
+            f"| Entities | {len(r['entities'])} | {len(r['mob_archetypes'])} class(es) extend a vanilla zombie, spider or pig: "
+            "declarable as `content.mob(...).like(...)` (vanilla AI, the mod's texture); others need code |",
             f"| Asset files | {r['assets']} | copied: Conductor loads them as a resource pack |",
             f"| Data files | {r['data']} | copied: Conductor loads them as a data pack |", ""]
     if r["data_kinds"]:
@@ -645,6 +731,17 @@ def write_skeleton(r, jar_path, out_dir):
             continue
         note = "  // TODO: custom code in the original" if any(path.replace("_", "") in c for c in custom) else ""
         lines.append(f'        content.item("{path}"); // TODO: maxStack, durability, food, rarity, tab{note}')
+    for e in r["entities"]:
+        ns, path = e.split(":", 1)
+        if ns != ns_main:
+            continue
+        key = path.replace("_", "")
+        match = next((a for c, a in r["mob_archetypes"].items() if key in c.rsplit(".", 1)[-1].lower()), None)
+        if match:
+            lines.append(f'        content.mob("{path}").like(MobArchetype.{match}); // TODO: health, speed, attackDamage, scale; '
+                         f'texture defaults to textures/entity/{path}.png (the original may use another path)')
+        else:
+            skipped.append(f"        // {path}: an entity not built on a zombie, spider or pig; needs code")
     others = [n for n in r["namespaces"] if n != ns_main]
     java = f"""package {pkg};
 
@@ -652,6 +749,7 @@ import conductor.contract.BlockMaterial;
 import conductor.contract.BlockShape;
 import conductor.contract.ContentDeclarations;
 import conductor.contract.ContentModule;
+import conductor.contract.MobArchetype;
 
 /**
  * Converted from {r['jar']} ({r['meta']['loader']}) by conductor-convert. Ids and assets are the original's; properties
@@ -687,7 +785,92 @@ public final class {cls} implements ContentModule {{
             "recipes_migrated": stats["recipes_migrated"], "tag_entries_optional": stats["tag_entries_optional"],
             "left_out": len(stats["left_out"])}
 
+def load_names(tiny, proguard):
+    """Intermediary class name -> Mojang name, from Fabric's intermediary mappings.tiny and Mojang's client mappings."""
+    off2moj = {}
+    with open(proguard) as f:
+        for line in f:
+            if line[0] not in " #":
+                m = re.match(r"(\S+) -> (\S+):", line)
+                if m:
+                    off2moj[m.group(2)] = m.group(1).replace(".", "/")
+    names = {}
+    with open(tiny) as f:
+        for line in f:
+            parts = line.rstrip("\n").split("\t")
+            if parts[0] == "c" and len(parts) >= 3 and parts[1] in off2moj:
+                names[parts[2]] = off2moj[parts[1]]
+    return names
+
+def census(jars, names=None, top=40):
+    """Which Minecraft classes the Mixins of many mods target, by number of mods."""
+    by_target, mods, with_mixins, failed = {}, 0, 0, []
+    import tempfile
+    tmp = tempfile.mkdtemp(prefix="conductor-census-")
+    expanded = []
+    for jar in jars:  # jar-in-jar: loaders load nested mods (Fabric API's modules, Sodium's bundled parts) as mods too
+        expanded.append(jar)
+        try:
+            with zipfile.ZipFile(jar) as z:
+                for n in z.namelist():
+                    if n.startswith("META-INF/jars/") and n.endswith(".jar"):
+                        dest = os.path.join(tmp, f"{os.path.basename(jar)}!{os.path.basename(n)}")
+                        with open(dest, "wb") as f:
+                            f.write(z.read(n))
+                        expanded.append(dest)
+        except zipfile.BadZipFile as e:
+            failed.append(f"{os.path.basename(jar)}: {e}")
+    for jar in expanded:
+        try:
+            r = analyse(jar)
+        except Exception as e:  # noqa: BLE001 - one bad jar must not stop the census
+            failed.append(f"{os.path.basename(jar)}: {e}")
+            continue
+        mods += 1
+        targets = {names.get(t, t) if names else t for t in r["mixin_targets"]}
+        targets = {t for t in targets if t.startswith("net/minecraft/") or t.startswith("com/mojang/")}
+        if r["mixins"]:
+            with_mixins += 1
+        for t in targets:
+            by_target.setdefault(t, []).append(r["meta"].get("id") or os.path.basename(jar))
+    shutil.rmtree(tmp, ignore_errors=True)
+    ranked = sorted(by_target.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+    out = [f"Jars read: {len(jars)} (plus nested: {mods} mods in all); with Mixins: {with_mixins}; "
+           f"distinct Minecraft classes targeted: {len(by_target)}", "",
+           "| Rank | Minecraft class | Mods | Area |", "|---|---|---|---|"]
+    for i, (t, ids) in enumerate(ranked[:top], 1):
+        out.append(f"| {i} | `{t.replace('/', '.')}` | {len(ids)} | {area(t)} |")
+    if failed:
+        out += ["", "Could not read: " + "; ".join(failed)]
+    return "\n".join(out) + "\n", ranked
+
+def area(cls):
+    c = cls.lower()
+    for key, label in (("client/renderer", "rendering"), ("client/gui", "GUI/HUD"), ("client/multiplayer", "client networking"),
+                       ("client/player", "local player"), ("client/model", "models"), ("network", "networking"),
+                       ("world/level/lighting", "lighting"), ("world/level/chunk", "chunks"), ("server/level", "server world/chunks"),
+                       ("world/entity/player", "player"), ("world/entity", "entities"), ("world/item", "items"),
+                       ("world/level/block", "blocks"), ("world/level/levelgen", "worldgen"), ("world/inventory", "menus"),
+                       ("client/keymapping", "input"), ("client/minecraft", "game loop"), ("client/main", "game loop"),
+                       ("server", "server"), ("world/level", "world"), ("client", "client")):
+        if key in c:
+            return label
+    return "other"
+
 def main(argv=None):
+    if argv is None:
+        argv = sys.argv[1:]
+    if argv and argv[0] == "--census":
+        c = argparse.ArgumentParser(description="Mixin census over many mod jars")
+        c.add_argument("--census", action="store_true")
+        c.add_argument("--tiny", help="intermediary mappings.tiny, to show Fabric mods' targets by Mojang name")
+        c.add_argument("--mojmap", help="Mojang client_mappings.txt (with --tiny)")
+        c.add_argument("--top", type=int, default=40)
+        c.add_argument("jars", nargs="+")
+        a = c.parse_args(argv)
+        names = load_names(a.tiny, a.mojmap) if a.tiny and a.mojmap else None
+        sys.stdout.write(census(a.jars, names, a.top)[0])
+        return 0
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("jar")
     p.add_argument("--out", help="write a Conductor content-module skeleton here")

@@ -14,7 +14,13 @@ import java.util.Map;
 public record ContentPlan(List<Entry> entries, List<String> problems) {
 
     /** One accepted content module. */
-    public record Entry(String moduleId, String namespace, List<ItemDeclaration> items, List<BlockDeclaration> blocks) {}
+    public record Entry(String moduleId, String namespace, List<ItemDeclaration> items, List<BlockDeclaration> blocks,
+                        List<MobDeclaration> mobs) {
+
+        public Entry(String moduleId, String namespace, List<ItemDeclaration> items, List<BlockDeclaration> blocks) {
+            this(moduleId, namespace, items, blocks, List.of());
+        }
+    }
 
     public static ContentPlan of(Map<String, ContentModule> modules) {
         List<String> problems = new ArrayList<>();
@@ -39,7 +45,7 @@ public record ContentPlan(List<Entry> entries, List<String> problems) {
                 checked.problems().forEach(p -> problems.add(moduleId + ": skipped: " + p));
                 continue;
             }
-            entries.add(new Entry(moduleId, checked.namespace(), checked.items(), checked.blocks()));
+            entries.add(new Entry(moduleId, checked.namespace(), checked.items(), checked.blocks(), checked.mobs()));
         }
         // One module per namespace. Ties are broken by module id, so the winner doesn't depend on discovery order.
         entries.sort(Comparator.comparing(Entry::namespace).thenComparing(Entry::moduleId));
@@ -58,6 +64,10 @@ public record ContentPlan(List<Entry> entries, List<String> problems) {
 
     public int itemCount() {
         return entries.stream().mapToInt(e -> e.items().size() + (int) e.blocks().stream().filter(BlockDeclaration::withItem).count()).sum();
+    }
+
+    public int mobCount() {
+        return entries.stream().mapToInt(e -> e.mobs().size()).sum();
     }
 
     public int blockCount() {

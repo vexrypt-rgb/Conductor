@@ -5,6 +5,7 @@ import conductor.contract.BlockMaterial;
 import conductor.contract.BlockShape;
 import conductor.contract.ContentPlan;
 import conductor.contract.ItemDeclaration;
+import conductor.contract.MobDeclaration;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -18,6 +19,10 @@ import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackCompatibility;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.server.packs.repository.RepositorySource;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.CreativeModeTab;
@@ -70,6 +75,8 @@ public final class ContentInstaller {
     /** Creative tab id to the items listed in it, in declaration order. */
     private static final Map<String, List<Item>> TAB_ITEMS = new HashMap<>();
     private static final Map<Block, conductor.contract.RenderLayer> RENDER_LAYERS = new java.util.LinkedHashMap<>();
+    private static final Map<EntityType<?>, AttributeSupplier> MOB_ATTRIBUTES = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<EntityType<?>, MobDeclaration> MOBS = new java.util.LinkedHashMap<>();
 
     private ContentInstaller() {}
 
@@ -97,8 +104,8 @@ public final class ContentInstaller {
                 throw e;
             }
         }
-        LOG.info("Conductor content: registered {} block(s) and {} item(s) from {} module(s) {}", plan.blockCount(),
-                plan.itemCount(), plan.entries().size(), plan.entries().stream().map(ContentPlan.Entry::namespace).toList());
+        LOG.info("Conductor content: registered {} block(s), {} item(s) and {} mob(s) from {} module(s) {}", plan.blockCount(),
+                plan.itemCount(), plan.mobCount(), plan.entries().size(), plan.entries().stream().map(ContentPlan.Entry::namespace).toList());
         Set<String> tabs = new java.util.HashSet<>();
         BuiltInRegistries.CREATIVE_MODE_TAB.registryKeySet().forEach(k -> tabs.add(VersionIds.id(k)));
         TAB_ITEMS.keySet().stream().filter(t -> !tabs.contains(t))
@@ -133,6 +140,13 @@ public final class ContentInstaller {
                 Item item = d.shape() == BlockShape.DOOR ? Items.registerBlock(block, DoubleHighBlockItem::new) : Items.registerBlock(block);
                 d.tab().ifPresent(t -> TAB_ITEMS.computeIfAbsent(t, k -> new ArrayList<>()).add(item));
             }
+        }
+        for (MobDeclaration d : entry.mobs()) {
+            ResourceKey<EntityType<?>> key = VersionIds.key(Registries.ENTITY_TYPE, d.id());
+            EntityType<? extends Mob> type = Registry.register(BuiltInRegistries.ENTITY_TYPE, key,
+                    VersionMobs.type(d.archetype(), key, d.scale()));
+            // Attributes are registry holders that are bound only when the registries freeze: build them on first use.
+            MOBS.put(type, d);
         }
         for (ItemDeclaration d : entry.items()) {
             Item.Properties props = new Item.Properties().stacksTo(d.maxStack()).rarity(Rarity.valueOf(d.rarity().name()));
@@ -196,6 +210,34 @@ public final class ContentInstaller {
 
     private static WoodType woodType(BlockMaterial m) {
         return WoodType.OAK; // fence gates are wooden in vanilla; the material only picks sounds for other shapes
+    }
+
+    /** From the hook in {@code DefaultAttributes}: a declared mob's attributes, or null for any other type. */
+    public static AttributeSupplier mobAttributes(EntityType<?> type) {
+        if (MOBS.isEmpty()) {
+            return null;
+        }
+        MobDeclaration d = MOBS.get(type);
+        if (d == null) {
+            return null;
+        }
+        return MOB_ATTRIBUTES.computeIfAbsent(type, t -> {
+            AttributeSupplier.Builder attributes = VersionMobs.attributes(d.archetype());
+            d.health().ifPresent(v -> attributes.add(Attributes.MAX_HEALTH, v));
+            d.speed().ifPresent(v -> attributes.add(Attributes.MOVEMENT_SPEED, v));
+            d.attackDamage().ifPresent(v -> attributes.add(Attributes.ATTACK_DAMAGE, v));
+            return attributes.build();
+        });
+    }
+
+    /** Whether {@code type} is a declared mob (cheap: builds nothing). */
+    public static boolean isMob(EntityType<?> type) {
+        return !MOBS.isEmpty() && MOBS.containsKey(type);
+    }
+
+    /** Client only: declared mobs, for their renderers. */
+    public static Map<EntityType<?>, MobDeclaration> mobs() {
+        return java.util.Collections.unmodifiableMap(MOBS);
     }
 
     /** Client only: blocks declared with a see-through render layer. */

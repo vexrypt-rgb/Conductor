@@ -22,10 +22,12 @@ public final class ContentDeclarations {
     public static final Set<String> RESERVED = Set.of("minecraft", "realms", "brigadier", "c", "fabric", "forge", "neoforge", "conductor");
     /** Tab ids are checked for syntax only; whether the tab exists is checked by the runtime. */
     static final Pattern TAB = Pattern.compile("[a-z0-9_.-]+:[a-z0-9_./-]+");
+    static final Pattern TEXTURE = Pattern.compile("[a-z0-9_.-]+:textures/[a-z0-9_./-]+\\.png");
 
     private final String namespace;
     private final List<ItemDeclaration.Builder> items = new ArrayList<>();
     private final List<BlockDeclaration.Builder> blocks = new ArrayList<>();
+    private final List<MobDeclaration.Builder> mobs = new ArrayList<>();
 
     public ContentDeclarations(String namespace) {
         this.namespace = Objects.requireNonNull(namespace, "namespace");
@@ -47,8 +49,16 @@ public final class ContentDeclarations {
         return b;
     }
 
+    /** A mob built on a vanilla archetype; see {@link MobDeclaration}. */
+    public MobDeclaration.Builder mob(String path) {
+        MobDeclaration.Builder b = new MobDeclaration.Builder(namespace + ":" + path);
+        mobs.add(b);
+        return b;
+    }
+
     /** The checked result. */
-    public record Checked(String namespace, List<ItemDeclaration> items, List<BlockDeclaration> blocks, List<String> problems) {
+    public record Checked(String namespace, List<ItemDeclaration> items, List<BlockDeclaration> blocks, List<MobDeclaration> mobs,
+                          List<String> problems) {
         public boolean ok() {
             return problems.isEmpty();
         }
@@ -129,7 +139,36 @@ public final class ContentDeclarations {
             d.tab().ifPresent(t -> tab(d.id(), t, problems));
             checkedItems.add(d);
         }
-        return new Checked(namespace, List.copyOf(checkedItems), List.copyOf(checkedBlocks), List.copyOf(problems));
+        Set<String> mobIds = new HashSet<>();
+        List<MobDeclaration> checkedMobs = new ArrayList<>();
+        for (MobDeclaration.Builder b : mobs) {
+            MobDeclaration d = b.build(namespace);
+            path(d.id(), problems);
+            if (!mobIds.add(d.id())) {
+                problems.add("mob " + d.id() + " declared twice");
+            }
+            if (d.archetype() == null) {
+                problems.add("mob " + d.id() + ": archetype is null");
+            }
+            if (!(d.scale() >= 0.25f && d.scale() <= 4f)) {
+                problems.add("mob " + d.id() + ": scale must be 0.25..4");
+            }
+            if (!TEXTURE.matcher(d.texture()).matches()) {
+                problems.add("mob " + d.id() + ": texture '" + d.texture() + "' must be namespace:textures/....png");
+            }
+            if (d.health().isPresent() && !(d.health().getAsDouble() >= 1 && d.health().getAsDouble() <= 1024)) {
+                problems.add("mob " + d.id() + ": health must be 1..1024");
+            }
+            if (d.speed().isPresent() && !(d.speed().getAsDouble() >= 0 && d.speed().getAsDouble() <= 1)) {
+                problems.add("mob " + d.id() + ": speed must be 0..1");
+            }
+            if (d.attackDamage().isPresent() && !(d.attackDamage().getAsDouble() >= 0 && d.attackDamage().getAsDouble() <= 2048)) {
+                problems.add("mob " + d.id() + ": attack damage must be 0..2048");
+            }
+            checkedMobs.add(d);
+        }
+        return new Checked(namespace, List.copyOf(checkedItems), List.copyOf(checkedBlocks), List.copyOf(checkedMobs),
+                List.copyOf(problems));
     }
 
     private static void path(String id, List<String> problems) {

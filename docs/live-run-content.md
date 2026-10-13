@@ -112,3 +112,72 @@ The loot lines come from the first run of this test. In the rerun with the corre
   - 0 model errors.
 - Screenshot (not committed: third-party textures): a wall, a door with see-through windows, a bookshelf, bricks, a sideways log, stairs, a slab, and fences joined to each other.
 - Evidence: `converted-thaumon-shapes-{fabric-server,client}-1.21.11.log.gz`.
+
+## 4. Next to performance mods: Sodium and Lithium
+
+The question (project owner): can Conductor handle performance mods like Sodium? They stay ordinary mods (CONTENT-MODS §6), so the question is whether Conductor and its modules work next to them.
+
+**Setup:**
+- **Client:** Sodium and Lithium from Modrinth, the Conductor mod, `ruby-content` (including the shaped blocks), and `block-highlighter` (overlays).
+  - 1.21.11: Sodium 0.8.15-beta.1, Lithium 0.21.4.
+  - 1.21.4: Sodium 0.6.13, Lithium 0.15.3.
+- **Server:** a Fabric dedicated server with Lithium and Conductor.
+- Sodium bundles parts of Fabric API, including `fabric-resource-loader`, which also adds packs to the game. So this also runs Conductor next to Fabric API code.
+
+| Check | 1.21.11 | 1.21.4 |
+|---|---|---|
+| Loads, joins, no Mixin conflicts or errors | yes (16 mods) | yes (13 mods) |
+| Content registered on both sides; the `conductor/ruby` pack loaded next to Fabric's mod resource packs | yes | yes |
+| Render layers for see-through blocks (Sodium reads the same table) | the door window and the glass are see-through | same |
+| Overlays (Conductor's render hook, with Sodium drawing the world) | boxes and tracers drawn | same |
+| Server checks (wall connection) | passed | passed |
+
+**One rendering gap, not reproduced:**
+- **What was seen.** In the first 1.21.11 run, the module's blocks in one chunk were not drawn: their highlight boxes were there but empty. The client did have the blocks, since the highlighter found them. Nothing was logged.
+- **Follow-up runs on 1.21.11, all of which drew every block:**
+
+| Run | Setup | Every block drawn |
+|---|---|---|
+| A | Sodium only, vanilla blocks | yes |
+| B | Sodium + Conductor, vanilla blocks | yes |
+| C1 | Sodium + Conductor + ruby blocks | yes |
+| C2 | C1 + the overlay module | yes |
+| C3 | C1 + Lithium | yes |
+| Repeat | the exact first setup | yes (screenshots at 22 s and 45 s) |
+
+- **Status:** **not reproduced** in six follow-up runs. The first run's log and screenshot were overwritten by the exact repeat, so this observation is recorded here only, not in the evidence files. The likeliest explanation is Sodium's asynchronous chunk rebuild running late on this slow, software-rendered display. That is a guess, not a finding.
+- **Next step if it comes back:** report it with Sodium's debug overlay and a longer wait.
+
+Evidence: `compat-sodium-lithium-client-<version>.log.gz`, `compat-sodium-{case-A,case-B,c1,c2,c3}-client-1.21.11.log.gz`, and `screenshots/compat-sodium-lithium-<version>.png`.
+
+## 5. Mobs on vanilla archetypes
+
+**Module:** the ruby jar now also declares three mobs:
+- `ruby_zombie`: ZOMBIE, health 30, attack damage 5, scale 1.2;
+- `ruby_spider`: SPIDER, health 12, scale 0.7;
+- `ruby_pig`: PIG, speed 0.3.
+
+Each has a generated texture (not recoloured vanilla art), a name and a loot table that drops rubies.
+
+The setup is as in §1. The server commands are:
+- `/summon` each mob (NoAI, to keep them in view);
+- read their health and attributes;
+- `say` from the zombie;
+- `loot give Dev kill …` for the pig and the zombie.
+
+Evidence: `content-mobs-{fabric-server,client}-<version>.log.gz` and `screenshots/content-mobs-<version>.png`.
+
+| Check | 1.21.11 | 1.21.4 |
+|---|---|---|
+| Registered on both sides: `7 block(s), 9 item(s) and 3 mob(s)`; client: `renderers for 3 mob(s)` | yes | yes |
+| `/summon ruby:ruby_zombie`, `ruby_spider`, `ruby_pig` | `Summoned new …` × 3 | same |
+| Zombie health / attack damage | 30.0 / 5.0 | 30.0 / 5.0 |
+| Spider health, pig speed | 12.0, 0.3 | same |
+| Loot from the module's `entities/` tables | pig 1 ruby, zombie 1 ruby | pig 1, zombie 2 (0–2 random) |
+| Screenshot | three textured mobs: the large zombie, the small spider, the pig | same (the zombie burns in daylight: a zombie trait) |
+| Client errors | none | none |
+
+Notes:
+- **`No data fixer registered for ruby:ruby_zombie`** (×3) is the vanilla warning every modded entity type gets. It is harmless.
+- **Peaceful difficulty removes hostile mobs.** The test servers run on peaceful, which removed the hostile mobs before the first 1.21.4 screenshot (they had been read and checked first). The 1.21.4 run was repeated on `difficulty easy`, and that is the screenshot kept.
+- **Attributes are built lazily.** The first try crashed the server at start-up: attribute values are registry holders that are bound only when the registries freeze, so they can't be read before it. Conductor now builds a mob's attributes on first use, after the freeze. `prod-run.sh` now also notices `Failed to start the minecraft server` instead of waiting.

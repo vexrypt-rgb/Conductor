@@ -152,4 +152,26 @@ class ContentPlanTest {
         assertTrue(!ContentPlan.of(Map.of("s", module("s", c -> c.block("x").stairsOf("x")))).problems().isEmpty());
         assertTrue(ContentPlan.of(Map.of("s", module("s", c -> c.block("x").stairsOf("minecraft:oak_planks")))).problems().isEmpty());
     }
+
+    @Test
+    void mobsDefaultTheirTextureAndCheckTheirNumbers() {
+        ContentPlan plan = ContentPlan.of(Map.of("m", module("ruby", c -> {
+            c.mob("ruby_zombie").like(MobArchetype.ZOMBIE).health(30).attackDamage(5).scale(1.25f);
+            c.mob("ruby_pig").like(MobArchetype.PIG).texture("entity/pigs/ruby");
+        })));
+        assertEquals(List.of(), plan.problems());
+        List<MobDeclaration> mobs = plan.entries().get(0).mobs();
+        assertEquals("ruby:textures/entity/ruby_zombie.png", mobs.get(0).texture(), "texture defaults to entity/<path>");
+        assertEquals(java.util.OptionalDouble.of(30), mobs.get(0).health());
+        assertEquals(java.util.OptionalDouble.empty(), mobs.get(0).speed(), "unset keeps the archetype's value");
+        assertEquals("ruby:textures/entity/pigs/ruby.png", mobs.get(1).texture());
+        assertEquals(2, plan.mobCount());
+
+        ContentPlan bad = ContentPlan.of(Map.of("m", module("ruby", c -> {
+            c.mob("huge").scale(10);
+            c.mob("frail").health(0);
+            c.mob("odd").texture("Entity/X");
+        })));
+        assertEquals(3, bad.problems().size(), bad.problems().toString());
+    }
 }

@@ -824,7 +824,23 @@ The rules:
 - **Any problem skips the whole module**, with every reason logged. Registering half a module would leave client and server with different content.
 - Content is registered **once, while the game starts**, right before Minecraft locks its registries. Modules are taken in namespace order, so every machine numbers them the same way.
 
-### 13.2 Everything else is data in the same jar
+### 13.2 Mobs
+
+```java
+content.mob("ruby_zombie").like(MobArchetype.ZOMBIE).health(30).attackDamage(5).scale(1.2f);
+content.mob("ruby_pig").like(MobArchetype.PIG).speed(0.3);
+```
+
+- **What a declared mob is.** It is a new entity type built on a vanilla **archetype**: ZOMBIE, SPIDER or PIG. It keeps the archetype's AI, sounds, body and model. Your module changes:
+  - its name (`entity.<namespace>.<path>` in the lang file);
+  - its texture (`textures/entity/<path>.png` by default, laid out like the archetype's texture);
+  - its size (`scale`, which changes both the model and the hit box);
+  - health, speed and attack damage;
+  - its drops: the loot table `data/<namespace>/loot_table/entities/<path>.json`.
+- **Spawning.** Use `/summon <namespace>:<path>`, spawners, or your own data. There are no spawn eggs or natural spawning rules yet.
+- **Archetype quirks carry over.** Babies from breeding a pig-like mob are vanilla pigs, and a zombie-like mob that drowns becomes a vanilla drowned.
+
+### 13.3 Everything else is data in the same jar
 
 Put models, textures and names in `assets/<namespace>/`, and loot, recipes, tags and worldgen in `data/`, exactly as a resource pack or data pack would. Conductor loads the jar as a pack on the client and on the server. There is no `pack.mcmeta` to write: Conductor supplies the pack metadata for each version.
 
@@ -842,15 +858,16 @@ mc_1.21.4/...                               a file here replaces its normal copy
 
 **Dimensions, structures, biomes, worldgen features, enchantments and mob variants are all data.** Anything vanilla reads from a data pack can ship in a content module, with no code at all.
 
-### 13.3 Install
+### 13.4 Install
 
 The same jar goes in `conductor/modules/` **on the server and on every client**. Items and blocks travel between them as numbers, so both sides must have the same content modules. A module that only has data (a dimension, recipes for vanilla items) should be needed on the server only, with vanilla clients able to join. That follows from how vanilla syncs data, but it has not been tested yet.
 
 The Conductor mod now runs on dedicated servers too. There it only hosts content.
 
-### 13.4 Not yet
+### 13.5 Not yet
 
-- **Mobs (entities), block entities, custom item or block behaviour (right-click actions, GUIs).** These need code. Declared mobs built on a vanilla archetype come next (CONTENT-MODS §4).
+- **Mobs with their own AI or model, block entities, custom item or block behaviour (right-click actions, GUIs).** These need code. Declared mobs (§13.2) cover mobs built on a vanilla archetype.
+- **Spawn eggs and natural mob spawning.**
 - **Rotatable cubes** (a `facing` property, like glazed terracotta or furnaces) and other block kinds not in `BlockShape`.
 - **An id handshake.** A client with different content modules from the server gets Minecraft's own errors, not a clear "module X is missing".
 - **Creative tab placement is not checked live yet.** Items are added to the tab they name; a tab that doesn't exist on this version is logged.

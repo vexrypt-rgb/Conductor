@@ -6,10 +6,11 @@ import conductor.contract.BlockSound;
 import conductor.contract.ContentDeclarations;
 import conductor.contract.ContentModule;
 import conductor.contract.ItemRarity;
+import conductor.contract.MobArchetype;
 
 /**
- * Rubies: an item, a food, a block and its stairs, slab, wall, pillar, glass and door, declared once for every
- * Minecraft version. Everything else is data in this
+ * Rubies: an item, a food, a block and its stairs, slab, wall, pillar, glass and door, and three mobs, declared once
+ * for every Minecraft version. Everything else is data in this
  * jar: models, textures and names ({@code assets/ruby}), the block's loot table, two recipes, the pickaxe tag, and a
  * whole dimension whose ground is made of ruby blocks ({@code data/ruby/dimension/ruby_world.json}).
  */
@@ -39,5 +40,9 @@ public final class RubyContent implements ContentModule {
                 .tab("minecraft:colored_blocks");
         content.block("ruby_door").shape(BlockShape.DOOR).material(BlockMaterial.WOOD).strength(3, 3)
                 .sound(BlockSound.WOOD).tab("minecraft:building_blocks");
+        // Mobs on vanilla archetypes: their AI and body, this jar's texture, name and drops (loot_table/entities/...).
+        content.mob("ruby_zombie").like(MobArchetype.ZOMBIE).health(30).attackDamage(5).scale(1.2f);
+        content.mob("ruby_spider").like(MobArchetype.SPIDER).health(12).scale(0.7f);
+        content.mob("ruby_pig").like(MobArchetype.PIG).speed(0.3);
     }
 }

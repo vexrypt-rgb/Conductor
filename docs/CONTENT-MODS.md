@@ -82,6 +82,8 @@ Custom mobs need more than declarations:
 - a spawn egg (constructor differs between versions);
 - on the client, a renderer and model layers. These are private registries, and the renderer API changed a lot between 1.21.4 and 1.21.11.
 
+**Status:** step 1 is built (ZOMBIE, SPIDER and PIG archetypes) and verified live on both versions ([live-run-content.md](live-run-content.md) §5).
+
 **Plan:**
 1. **Declared mobs built on a vanilla archetype.** For example, "a zombie-like mob, 1.5× size, 40 health, this texture": `EntityType` plus attributes plus the archetype's AI and renderer with a module texture. Version-agnostic, since the module only declares.
 2. **Behaviour.** AI goals as contract building blocks (wander, attack nearest, flee, follow) that the runtime maps to vanilla goals per version.
@@ -128,4 +130,5 @@ Performance mods are a different category. **They are hosted next to Conductor, 
 5. **Done:** live test, a Fabric dedicated server plus a client on 1.21.11 and 1.21.4 with the same jar ([live-run-content.md](live-run-content.md)).
 6. **Done:** converter v1 (report plus skeleton), tried on real mods.
 7. **Done:** blocks with states. `BlockShape` maps to vanilla's block classes: pillar, stairs, slab, wall, fence, fence gate, door, trapdoor, button, pressure plate, pane, leaves, carpet, glass. It comes with materials and render layers. The converter recognises shapes from blockstate files: on Thaumon, 127 of 137 blocks are declarable (was 40).
-8. **Next:** mobs (phase 2), the id handshake, rotatable cubes (`facing`).
+8. **Done:** declared mobs on vanilla archetypes (zombie, spider, pig). The converter maps a mod's entity classes that extend those to `content.mob(...).like(...)`.
+9. **Next:** more archetypes, spawn eggs and natural spawning, the id handshake, rotatable cubes (`facing`).

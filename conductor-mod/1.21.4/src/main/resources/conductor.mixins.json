@@ -7,13 +7,15 @@
     "BuiltInRegistriesMixin",
     "CreativeModeTabMixin",
     "PackRepositoryMixin",
-    "BuiltInPackSourceAccessor"
+    "BuiltInPackSourceAccessor",
+    "DefaultAttributesMixin"
   ],
   "client": [
     "MinecraftMixin",
     "ClientPacketListenerMixin",
     "LevelRendererMixin",
-    "ItemBlockRenderTypesAccessor"
+    "ItemBlockRenderTypesAccessor",
+    "EntityRenderersInvoker"
   ],
   "injectors": {
     "defaultRequire": 0

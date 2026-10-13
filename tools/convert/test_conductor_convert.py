@@ -38,10 +38,14 @@ class ConvertTest(unittest.TestCase):
             "net/minecraft/class_1792.java": "package net.minecraft; public class class_1792 {}",
             "net/minecraft/class_2248.java": "package net.minecraft; public class class_2248 {}",
             "net/minecraft/class_2378.java": "package net.minecraft; public class class_2378 { public static Object register(Object a, Object b) { return b; } }",
+            "net/minecraft/class_1297.java": "package net.minecraft; public class class_1297 {}",                       # Entity
+            "net/minecraft/class_1642.java": "package net.minecraft; public class class_1642 extends class_1297 {}",   # Zombie
+            "com/example/gems/ZombieCatEntity.java": "package com.example.gems; public class ZombieCatEntity extends net.minecraft.class_1642 {}",
             "com/example/gems/WandItem.java": "package com.example.gems; public class WandItem extends net.minecraft.class_1792 {}",
             "com/example/gems/MagicWandItem.java": "package com.example.gems; public class MagicWandItem extends WandItem {}",
             "com/example/gems/GemInit.java": "package com.example.gems; public class GemInit { static Object x = net.minecraft.class_2378.register(null, new net.minecraft.class_1792()); }",
-            "com/example/gems/mixin/TitleMixin.java": "package com.example.gems.mixin; public class TitleMixin { net.minecraft.class_2248 target; }",
+            "org/spongepowered/asm/mixin/Mixin.java": "package org.spongepowered.asm.mixin; public @interface Mixin { Class<?>[] value() default {}; String[] targets() default {}; }",
+            "com/example/gems/mixin/TitleMixin.java": "package com.example.gems.mixin; @org.spongepowered.asm.mixin.Mixin(value = net.minecraft.class_2248.class, targets = \"net.minecraft.class_1792\") public class TitleMixin { net.minecraft.class_2378 unrelated; }",
         }
         for path, text in sources.items():
             p = os.path.join(src, path)
@@ -55,7 +59,7 @@ class ConvertTest(unittest.TestCase):
                 for f in fs:
                     full = os.path.join(d, f)
                     rel = os.path.relpath(full, out)
-                    if not rel.startswith("net/"):
+                    if not rel.startswith("net/") and not rel.startswith("org/"):
                         z.write(full, rel)
             z.writestr("fabric.mod.json", json.dumps({"schemaVersion": 1, "id": "gems", "version": "1.0", "name": "Gems",
                                                       "depends": {"minecraft": "~1.21.4"}, "mixins": ["gems.mixins.json"],
@@ -122,13 +126,22 @@ class ConvertTest(unittest.TestCase):
         self.assertEqual(["com.example.gems.MagicWandItem", "com.example.gems.WandItem"], self.r["behaviour"]["item"])
         self.assertIn("Registry.register (vanilla / Fabric style)", self.r["registration"])
         self.assertEqual([("mixins", "com.example.gems.mixin.TitleMixin")], self.r["mixins"])
+        # the @Mixin annotation's targets (class and string forms), not every class the mixin mentions
+        self.assertEqual({"net/minecraft/world/level/block/Block": 1, "net/minecraft/world/item/Item": 1}, self.r["mixin_targets"])
+
+    def test_census_counts_targets_per_mod(self):
+        text, ranked = cc.census([self.jar, self.jar])
+        self.assertEqual({("net/minecraft/world/item/Item", 2), ("net/minecraft/world/level/block/Block", 2)},
+                         {(t, len(ids)) for t, ids in ranked})
+        self.assertIn("| 2 | `net.minecraft.world.level.block.Block` | 2 | blocks |", text)
         self.assertEqual([], self.r["class_problems"])
 
     def test_verdict_names_the_blockers(self):
         v = self.r["verdict"]
         self.assertTrue(v["level"].startswith("NATIVE"), v)
         text = " ".join(v["reasons"])
-        for word in ("Mixin", "item behaviour", "phase 2", "match no Conductor block shape"):
+        self.assertEqual({"com.example.gems.ZombieCatEntity": "ZOMBIE"}, self.r["mob_archetypes"])
+        for word in ("Mixin", "item behaviour", "match no Conductor block shape"):
             self.assertIn(word, text)
         self.assertIn("Verdict: NATIVE", cc.report(self.r))
 
@@ -150,9 +163,10 @@ class ConvertTest(unittest.TestCase):
         self.assertLess(java.index('content.block("gem_block")'), java.index('content.block("gem_block_stairs")'), "base first")
         self.assertIn('content.item("magic_wand"); // TODO: maxStack, durability, food, rarity, tab  // TODO: custom code', java)
         self.assertNotIn("spawn_egg\")", java)
+        self.assertIn('content.mob("zombie_cat").like(MobArchetype.ZOMBIE);', java)
         self.assertEqual("conductor.converted.gems.GemsContent\n",
                          read(os.path.join(res, "META-INF/services/conductor.contract.ContentModule")))
-        self.assertEqual(8, s["declared"])
+        self.assertEqual(9, s["declared"])
         # the 1.21.1 recipe moved to the 1.21.2+ format; the stairs recipe needs content not ported, so it is left out
         self.assertEqual({"type": "minecraft:crafting_shaped", "pattern": ["##", "##"], "key": {"#": "gems:ruby"},
                           "result": {"id": "gems:gem_block", "count": 1}},

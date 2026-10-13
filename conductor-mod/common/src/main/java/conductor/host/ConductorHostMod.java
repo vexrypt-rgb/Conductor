@@ -46,8 +46,12 @@ public final class ConductorHostMod implements ClientModInitializer {
             if (n > 0) {
                 LOG.info("Conductor content: {} block(s) drawn with a see-through render layer", n);
             }
+            int m = VersionMobRenderers.apply(conductor.runtime.ContentInstaller.mobs());
+            if (m > 0) {
+                LOG.info("Conductor content: renderers for {} mob(s)", m);
+            }
         } catch (Throwable t) {
-            LOG.warn("Conductor could not set render layers; see-through module blocks will look solid", t);
+            LOG.warn("Conductor could not set up module block layers or mob renderers", t);
         }
     }
 
