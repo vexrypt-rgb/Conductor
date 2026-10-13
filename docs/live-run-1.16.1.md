@@ -4,7 +4,9 @@
 
 **Question this answers:** do module jars built for 1.21.x run unchanged on a Minecraft that is five years older, with only Conductor's own per-version layer in between?
 
-**Answer:** yes, for behaviour modules. The same `example-player-actions` and `example-block-highlighter` jars that ran on 1.21.11 and 1.21.4 (same files, same SHA-256) ran on 1.16.1 and gave the same results. **Content modules are not installed on 1.16.1 yet.** That is the next step, covered at the end.
+**Answer:** yes, for both kinds of module.
+- **Behaviour modules:** the same `example-player-actions` and `example-block-highlighter` jars that ran on 1.21.11 and 1.21.4 (same files, same SHA-256) ran on 1.16.1 and gave the same results.
+- **Content modules:** the same `example-ruby-content` jar that ran on 1.21.11 and 1.21.4 installs its blocks, items, mobs, recipes and loot on a 1.16.1 Fabric dedicated server and client. Its files are written for 1.21; Conductor translates them for 1.16.1 when it loads the jar. Its one dimension file cannot be used, because dimensions arrived in 1.16.2. See "Content modules on 1.16.1" below.
 
 ## Setup
 
@@ -80,11 +82,66 @@ The death and chunk events are woven in, but no example module subscribes to the
 3. **Particles in screenshots.** Large blue translucent squares near the camera in some 1.16.1 screenshots are the player's own Speed-effect particles. A run with no mods shows them too.
 4. **Expected warnings.** Missing sound files (sounds are not downloaded for these runs), no OpenAL device under Xvfb, and the LWJGL 3.2.2 "Unsupported JNI version" warning on Java 21 all appear with no mods too.
 
+## Content modules on 1.16.1
+
+**Run:**
+- **Launch:** a production Fabric launch on both sides. The client uses KnotClient, as above. The server is a Fabric **dedicated** server (KnotServer) on the vanilla 1.16.1 `server.jar`.
+- **Mods:** `conductor-mod-1.16.1-0.6.0.jar` on both sides; no Fabric API, no Ostinato.
+- **Module:** `example-ruby-content-0.6.0.jar` in both modules folders. It is the same file as the mob runs on 1.21.11 and 1.21.4 in `live-run-content.md` (SHA-256 `14ac3259…18acd`).
+- **Server commands on join:**
+  - give the items;
+  - `setblock` each block kind, plus two open doors (one per hinge side);
+  - summon the three mobs with NoAI;
+  - read their health and attributes;
+  - `recipe give`, `loot ... mine`, `datapack list`.
+
+**Evidence:**
+- `docs/evidence/module-runs/legacy-1.16.1-content-client.log.gz` and `legacy-1.16.1-content-server.log.gz`;
+- `docs/evidence/screenshots/legacy-1.16.1-content.png`.
+
+| Check | Result (server log unless noted) |
+|---|---|
+| Registration, both sides | `registered 7 block(s), 9 item(s) and 3 mob(s) from 1 module(s) [ruby]` |
+| Data pack | `Found new data pack conductor/ruby, loading it automatically`; `datapack list`: `[vanilla (built-in)], [conductor/ruby (built-in)]` |
+| Items and block items | `Gave 5 [item.ruby.ruby]`, `ruby_apple`, `ruby_door`, `ruby_glass`, `ruby_stairs`; client chat shows the English names (`[Ruby]`, `[Ruby Door]`), so the lang file loaded |
+| Blocks | every `setblock` accepted; the screenshot shows block, pillar, stairs, slab, wall, glass (see-through), a closed door and two open doors, all textured |
+| Mobs | `Summoned new entity.ruby.ruby_zombie` / `_spider` / `_pig`; ruby zombie health `30.0f`, attack damage `5.0`; ruby spider health `12.0f`; ruby pig speed `0.3`. All are the declared values. |
+| Mob renderers (client) | `renderers for 3 mob(s)`; the screenshot shows the ruby zombie (scaled up) and the ruby spider (scaled down) with their textures. The pig is out of frame. |
+| Recipes | `recipe give Dev ruby:ruby_block` and `ruby:ruby_from_block`: `Unlocked 1 recipes` each, so both translated recipes parsed |
+| Loot tables | `Dropped 1 [block.ruby.ruby_block] from loot table ruby:blocks/ruby_block` |
+| Item models (client) | the hotbar shows all six given items with their icons, including block, glass and stairs, whose only item model is a 1.21.4 `items/` definition |
+| Translation notes | server: one, `data/ruby/dimension/ruby_world.json: dimension files need Minecraft 1.16.2 or later; left out`; client: none |
+| Client warnings about ruby models or textures | none in the second run (see below) |
+
+**A bug found and fixed in this run.**
+- In the first run, the client logged `Unable to load model: 'minecraft:block/door_top_hinge'` for the open-door models.
+- 1.16.1 has no such model. Its hinge-side door templates are `door_bottom_rh` and `door_top_rh`; vanilla's own `oak_door_bottom_hinge` uses `door_bottom_rh` as its parent (checked in the 1.16.1 client jar).
+- The translator now maps the 1.21 names to `door_*_rh`. A unit test covers it.
+- The second run (the evidence above) has no model warnings, and its two open doors draw textured.
+
+**How it works on 1.16.1** (all in `runtime/1.16.1` and `conductor-mod/1.16.1`):
+- **Registration:** `Registry.register` at the end of `Bootstrap.bootStrap()` (1.16 has no registry freeze).
+  - Block states go into `Block.BLOCK_STATE_REGISTRY`.
+  - Block items go into `Item.BY_BLOCK`.
+  - Creative tabs are set through `Item.Properties.tab`.
+  - Entity types use the public `EntityType` constructor, so there is no data-fixer lookup.
+- **Blocks:** 1.16 chooses the right tool by `Material`, so Conductor picks the material from the declared sound (stone and metal want a pickaxe). Shapes with their own vanilla material keep it (leaves, carpet, buttons, doors).
+- **Mob attributes:** a hook on `DefaultAttributes`, as on 1.21.
+- **Mob renderers:** added at the end of `EntityRenderDispatcher.registerRenderers`. Vanilla stops start-up for any entity type with no renderer, so a mob whose renderer can't be built gets one that draws nothing.
+- **Packs:**
+  - added at the end of `ServerPacksSource.loadPacks` (data) and `ClientPackSource.loadPacks` (resources) as required packs;
+  - served from memory after `LegacyPackTranslator` has translated the jar's files once;
+  - pack format 5, with `pack.mcmeta` supplied by Conductor.
+- **Harness:** `scripts/prod_classpath.py` now runs pre-1.18 servers. Their `server.jar` is the game with its libraries inside, not a bundler.
+
+**Not checked (Unknown):**
+- whether survival mining of `ruby_block` drops it only with a pickaxe (`loot ... mine` reads the loot table, which has no tool condition);
+- the pig's on-screen look;
+- crafting in a crafting table;
+- eating the ruby apple.
+
 ## Not done yet on 1.16.1
 
-- **Content modules** (blocks, items, mobs). The 1.16.1 `ContentInstaller` is a placeholder that installs nothing. No content module has been run on 1.16.1 yet.
-- Installing content needs 1.16.1's own code:
-  - `Registry.register`, plus block states added to `Block.BLOCK_STATE_REGISTRY`;
-  - creative tabs set through `Item.Properties`;
-  - pack format 5 and the 1.16 `PackRepository`;
-  - the 1.16 `DefaultAttributes` map and mob renderers.
+- **Dimensions and worldgen** from content modules: 1.16.1 cannot read them at all.
+- **Tags that 1.16.1 doesn't use**, such as `mineable/pickaxe`, which arrived in 1.17. They load but do nothing; tool choice comes from the material, as above.
+- **Travel and combat:** no movement engine on 1.16.1.

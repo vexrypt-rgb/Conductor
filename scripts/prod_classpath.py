@@ -1,7 +1,7 @@
 """Assemble a production Fabric classpath for a Minecraft version from the local Gradle caches.
 Usage: prod_classpath.py <mc> <loader_version> <out_file> [<server_dir>]
   -> writes the classpath (one path per line); prints missing. With <server_dir> (a vanilla server that has run once,
-     so its bundler has unpacked versions/ and libraries/), it is a dedicated-server classpath instead of a client one."""
+     so its bundler has unpacked versions/ and libraries/), it is a dedicated-server classpath instead of a client one; before 1.18 server.jar itself is used."""
 import json, sys, glob, os, zipfile
 mc, loader_ver, out = sys.argv[1], sys.argv[2], sys.argv[3]
 server_dir = sys.argv[4] if len(sys.argv) > 4 else None
@@ -25,8 +25,11 @@ inter = glob.glob(f"{G}/net.fabricmc/intermediary/{mc}/*/intermediary-{mc}-v2.ja
 (cp.append(inter[0]) if inter else missing.append('intermediary'))
 v = json.load(open(f"{U}/net/minecraft/minecraft/{mc}/version.json"))
 if server_dir:
-    # the bundler's own list: libraries/... and versions/<mc>/server-<mc>.jar, relative to the server folder
-    joined = zipfile.ZipFile(os.path.join(server_dir, 'server.jar')).read('META-INF/classpath-joined').decode().strip()
+    # the bundler's own list: libraries/... and versions/<mc>/server-<mc>.jar, relative to the server folder.
+    # Servers before 1.18 are not bundlers: server.jar is the game with its libraries inside, used as it is.
+    server_jar = zipfile.ZipFile(os.path.join(server_dir, 'server.jar'))
+    joined = (server_jar.read('META-INF/classpath-joined').decode().strip()
+              if 'META-INF/classpath-joined' in server_jar.namelist() else 'server.jar')
     for rel in joined.split(';'):
         parts = rel.split('/')
         if parts[0] == 'libraries' and len(parts) >= 5 and ('.'.join(parts[1:-3]), parts[-3], None) in taken:

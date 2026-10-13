@@ -580,7 +580,7 @@ Conductor is young. Here is everything it **cannot** do today, so you can plan a
 - **Travel and combat need Ostinato.** Conductor runs without any other mod, but its only movement engine today is Ostinato. Without it, `discover()` lists no navigation or combat capability, and `requestTravel`/`requestCombat` are rejected with `NO_NAVIGATION`/`NO_COMBAT`. With no engine, MOVEMENT is free once the use key is up for the release window (nothing else could be steering).
 - **Boots on Fabric only, today.** Modules don't depend on any loader. Conductor's only Fabric code is a 40-line boot shim; its game hooks are plain Mixins, which Fabric, Quilt, Forge and NeoForge all run. Other shims and a loader-free boot are planned: [LOADER-INDEPENDENCE.md](LOADER-INDEPENDENCE.md).
 - **Modules in `conductor/modules/` are not transformed.** They get no Mixin and no remapping, which is exactly right for contract modules. Native modules that need Minecraft classes ship inside their own mod and are found on the game's classpath through the same service file.
-- **Minecraft 1.21.11 and 1.21.4 only.** Ostinato's 26.3 branch (Java 25) has no adapter yet. The 1.16.1 branch's API differs too much to reuse as is.
+- **Minecraft 1.21.11, 1.21.4 and 1.16.1.** Ostinato (travel and combat) is adapted for 1.21.11 and 1.21.4 only. Ostinato's 26.3 branch (Java 25) has no adapter yet. Its 1.16.1 branch's API differs too much to reuse as is, so 1.16.1 runs with no engine.
 - **No hot reload.** Modules load at game start. Disabling a module stops it logically; its code stays loaded.
 - **Block-change events cover what the server sends.** Single-block and section updates come from Conductor's own packet hooks. Changes the client makes itself (before the server confirms them) are not events.
 - **Overlays are outlines and lines only.** No filled boxes, text labels or 2D HUD yet.
@@ -866,6 +866,15 @@ mc_1.21.4/...                               a file here replaces its normal copy
 
 **Dimensions, structures, biomes, worldgen features, enchantments and mob variants are all data.** Anything vanilla reads from a data pack can ship in a content module, with no code at all.
 
+**On Minecraft 1.16.1 the same files are translated.** Write them for 1.21, as above. When Conductor loads the jar on 1.16.1, it changes only what changed mechanically between the versions:
+
+- folder names (`recipe/` → `recipes/`, `loot_table/` → `loot_tables/`, `tags/block/` → `tags/blocks/`, ...);
+- recipe JSON (`"ruby:ruby"` → `{"item": "ruby:ruby"}`, `result.id` → `result.item`, plain-id results for smelting and stonecutting);
+- `items/<x>.json` item models → `models/item/<x>.json`;
+- the vanilla door models renamed in 1.19.3.
+
+Creative tabs map to 1.16's fixed tabs (`ingredients` → Miscellaneous, `food_and_drinks` → Foodstuffs, ...). What 1.16.1 cannot read at all is left out with a warning naming the file: dimensions and worldgen arrived in 1.16.2. A file under `mc_1.16.1/` replaces the translated copy unchanged, for anything the translation gets wrong.
+
 ### 13.4 Install
 
 The same jar goes in `conductor/modules/` **on the server and on every client**. Items and blocks travel between them as numbers, so both sides must have the same content modules. A module that only has data (a dimension, recipes for vanilla items) should be needed on the server only, with vanilla clients able to join. That follows from how vanilla syncs data, but it has not been tested yet.
@@ -876,7 +885,7 @@ The Conductor mod now runs on dedicated servers too. There it only hosts content
 
 - **Mobs with their own AI or model, block entities, custom item or block behaviour (right-click actions, GUIs).** These need code. Declared mobs (§13.2) cover mobs built on a vanilla archetype.
 - **Spawn eggs and natural mob spawning.**
-- **Rotatable cubes** (a `facing` property, like glazed terracotta or furnaces) and other block kinds not in `BlockShape`.
+- **Block kinds not in `BlockShape`.**
 - **An id handshake.** A client with different content modules from the server gets Minecraft's own errors, not a clear "module X is missing".
 - **Creative tab placement is not checked live yet.** Items are added to the tab they name; a tab that doesn't exist on this version is logged.
 
