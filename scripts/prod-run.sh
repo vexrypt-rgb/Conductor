@@ -16,6 +16,10 @@
 #      SERVER_MODULES (modules folder for that server, as CONDUCTOR_MODULES is for the client),
 #      CLIENT_JVM_ARGS (extra JVM options for the client, e.g. -Dmixin.debug.export=true).
 # The game, assets and libraries come from the local Gradle caches (scripts/prod_classpath.py).
+# Minecraft 26.x opens its window through SDL3 and asks for an sRGB-capable OpenGL 3.3 core context. Xvfb's GLX
+# offers no sRGB visual, so the client cannot open its window ("Couldn't find matching GLX visual"). For 26.x this
+# script sets SDL_VIDEO_FORCE_EGL=1 (unless it is already set), which needs Mesa's EGL (Debian/Ubuntu: libegl1
+# libegl-mesa0). Older versions use GLFW and GLX and are not affected.
 # Output: <workdir>/prod-client.log, server.log, screenshot.png.
 set -euo pipefail
 
@@ -120,6 +124,9 @@ case "$MC" in
         (cd "$JOINDIR/classes" && jar cf "$GAME/mods/conductor-test-join.jar" .)
         JVM_PROPS="$JVM_PROPS -Dconductor.testJoin=localhost:25565" ;;
     *) JOIN="--quickPlayMultiplayer localhost:25565" ;;
+esac
+case "$MC" in
+    2[6-9].*) export SDL_VIDEO_FORCE_EGL=${SDL_VIDEO_FORCE_EGL-1} ;;
 esac
 timeout "${CLIENT_TIMEOUT:-900}" xvfb-run -a -s "-screen 0 1280x720x24" \
     java -Xmx3G $JVM_PROPS -cp "$CP" net.fabricmc.loader.impl.launch.knot.KnotClient \

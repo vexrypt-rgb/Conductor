@@ -21,9 +21,11 @@ for lib in inst['libraries']['common'] + inst['libraries'].get('client', []):
     taken.add((g, a, None))
     p = find(g, a, v)
     (cp.append(p) if p else missing.append(lib['name']))
-inter = glob.glob(f"{G}/net.fabricmc/intermediary/{mc}/*/intermediary-{mc}-v2.jar")
-(cp.append(inter[0]) if inter else missing.append('intermediary'))
 v = json.load(open(f"{U}/net/minecraft/minecraft/{mc}/version.json"))
+# Versions Mojang ships unobfuscated (26.1 on: no client_mappings) have no intermediary; the loader runs them as they are
+if 'client_mappings' in v['downloads']:
+    inter = glob.glob(f"{G}/net.fabricmc/intermediary/{mc}/*/intermediary-{mc}-v2.jar")
+    (cp.append(inter[0]) if inter else missing.append('intermediary'))
 if server_dir:
     # the bundler's own list: libraries/... and versions/<mc>/server-<mc>.jar, relative to the server folder.
     # Servers before 1.18 are not bundlers: server.jar is the game with its libraries inside, used as it is.
