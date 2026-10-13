@@ -1,5 +1,6 @@
 package conductor.host.mixin;
 
+import conductor.host.VersionChunks;
 import conductor.runtime.Hooks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -58,14 +59,16 @@ abstract class ClientPacketListenerMixin {
     @Inject(method = "handleLevelChunkWithLight", at = @At("RETURN"))
     private void conductor$chunkLoaded(ClientboundLevelChunkWithLightPacket packet, CallbackInfo ci) {
         if (conductor$gameThread()) {
-            Hooks.chunkLoaded(packet.getX(), packet.getZ(), true);
+            int[] c = VersionChunks.loaded(packet);
+            Hooks.chunkLoaded(c[0], c[1], true);
         }
     }
 
     @Inject(method = "handleForgetLevelChunk", at = @At("RETURN"))
     private void conductor$chunkForgotten(ClientboundForgetLevelChunkPacket packet, CallbackInfo ci) {
         if (conductor$gameThread()) {
-            Hooks.chunkLoaded(packet.pos().x, packet.pos().z, false);
+            int[] c = VersionChunks.forgotten(packet);
+            Hooks.chunkLoaded(c[0], c[1], false);
         }
     }
 

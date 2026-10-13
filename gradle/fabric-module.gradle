@@ -4,8 +4,12 @@
 apply plugin: 'xyz.wagyourtail.unimined'
 
 def target = rootProject.mcTargets[mc]
+if (target.java) {
+    java.toolchain.languageVersion = JavaLanguageVersion.of(target.java)
+    tasks.withType(JavaCompile).configureEach { options.release = target.java }
+}
 def runtime = project(":runtime-${mc}")
-def engine = target.legacy ? null : project(":engine-ostinato-${mc}") // no Ostinato build for legacy targets
+def engine = target.legacy || target.noEngine ? null : project(":engine-ostinato-${mc}") // no engine layer for these yet
 evaluationDependsOn(runtime.path)
 if (engine) {
     evaluationDependsOn(engine.path)
@@ -30,7 +34,9 @@ sourceSets {
 unimined.minecraft {
     version mc
     mappings {
-        intermediary()
+        if (!target.unobfuscated) {
+            intermediary()
+        }
         mojmap()
         if (target.parchment) {
             parchment(mc, target.parchment)

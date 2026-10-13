@@ -4,6 +4,10 @@
 apply plugin: 'xyz.wagyourtail.unimined'
 
 def target = rootProject.mcTargets[mc]
+if (target.java) {
+    java.toolchain.languageVersion = JavaLanguageVersion.of(target.java)
+    tasks.withType(JavaCompile).configureEach { options.release = target.java }
+}
 
 repositories {
     maven { url = 'https://maven.fabricmc.net/' }
@@ -22,7 +26,9 @@ sourceSets {
 unimined.minecraft {
     version mc
     mappings {
-        intermediary()
+        if (!target.unobfuscated) {
+            intermediary()
+        }
         mojmap()
         if (target.parchment) {
             parchment(mc, target.parchment)

@@ -231,7 +231,7 @@ final class MinecraftPlayerAccess implements PlayerAccess {
             return Optional.of("entity " + entityId + " is out of reach");
         }
         mc.gameMode.attack(p, target);
-        p.swing(InteractionHand.MAIN_HAND);
+        VersionPlayer.swingAfterAttack(p);
         return Optional.empty();
     }
 
@@ -252,7 +252,7 @@ final class MinecraftPlayerAccess implements PlayerAccess {
         if (mc.gui == null) {
             return Optional.of("no game window");
         }
-        mc.gui.getChat().addMessage(net.minecraft.network.chat.Component.literal(text));
+        VersionPlayer.showMessage(mc, net.minecraft.network.chat.Component.literal(text));
         return Optional.empty();
     }
 

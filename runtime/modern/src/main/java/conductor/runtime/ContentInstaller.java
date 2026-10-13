@@ -26,10 +26,8 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.DoubleHighBlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ButtonBlock;
@@ -47,7 +45,6 @@ import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.WallBlock;
 import net.minecraft.world.level.block.state.properties.BlockSetType;
 import net.minecraft.world.level.block.state.properties.WoodType;
-import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
@@ -138,7 +135,7 @@ public final class ContentInstaller {
                 RENDER_LAYERS.put(block, d.layer());
             }
             if (d.withItem()) {
-                Item item = d.shape() == BlockShape.DOOR ? Items.registerBlock(block, DoubleHighBlockItem::new) : Items.registerBlock(block);
+                Item item = VersionBlocks.blockItem(key, block, d.shape() == BlockShape.DOOR);
                 d.tab().ifPresent(t -> TAB_ITEMS.computeIfAbsent(t, k -> new ArrayList<>()).add(item));
             }
         }
@@ -158,7 +155,7 @@ public final class ContentInstaller {
             if (d.fireResistant()) {
                 props.fireResistant();
             }
-            Item item = Items.registerItem(VersionIds.key(Registries.ITEM, d.id()), Item::new, props);
+            Item item = VersionBlocks.item(VersionIds.key(Registries.ITEM, d.id()), props);
             d.tab().ifPresent(t -> TAB_ITEMS.computeIfAbsent(t, k -> new ArrayList<>()).add(item));
         }
     }
@@ -186,22 +183,19 @@ public final class ContentInstaller {
             case WALL -> new WallBlock(props.forceSolidOn());
             case FENCE -> new FenceBlock(props);
             case FENCE_GATE -> new FenceGateBlock(woodType(d.material()), props);
-            case DOOR -> new DoorBlock(blockSet(d.material()), props.noOcclusion().pushReaction(PushReaction.DESTROY)) {};
+            case DOOR -> new DoorBlock(blockSet(d.material()), props.noOcclusion().pushReaction(VersionBlocks.POPPED)) {};
             case TRAPDOOR -> new TrapDoorBlock(blockSet(d.material()), props.noOcclusion()) {};
             case BUTTON -> new ButtonBlock(blockSet(d.material()), d.material() == BlockMaterial.WOOD ? 30 : 20,
-                    VersionBlocks.noCollision(props).pushReaction(PushReaction.DESTROY)) {};
+                    VersionBlocks.noCollision(props).pushReaction(VersionBlocks.POPPED)) {};
             case PRESSURE_PLATE -> new PressurePlateBlock(blockSet(d.material()),
-                    VersionBlocks.noCollision(props).pushReaction(PushReaction.DESTROY)) {};
+                    VersionBlocks.noCollision(props).pushReaction(VersionBlocks.POPPED)) {};
             case PANE -> new IronBarsBlock(props) {};
-            case LEAVES -> VersionBlocks.leaves(props.randomTicks().isSuffocating((s, l, p) -> false).isViewBlocking((s, l, p) -> false)
-                    .pushReaction(PushReaction.DESTROY));
+            case LEAVES -> VersionBlocks.leaves(VersionBlocks.seeThrough(props.randomTicks()).pushReaction(VersionBlocks.POPPED));
             case CARPET -> new CarpetBlock(props);
-            case GLASS -> new TransparentBlock(props.isRedstoneConductor((s, l, p) -> false)
-                    .isSuffocating((s, l, p) -> false).isViewBlocking((s, l, p) -> false)) {};
+            case GLASS -> new TransparentBlock(VersionBlocks.seeThrough(props.isRedstoneConductor((s, l, p) -> false))) {};
             case FACING -> new ShapedBlocks.Facing(props);
             case HORIZONTAL_FACING -> new ShapedBlocks.HorizontalFacing(props);
-            case MODEL -> new ShapedBlocks.Model(props.isRedstoneConductor((s, l, p) -> false)
-                    .isSuffocating((s, l, p) -> false).isViewBlocking((s, l, p) -> false), d.boxes());
+            case MODEL -> new ShapedBlocks.Model(VersionBlocks.seeThrough(props.isRedstoneConductor((s, l, p) -> false)), d.boxes());
         };
     }
 
