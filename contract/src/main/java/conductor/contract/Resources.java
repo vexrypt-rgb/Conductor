@@ -20,5 +20,5 @@ public final class Resources {
     /** Sending chat messages and commands. */
     public static final ResourceKey CHAT = new ResourceKey("CHAT", false);
 
-    public static final List<ResourceKey> ALL = List.of(MOVEMENT, LOOK, HOTBAR, INTERACT, SCREEN, CHAT);
+    public static final List<ResourceKey> ALL = Jdk8.listOf(MOVEMENT, LOOK, HOTBAR, INTERACT, SCREEN, CHAT);
 }

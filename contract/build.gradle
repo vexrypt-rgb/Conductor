@@ -1,3 +1,8 @@
+// The contract is shared by every version, including the Java 8 legacy runtimes, so it is written in Java 8 source.
+tasks.withType(JavaCompile).configureEach {
+    options.release = 8
+}
+
 repositories {
     mavenCentral()
 }

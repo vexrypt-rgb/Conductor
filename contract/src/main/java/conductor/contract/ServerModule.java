@@ -23,7 +23,7 @@ public interface ServerModule {
      * module already uses is left out with a warning.
      */
     default List<ServerCommand> commands() {
-        return List.of();
+        return Jdk8.listOf();
     }
 
     /** The server has started (its worlds exist; no player has joined yet on a dedicated server). */

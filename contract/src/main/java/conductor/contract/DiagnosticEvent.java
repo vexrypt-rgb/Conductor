@@ -8,7 +8,46 @@ package conductor.contract;
  *
  * @param subject the operation or observation kind the event concerns
  */
-public record DiagnosticEvent(Type type, String thread, long tick, ContextId context, String subject, String detail) {
+public final class DiagnosticEvent {
+    private final Type type;
+    private final String thread;
+    private final long tick;
+    private final ContextId context;
+    private final String subject;
+    private final String detail;
+
+    public DiagnosticEvent(Type type, String thread, long tick, ContextId context, String subject, String detail) {
+        this.type = type;
+        this.thread = thread;
+        this.tick = tick;
+        this.context = context;
+        this.subject = subject;
+        this.detail = detail;
+    }
+
+    public Type type() { return type; }
+
+    public String thread() { return thread; }
+
+    public long tick() { return tick; }
+
+    public ContextId context() { return context; }
+
+    public String subject() { return subject; }
+
+    public String detail() { return detail; }
+
+    @Override public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof DiagnosticEvent)) return false;
+        DiagnosticEvent other = (DiagnosticEvent) o;
+        return java.util.Arrays.deepEquals(new Object[] {this.type, this.thread, this.tick, this.context, this.subject, this.detail}, new Object[] {other.type, other.thread, other.tick, other.context, other.subject, other.detail});
+    }
+
+    @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.type, this.thread, this.tick, this.context, this.subject, this.detail}); }
+
+    @Override public String toString() { return "DiagnosticEvent[" + "type=" + type + ", " + "thread=" + thread + ", " + "tick=" + tick + ", " + "context=" + context + ", " + "subject=" + subject + ", " + "detail=" + detail + "]"; }
+
 
     public enum Type {
         CONTEXT_ESTABLISHED,

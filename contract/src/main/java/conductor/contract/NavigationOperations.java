@@ -48,14 +48,37 @@ final class NavigationOperations {
     private java.util.function.Predicate<String> ownController = controller -> false;
     private Runnable engineCancel;
     /** Final status of earlier operations, so an owner can still read how its operation ended after a new one began. */
-    private final java.util.LinkedHashMap<OperationId, Finished> finished = new java.util.LinkedHashMap<>() {
+    private final java.util.LinkedHashMap<OperationId, Finished> finished = new java.util.LinkedHashMap<OperationId, Finished>() {
         @Override
         protected boolean removeEldestEntry(java.util.Map.Entry<OperationId, Finished> eldest) {
             return size() > 64;
         }
     };
 
-    private record Finished(ModuleId owner, OperationStatus status) {}
+    private static final class Finished {
+        private final ModuleId owner;
+        private final OperationStatus status;
+
+        public Finished(ModuleId owner, OperationStatus status) {
+            this.owner = owner;
+            this.status = status;
+        }
+
+        public ModuleId owner() { return owner; }
+
+        public OperationStatus status() { return status; }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Finished)) return false;
+            Finished other = (Finished) o;
+            return java.util.Arrays.deepEquals(new Object[] {this.owner, this.status}, new Object[] {other.owner, other.status});
+        }
+
+        @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.owner, this.status}); }
+
+        @Override public String toString() { return "Finished[" + "owner=" + owner + ", " + "status=" + status + "]"; }
+    }
 
     NavigationOperations(RuntimeIntegration runtime, ContextTracker contexts, DiagnosticSink sink, ReleasePolicy policy) {
         this.runtime = runtime;
@@ -67,7 +90,7 @@ final class NavigationOperations {
     // ---- per-tick evidence ----
 
     void tick() {
-        if (contexts.current().isEmpty()) {
+        if (!contexts.current().isPresent()) {
             return;
         }
         ReleaseEvidence evidence = ReleaseEvidence.sample(runtime, supportedKinds());
@@ -89,7 +112,7 @@ final class NavigationOperations {
         } else if (!evidence.quiet() && resource == ResourceState.AVAILABLE) {
             setResource(ResourceState.QUARANTINED, "activity observed: " + evidence.reason());
             // a named controller was already recorded by noteForeignControl
-            if (!operationActive() && evidence.controller().isEmpty()) {
+            if (!operationActive() && !evidence.controller().isPresent()) {
                 interference(InterferenceClass.DETECTED, "engine activity",
                         "engine became active while no contract operation was running: " + evidence.reason());
             }
@@ -98,7 +121,7 @@ final class NavigationOperations {
 
     private void progressOperation(ReleaseEvidence evidence, boolean releasable) {
         switch (state) {
-            case CANCELLING, STOPPED_PATHING -> {
+            case CANCELLING: case STOPPED_PATHING: {
                 if (releasable) {
                     transition(OperationState.CANCELLED, "release evidence held for " + quietTicks + " ticks");
                 } else if (state == OperationState.CANCELLING && evidence.pathingStopped()) {
@@ -108,15 +131,17 @@ final class NavigationOperations {
                     transition(OperationState.UNCERTAIN, "no release evidence within " + policy.uncertainAfterTicks().getAsLong()
                             + " ticks of cancel; resource stays quarantined");
                 }
+                break;
             }
-            case EXECUTING -> {
+            case EXECUTING: {
                 if (releasable) {
                     // the engine went quiet on its own; arrival is not something these signals can show
                     transition(OperationState.UNCERTAIN, "engine quiet without cancel; outcome not established");
                 }
+                break;
             }
-            default -> {
-            }
+            default:
+                break;
         }
     }
 
@@ -124,7 +149,7 @@ final class NavigationOperations {
         Optional<String> controller = evidence.controller();
         boolean own = controller.isPresent() && operationActive() && ownController.test(controller.get());
         boolean declared = controller.isPresent() && attributed.test(controller.get());
-        if (controller.isEmpty() || own || declared) {
+        if (!controller.isPresent() || own || declared) {
             lastForeignController = null;
             return;
         }
@@ -211,7 +236,7 @@ final class NavigationOperations {
     private OperationResult precheck(String subject, boolean portPresent, RejectionReason noPort, String what) {
         RejectionReason reason = null;
         String why = null;
-        if (contexts.current().isEmpty()) {
+        if (!contexts.current().isPresent()) {
             reason = RejectionReason.NO_CURRENT_CONTEXT;
             why = "no current context";
         } else if (!portPresent) {
@@ -223,7 +248,7 @@ final class NavigationOperations {
             why = "operation " + id.id() + " is " + state;
         } else if (resource != ResourceState.AVAILABLE) {
             reason = RejectionReason.RESOURCE_NOT_RELEASED;
-            why = resourceDetail + (policy.confirmStopWindowTicks().isEmpty()
+            why = resourceDetail + (!policy.confirmStopWindowTicks().isPresent()
                     ? " (no confirmStopWindowTicks configured: never released)" : "");
         }
         return reason == null ? null : reject(reason, subject, why);
@@ -250,7 +275,7 @@ final class NavigationOperations {
         if (id != null) {
             finished.put(id, new Finished(owner, snapshot()));
         }
-        id = new OperationId(nextId++, contexts.current().orElseThrow());
+        id = new OperationId(nextId++, contexts.current().orElseThrow(java.util.NoSuchElementException::new));
         owner = requester;
         ownController = own;
         engineCancel = cancel;

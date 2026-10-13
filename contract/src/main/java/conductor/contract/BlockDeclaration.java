@@ -19,24 +19,94 @@ import java.util.Optional;
  * @param boxes      for MODEL: the boxes that make its outline and collision, as seen when it faces north
  * @param sounds     its own sounds, used instead of {@code sound} when present
  */
-public record BlockDeclaration(String id, float hardness, float resistance, int light, BlockSound sound,
-                               boolean requiresTool, boolean withItem, Optional<String> tab, BlockShape shape,
-                               Optional<String> base, BlockMaterial material, RenderLayer layer, List<BlockBox> boxes,
-                               Optional<BlockSounds> sounds) {
+public final class BlockDeclaration {
+    private final String id;
+    private final float hardness;
+    private final float resistance;
+    private final int light;
+    private final BlockSound sound;
+    private final boolean requiresTool;
+    private final boolean withItem;
+    private final Optional<String> tab;
+    private final BlockShape shape;
+    private final Optional<String> base;
+    private final BlockMaterial material;
+    private final RenderLayer layer;
+    private final List<BlockBox> boxes;
+    private final Optional<BlockSounds> sounds;
+
+    public BlockDeclaration(String id, float hardness, float resistance, int light, BlockSound sound, boolean requiresTool, boolean withItem, Optional<String> tab, BlockShape shape, Optional<String> base, BlockMaterial material, RenderLayer layer, List<BlockBox> boxes, Optional<BlockSounds> sounds) {
+        this.id = id;
+        this.hardness = hardness;
+        this.resistance = resistance;
+        this.light = light;
+        this.sound = sound;
+        this.requiresTool = requiresTool;
+        this.withItem = withItem;
+        this.tab = tab;
+        this.shape = shape;
+        this.base = base;
+        this.material = material;
+        this.layer = layer;
+        this.boxes = boxes;
+        this.sounds = sounds;
+    }
+
+    public String id() { return id; }
+
+    public float hardness() { return hardness; }
+
+    public float resistance() { return resistance; }
+
+    public int light() { return light; }
+
+    public BlockSound sound() { return sound; }
+
+    public boolean withItem() { return withItem; }
+
+    public Optional<String> tab() { return tab; }
+
+    public BlockShape shape() { return shape; }
+
+    public Optional<String> base() { return base; }
+
+    public BlockMaterial material() { return material; }
+
+    public RenderLayer layer() { return layer; }
+
+    public List<BlockBox> boxes() { return boxes; }
+
+    public Optional<BlockSounds> sounds() { return sounds; }
+
+    public boolean requiresTool() { return requiresTool; }
+
+    @Override public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof BlockDeclaration)) return false;
+        BlockDeclaration other = (BlockDeclaration) o;
+        return java.util.Arrays.deepEquals(new Object[] {this.id, this.hardness, this.resistance, this.light, this.sound, this.requiresTool, this.withItem, this.tab, this.shape, this.base, this.material, this.layer, this.boxes, this.sounds}, new Object[] {other.id, other.hardness, other.resistance, other.light, other.sound, other.requiresTool, other.withItem, other.tab, other.shape, other.base, other.material, other.layer, other.boxes, other.sounds});
+    }
+
+    @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.id, this.hardness, this.resistance, this.light, this.sound, this.requiresTool, this.withItem, this.tab, this.shape, this.base, this.material, this.layer, this.boxes, this.sounds}); }
+
+    @Override public String toString() { return "BlockDeclaration[" + "id=" + id + ", " + "hardness=" + hardness + ", " + "resistance=" + resistance + ", " + "light=" + light + ", " + "sound=" + sound + ", " + "requiresTool=" + requiresTool + ", " + "withItem=" + withItem + ", " + "tab=" + tab + ", " + "shape=" + shape + ", " + "base=" + base + ", " + "material=" + material + ", " + "layer=" + layer + ", " + "boxes=" + boxes + ", " + "sounds=" + sounds + "]"; }
+
 
     /** A plain cube with default material and layer: the declaration before shapes existed. */
     public BlockDeclaration(String id, float hardness, float resistance, int light, BlockSound sound, boolean requiresTool,
                             boolean withItem, Optional<String> tab) {
         this(id, hardness, resistance, light, sound, requiresTool, withItem, tab, BlockShape.CUBE, Optional.empty(),
-                BlockMaterial.STONE, RenderLayer.SOLID, List.of(), Optional.empty());
+                BlockMaterial.STONE, RenderLayer.SOLID, Jdk8.listOf(), Optional.empty());
     }
 
     /** Shapes vanilla draws with see-through pixels: they default to CUTOUT. */
     static RenderLayer defaultLayer(BlockShape shape) {
-        return switch (shape) {
-            case DOOR, TRAPDOOR, PANE, LEAVES, GLASS, MODEL -> RenderLayer.CUTOUT;
-            default -> RenderLayer.SOLID;
-        };
+        switch (shape) {
+            case DOOR: case TRAPDOOR: case PANE: case LEAVES: case GLASS: case MODEL:
+                return RenderLayer.CUTOUT;
+            default:
+                return RenderLayer.SOLID;
+        }
     }
 
     /** Collects a block declaration; see {@link ContentDeclarations#block}. */
@@ -139,7 +209,7 @@ public record BlockDeclaration(String id, float hardness, float resistance, int 
             BlockShape s = shape;
             return new BlockDeclaration(id, hardness, resistance, light, sound, requiresTool, withItem, Optional.ofNullable(tab),
                     s, Optional.ofNullable(s == BlockShape.STAIRS && b == null ? "minecraft:stone" : b), material,
-                    layer != null ? layer : s == null ? RenderLayer.SOLID : defaultLayer(s), List.copyOf(boxes),
+                    layer != null ? layer : s == null ? RenderLayer.SOLID : defaultLayer(s), Jdk8.copyList(boxes),
                     Optional.ofNullable(sounds));
         }
     }

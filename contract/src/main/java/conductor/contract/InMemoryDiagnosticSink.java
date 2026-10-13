@@ -38,7 +38,7 @@ public final class InMemoryDiagnosticSink implements DiagnosticSink {
 
     @Override
     public List<DiagnosticEvent> snapshot() {
-        return List.copyOf(events);
+        return Jdk8.copyList(events);
     }
 
     public long droppedCount() {

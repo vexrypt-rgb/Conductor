@@ -22,7 +22,7 @@ import java.util.function.Consumer;
  */
 public final class ModuleHost {
 
-    private static final System.Logger FAULT_LOG = System.getLogger("conductor");
+    private static final java.util.logging.Logger FAULT_LOG = java.util.logging.Logger.getLogger("conductor");
 
 
     /** Upper bound on topic deliveries per tick, so a publish loop cannot stall the game. */
@@ -43,7 +43,34 @@ public final class ModuleHost {
     /** Default chat-command prefix: {@code +kit} runs the {@code kit} command. */
     public static final String DEFAULT_COMMAND_PREFIX = "+";
 
-    private record Command(Entry owner, String help, Consumer<CommandCall> handler) {}
+    private static final class Command {
+        private final Entry owner;
+        private final String help;
+        private final Consumer<CommandCall> handler;
+
+        public Command(Entry owner, String help, Consumer<CommandCall> handler) {
+            this.owner = owner;
+            this.help = help;
+            this.handler = handler;
+        }
+
+        public Entry owner() { return owner; }
+
+        public String help() { return help; }
+
+        public Consumer<CommandCall> handler() { return handler; }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Command)) return false;
+            Command other = (Command) o;
+            return java.util.Arrays.deepEquals(new Object[] {this.owner, this.help, this.handler}, new Object[] {other.owner, other.help, other.handler});
+        }
+
+        @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.owner, this.help, this.handler}); }
+
+        @Override public String toString() { return "Command[" + "owner=" + owner + ", " + "help=" + help + ", " + "handler=" + handler + "]"; }
+    }
 
     /** Command name (lower case) to command; owner null for Conductor's own. */
     private final Map<String, Command> commands = new LinkedHashMap<>();
@@ -87,16 +114,16 @@ public final class ModuleHost {
     }
 
     private static OptionalLong max(OptionalLong a, OptionalLong b) {
-        if (a.isEmpty()) {
+        if (!a.isPresent()) {
             return b;
         }
-        return b.isEmpty() ? a : OptionalLong.of(Math.max(a.getAsLong(), b.getAsLong()));
+        return !b.isPresent() ? a : OptionalLong.of(Math.max(a.getAsLong(), b.getAsLong()));
     }
 
     /** Register a module under {@code requestedId} (made unique if taken). Started on a later tick. */
     public ModuleId register(String requestedId, ConductorModule module) {
         Objects.requireNonNull(module, "module");
-        String base = requestedId == null || requestedId.isBlank() ? module.getClass().getName() : requestedId;
+        String base = requestedId == null || requestedId.trim().isEmpty() ? module.getClass().getName() : requestedId;
         ModuleId id = new ModuleId(base);
         for (int n = 2; modules.containsKey(id) || id.equals(ModuleId.CORE); n++) {
             id = new ModuleId(base + "#" + n);
@@ -120,17 +147,17 @@ public final class ModuleHost {
         try {
             declared = e.module.settings();
         } catch (RuntimeException | LinkageError ex) {
-            declared = List.of();
+            declared = Jdk8.listOf();
             settingEvent(e, "settings() threw " + ex);
         }
         Map<String, String> saved;
         try {
             saved = store.load(e.id);
         } catch (RuntimeException ex) {
-            saved = Map.of();
+            saved = Jdk8.mapOf();
             settingEvent(e, "could not load saved settings: " + ex);
         }
-        for (Setting<?> setting : declared == null ? List.<Setting<?>>of() : declared) {
+        for (Setting<?> setting : declared == null ? Jdk8.<Setting<?>>listOf() : declared) {
             if (setting == null || e.settings.containsKey(setting.name())) {
                 settingEvent(e, "setting " + setting + " is null or declared twice; ignored");
                 continue;
@@ -138,7 +165,7 @@ public final class ModuleHost {
             e.settings.put(setting.name(), setting);
             String text = saved.get(setting.name());
             Optional<?> value = text == null ? Optional.empty() : setting.parse(text);
-            if (text != null && value.isEmpty()) {
+            if (text != null && !value.isPresent()) {
                 settingEvent(e, setting.name() + ": saved value '" + text + "' is not valid; using the default");
             }
             e.values.put(setting.name(), value.isPresent() ? value.get() : setting.defaultValue());
@@ -186,7 +213,7 @@ public final class ModuleHost {
             sink.record(DiagnosticEvent.offThread("ModuleHost.tick", "ignored off the game thread"));
             return;
         }
-        if (core.currentContext().isEmpty()) {
+        if (!core.currentContext().isPresent()) {
             return;
         }
         progressLeases();
@@ -195,7 +222,7 @@ public final class ModuleHost {
         lifecycle();
         handleFaults();
         runTypedCommands();
-        for (Entry e : List.copyOf(modules.values())) {
+        for (Entry e : Jdk8.copyList(modules.values())) {
             if (e.state == ModuleState.RUNNING) {
                 call(e, () -> e.module.onTick(e.context));
                 handleFaults();
@@ -209,21 +236,25 @@ public final class ModuleHost {
 
     private void events() {
         for (GameEvent event : core.drainEvents()) {
-            switch (event) {
-                case GameEvent.BlockChange b -> publish(Topics.BLOCK_CHANGES, b);
-                case GameEvent.ChunkChange c -> publish(Topics.CHUNKS, c);
-                case GameEvent.PlayerDeath d -> publish(Topics.DEATHS, d);
-                case GameEvent.ChatMessage m -> publish(Topics.CHAT, m);
-                case GameEvent.CommandLine l -> typedCommands.add(l.line());
+            if (event instanceof GameEvent.BlockChange) {
+                publish(Topics.BLOCK_CHANGES, (GameEvent.BlockChange) event);
+            } else if (event instanceof GameEvent.ChunkChange) {
+                publish(Topics.CHUNKS, (GameEvent.ChunkChange) event);
+            } else if (event instanceof GameEvent.PlayerDeath) {
+                publish(Topics.DEATHS, (GameEvent.PlayerDeath) event);
+            } else if (event instanceof GameEvent.ChatMessage) {
+                publish(Topics.CHAT, (GameEvent.ChatMessage) event);
+            } else if (event instanceof GameEvent.CommandLine) {
+                typedCommands.add(((GameEvent.CommandLine) event).line());
             }
         }
     }
 
     private void runTypedCommands() {
-        for (String line : List.copyOf(typedCommands)) {
+        for (String line : Jdk8.copyList(typedCommands)) {
             typedCommands.remove(0);
             String body = commandPrefix != null && line.startsWith(commandPrefix) ? line.substring(commandPrefix.length()) : line;
-            List<String> words = List.of(body.trim().split("\\s+"));
+            List<String> words = Jdk8.listOf(body.trim().split("\\s+"));
             String name = words.get(0).toLowerCase(java.util.Locale.ROOT);
             CommandCall call = new CommandCall(name, words.subList(1, words.size()), line);
             Command command = commands.get(name);
@@ -304,7 +335,7 @@ public final class ModuleHost {
         boolean changed = true;
         while (changed) {
             changed = false;
-            for (Entry e : List.copyOf(modules.values())) {
+            for (Entry e : Jdk8.copyList(modules.values())) {
                 Set<ServiceKey<?>> missing = missing(e);
                 if (e.state == ModuleState.RUNNING && !missing.isEmpty()) {
                     stop(e, ModuleState.BLOCKED, "required service went away: " + names(missing));
@@ -364,10 +395,10 @@ public final class ModuleHost {
     private Set<ServiceKey<?>> safeRequires(Entry e) {
         try {
             Set<ServiceKey<?>> r = e.module.requires();
-            return r == null ? Set.of() : r;
+            return r == null ? Jdk8.setOf() : r;
         } catch (RuntimeException ex) {
             faults.add(new Fault(e, ex));
-            return Set.of();
+            return Jdk8.setOf();
         }
     }
 
@@ -527,10 +558,58 @@ public final class ModuleHost {
 
     // ---- topics ----
 
-    private record Sub<T>(Entry owner, Consumer<T> handler, boolean[] active) {
+    private static final class Sub<T> {
+        private final Entry owner;
+        private final Consumer<T> handler;
+        private final boolean[] active;
+
+        public Sub(Entry owner, Consumer<T> handler, boolean[] active) {
+            this.owner = owner;
+            this.handler = handler;
+            this.active = active;
+        }
+
+        public Entry owner() { return owner; }
+
+        public Consumer<T> handler() { return handler; }
+
+        public boolean[] active() { return active; }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Sub)) return false;
+            Sub<?> other = (Sub<?>) o;
+            return java.util.Arrays.deepEquals(new Object[] {this.owner, this.handler, this.active}, new Object[] {other.owner, other.handler, other.active});
+        }
+
+        @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.owner, this.handler, this.active}); }
+
+        @Override public String toString() { return "Sub[" + "owner=" + owner + ", " + "handler=" + handler + ", " + "active=" + active + "]"; }
     }
 
-    private record Delivery<T>(Topic<T> topic, T message) {
+    private static final class Delivery<T> {
+        private final Topic<T> topic;
+        private final T message;
+
+        public Delivery(Topic<T> topic, T message) {
+            this.topic = topic;
+            this.message = message;
+        }
+
+        public Topic<T> topic() { return topic; }
+
+        public T message() { return message; }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Delivery)) return false;
+            Delivery<?> other = (Delivery<?>) o;
+            return java.util.Arrays.deepEquals(new Object[] {this.topic, this.message}, new Object[] {other.topic, other.message});
+        }
+
+        @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.topic, this.message}); }
+
+        @Override public String toString() { return "Delivery[" + "topic=" + topic + ", " + "message=" + message + "]"; }
     }
 
     private <T> void publish(Topic<T> topic, T message) {
@@ -550,7 +629,7 @@ public final class ModuleHost {
         int delivered = 0;
         while (!outbox.isEmpty() && delivered < MAX_DELIVERIES_PER_TICK) {
             Delivery<Object> d = (Delivery<Object>) outbox.poll();
-            for (Sub<?> raw : List.copyOf(subscribers.getOrDefault(d.topic(), List.of()))) {
+            for (Sub<?> raw : Jdk8.copyList(subscribers.getOrDefault(d.topic(), Jdk8.listOf()))) {
                 Sub<Object> sub = (Sub<Object>) raw;
                 if (sub.active()[0] && sub.owner().state == ModuleState.RUNNING) {
                     call(sub.owner(), () -> sub.handler().accept(d.message()));
@@ -568,7 +647,29 @@ public final class ModuleHost {
 
     // ---- services ----
 
-    private record Provided(ModuleId provider, Object service) {
+    private static final class Provided {
+        private final ModuleId provider;
+        private final Object service;
+
+        public Provided(ModuleId provider, Object service) {
+            this.provider = provider;
+            this.service = service;
+        }
+
+        public ModuleId provider() { return provider; }
+
+        public Object service() { return service; }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Provided)) return false;
+            Provided other = (Provided) o;
+            return java.util.Arrays.deepEquals(new Object[] {this.provider, this.service}, new Object[] {other.provider, other.service});
+        }
+
+        @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.provider, this.service}); }
+
+        @Override public String toString() { return "Provided[" + "provider=" + provider + ", " + "service=" + service + "]"; }
     }
 
     private <T> void provide(Entry e, ServiceKey<T> key, T service) {
@@ -593,7 +694,29 @@ public final class ModuleHost {
 
     // ---- lifecycle helpers ----
 
-    private record Fault(Entry entry, Throwable error) {
+    private static final class Fault {
+        private final Entry entry;
+        private final Throwable error;
+
+        public Fault(Entry entry, Throwable error) {
+            this.entry = entry;
+            this.error = error;
+        }
+
+        public Entry entry() { return entry; }
+
+        public Throwable error() { return error; }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Fault)) return false;
+            Fault other = (Fault) o;
+            return java.util.Arrays.deepEquals(new Object[] {this.entry, this.error}, new Object[] {other.entry, other.error});
+        }
+
+        @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.entry, this.error}); }
+
+        @Override public String toString() { return "Fault[" + "entry=" + entry + ", " + "error=" + error + "]"; }
     }
 
     private void call(Entry e, Runnable callback) {
@@ -611,7 +734,7 @@ public final class ModuleHost {
                 sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.MODULE_FAULT, core.currentTick(),
                         core.currentContext().orElse(null), f.entry.id.value(), String.valueOf(f.error)));
                 // also to the log: a stopped module must be visible without reading the sink
-                FAULT_LOG.log(System.Logger.Level.WARNING, "module " + f.entry.id.value() + " stopped (FAILED)", f.error);
+                FAULT_LOG.log(java.util.logging.Level.WARNING, "module " + f.entry.id.value() + " stopped (FAILED)", f.error);
                 stop(f.entry, ModuleState.FAILED, "threw " + f.error);
             }
         }
@@ -766,12 +889,12 @@ public final class ModuleHost {
         @Override
         public FeatureStatus feature(String name) {
             FeatureStatus s = e.features.get(name);
-            return s != null ? s : new FeatureStatus(name, false, List.of(), "not declared by this module");
+            return s != null ? s : new FeatureStatus(name, false, Jdk8.listOf(), "not declared by this module");
         }
 
         @Override
         public Map<String, FeatureStatus> features() {
-            return Map.copyOf(e.features);
+            return Jdk8.copyMap(e.features);
         }
 
         @Override
@@ -802,7 +925,7 @@ public final class ModuleHost {
                     RejectionReason reason = r.holder().isPresent() ? RejectionReason.LEASE_HELD : RejectionReason.RESOURCE_NOT_RELEASED;
                     return OperationResult.rejected(reason, null, "MOVEMENT: " + r.detail());
                 }
-                scoped = r.lease().orElseThrow();
+                scoped = r.lease().orElseThrow(java.util.NoSuchElementException::new);
             }
             OperationResult result = operation.get();
             if (!result.isAccepted() && scoped != null && movement.holder != null && movement.holder.id() == scoped.id()) {
@@ -833,7 +956,7 @@ public final class ModuleHost {
             if (!e.settings.containsKey(Objects.requireNonNull(setting, "setting").name())) {
                 throw new IllegalArgumentException(setting.name() + " is not one of this module's settings()");
             }
-            if (setting.parse(setting.format(value)).isEmpty()) {
+            if (!setting.parse(setting.format(value)).isPresent()) {
                 throw new IllegalArgumentException(value + " is not valid for " + setting.name());
             }
             if (core.onGameThread()) {
@@ -955,7 +1078,7 @@ public final class ModuleHost {
         @Override
         public List<Lease> leases() {
             if (!core.onGameThread()) {
-                return List.of();
+                return Jdk8.listOf();
             }
             List<Lease> all = new ArrayList<>();
             slots.values().forEach(s -> {
@@ -1047,7 +1170,7 @@ public final class ModuleHost {
         public List<SettingInfo> settings(ModuleId module) {
             Entry e = modules.get(module);
             if (!core.onGameThread() || e == null) {
-                return List.of();
+                return Jdk8.listOf();
             }
             List<SettingInfo> out = new ArrayList<>();
             e.settings.forEach((n, st) -> out.add(new SettingInfo(n, st.description(), formatted(st, e.values.get(n)),

@@ -10,11 +10,80 @@ import java.util.Optional;
  * @param durability  0 for none; an item with durability stacks to 1
  * @param tab         the creative tab it is listed in, e.g. {@code minecraft:ingredients}
  */
-public record ItemDeclaration(String id, int maxStack, int durability, Optional<Food> food, ItemRarity rarity,
-                              boolean fireResistant, Optional<String> tab) {
+public final class ItemDeclaration {
+    private final String id;
+    private final int maxStack;
+    private final int durability;
+    private final Optional<Food> food;
+    private final ItemRarity rarity;
+    private final boolean fireResistant;
+    private final Optional<String> tab;
+
+    public ItemDeclaration(String id, int maxStack, int durability, Optional<Food> food, ItemRarity rarity, boolean fireResistant, Optional<String> tab) {
+        this.id = id;
+        this.maxStack = maxStack;
+        this.durability = durability;
+        this.food = food;
+        this.rarity = rarity;
+        this.fireResistant = fireResistant;
+        this.tab = tab;
+    }
+
+    public String id() { return id; }
+
+    public int maxStack() { return maxStack; }
+
+    public int durability() { return durability; }
+
+    public Optional<Food> food() { return food; }
+
+    public ItemRarity rarity() { return rarity; }
+
+    public Optional<String> tab() { return tab; }
+
+    public boolean fireResistant() { return fireResistant; }
+
+    @Override public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ItemDeclaration)) return false;
+        ItemDeclaration other = (ItemDeclaration) o;
+        return java.util.Arrays.deepEquals(new Object[] {this.id, this.maxStack, this.durability, this.food, this.rarity, this.fireResistant, this.tab}, new Object[] {other.id, other.maxStack, other.durability, other.food, other.rarity, other.fireResistant, other.tab});
+    }
+
+    @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.id, this.maxStack, this.durability, this.food, this.rarity, this.fireResistant, this.tab}); }
+
+    @Override public String toString() { return "ItemDeclaration[" + "id=" + id + ", " + "maxStack=" + maxStack + ", " + "durability=" + durability + ", " + "food=" + food + ", " + "rarity=" + rarity + ", " + "fireResistant=" + fireResistant + ", " + "tab=" + tab + "]"; }
+
 
     /** Eating restores {@code nutrition} hunger points and {@code saturation} saturation. */
-    public record Food(int nutrition, float saturation, boolean alwaysEdible) {}
+    public static final class Food {
+        private final int nutrition;
+        private final float saturation;
+        private final boolean alwaysEdible;
+
+        public Food(int nutrition, float saturation, boolean alwaysEdible) {
+            this.nutrition = nutrition;
+            this.saturation = saturation;
+            this.alwaysEdible = alwaysEdible;
+        }
+
+        public int nutrition() { return nutrition; }
+
+        public float saturation() { return saturation; }
+
+        public boolean alwaysEdible() { return alwaysEdible; }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Food)) return false;
+            Food other = (Food) o;
+            return java.util.Arrays.deepEquals(new Object[] {this.nutrition, this.saturation, this.alwaysEdible}, new Object[] {other.nutrition, other.saturation, other.alwaysEdible});
+        }
+
+        @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.nutrition, this.saturation, this.alwaysEdible}); }
+
+        @Override public String toString() { return "Food[" + "nutrition=" + nutrition + ", " + "saturation=" + saturation + ", " + "alwaysEdible=" + alwaysEdible + "]"; }
+    }
 
     /** Collects an item declaration; see {@link ContentDeclarations#item}. */
     public static final class Builder {

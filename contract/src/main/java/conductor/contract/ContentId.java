@@ -9,7 +9,32 @@ import java.util.Objects;
  * Modules ask about the thing itself, never about a version number. "Does {@code minecraft:iron_spear} exist?"
  * works on any version, including ones released after the module was written.
  */
-public record ContentId(Kind kind, String id) {
+public final class ContentId {
+    private final Kind kind;
+    private final String id;
+
+    public ContentId(Kind kind, String id) {
+        Objects.requireNonNull(kind, "kind");
+        Objects.requireNonNull(id, "id");
+
+        this.kind = kind;
+        this.id = id;
+    }
+
+    public Kind kind() { return kind; }
+
+    public String id() { return id; }
+
+    @Override public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ContentId)) return false;
+        ContentId other = (ContentId) o;
+        return java.util.Arrays.deepEquals(new Object[] {this.kind, this.id}, new Object[] {other.kind, other.id});
+    }
+
+    @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.kind, this.id}); }
+
+
 
     public enum Kind {
         /** A game item, e.g. {@code minecraft:iron_spear}. */
@@ -22,11 +47,6 @@ public record ContentId(Kind kind, String id) {
         EFFECT,
         /** A feature of the engine build, e.g. {@code ostinato:combat/spear}. Listed by the runtime in discovery. */
         ENGINE
-    }
-
-    public ContentId {
-        Objects.requireNonNull(kind, "kind");
-        Objects.requireNonNull(id, "id");
     }
 
     public static ContentId item(String id) {

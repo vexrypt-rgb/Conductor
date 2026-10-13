@@ -25,5 +25,36 @@ public interface NavigationPort {
     void cancel();
 
     /** @param backend the engine's name for the backend that took the request */
-    record Delegation(boolean accepted, String backend, boolean backendObservable, String detail) {}
+    static final class Delegation {
+        private final boolean accepted;
+        private final String backend;
+        private final boolean backendObservable;
+        private final String detail;
+
+        public Delegation(boolean accepted, String backend, boolean backendObservable, String detail) {
+            this.accepted = accepted;
+            this.backend = backend;
+            this.backendObservable = backendObservable;
+            this.detail = detail;
+        }
+
+        public boolean accepted() { return accepted; }
+
+        public String backend() { return backend; }
+
+        public boolean backendObservable() { return backendObservable; }
+
+        public String detail() { return detail; }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Delegation)) return false;
+            Delegation other = (Delegation) o;
+            return java.util.Arrays.deepEquals(new Object[] {this.accepted, this.backend, this.backendObservable, this.detail}, new Object[] {other.accepted, other.backend, other.backendObservable, other.detail});
+        }
+
+        @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.accepted, this.backend, this.backendObservable, this.detail}); }
+
+        @Override public String toString() { return "Delegation[" + "accepted=" + accepted + ", " + "backend=" + backend + ", " + "backendObservable=" + backendObservable + ", " + "detail=" + detail + "]"; }
+    }
 }

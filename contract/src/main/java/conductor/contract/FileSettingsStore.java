@@ -31,13 +31,13 @@ public final class FileSettingsStore implements SettingsStore {
     public Map<String, String> load(ModuleId module) {
         Path f = file(module);
         if (!Files.isRegularFile(f)) {
-            return Map.of();
+            return Jdk8.mapOf();
         }
         Properties p = new Properties();
         try (Reader r = Files.newBufferedReader(f, StandardCharsets.UTF_8)) {
             p.load(r);
         } catch (IOException e) {
-            return Map.of();
+            return Jdk8.mapOf();
         }
         Map<String, String> values = new TreeMap<>();
         p.forEach((k, v) -> values.put(String.valueOf(k), String.valueOf(v)));

@@ -25,16 +25,18 @@ public final class Setting<T> {
         this.description = description == null ? "" : description;
         this.defaultValue = Objects.requireNonNull(defaultValue, "defaultValue");
         this.parser = parser;
-        if (parse(format(defaultValue)).isEmpty()) {
+        if (!parse(format(defaultValue)).isPresent()) {
             throw new IllegalArgumentException("default value is not valid for " + name);
         }
     }
 
     public static Setting<Boolean> bool(String name, String description, boolean defaultValue) {
-        return new Setting<>(name, description, defaultValue, s -> switch (s.toLowerCase(Locale.ROOT)) {
-            case "true", "on", "yes" -> Optional.of(true);
-            case "false", "off", "no" -> Optional.of(false);
-            default -> Optional.empty();
+        return new Setting<>(name, description, defaultValue, s -> {
+            switch (s.toLowerCase(Locale.ROOT)) {
+                case "true": case "on": case "yes": return Optional.of(true);
+                case "false": case "off": case "no": return Optional.of(false);
+                default: return Optional.empty();
+            }
         });
     }
 

@@ -14,18 +14,39 @@ import java.util.OptionalLong;
  * @param uncertainAfterTicks    ticks after cancel() with no release evidence before the operation becomes UNCERTAIN.
  *                               A timeout never releases the resource.
  */
-public record ReleasePolicy(OptionalLong confirmStopWindowTicks, OptionalLong uncertainAfterTicks) {
+public final class ReleasePolicy {
+    private final OptionalLong confirmStopWindowTicks;
+    private final OptionalLong uncertainAfterTicks;
 
-    public ReleasePolicy {
+    public ReleasePolicy(OptionalLong confirmStopWindowTicks, OptionalLong uncertainAfterTicks) {
         Objects.requireNonNull(confirmStopWindowTicks, "confirmStopWindowTicks");
         Objects.requireNonNull(uncertainAfterTicks, "uncertainAfterTicks");
         if (confirmStopWindowTicks.isPresent() && confirmStopWindowTicks.getAsLong() < 1) {
-            throw new IllegalArgumentException("confirmStopWindowTicks must be at least 1");
+        throw new IllegalArgumentException("confirmStopWindowTicks must be at least 1");
         }
         if (uncertainAfterTicks.isPresent() && uncertainAfterTicks.getAsLong() < 1) {
-            throw new IllegalArgumentException("uncertainAfterTicks must be at least 1");
+        throw new IllegalArgumentException("uncertainAfterTicks must be at least 1");
         }
+
+        this.confirmStopWindowTicks = confirmStopWindowTicks;
+        this.uncertainAfterTicks = uncertainAfterTicks;
     }
+
+    public OptionalLong confirmStopWindowTicks() { return confirmStopWindowTicks; }
+
+    public OptionalLong uncertainAfterTicks() { return uncertainAfterTicks; }
+
+    @Override public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ReleasePolicy)) return false;
+        ReleasePolicy other = (ReleasePolicy) o;
+        return java.util.Arrays.deepEquals(new Object[] {this.confirmStopWindowTicks, this.uncertainAfterTicks}, new Object[] {other.confirmStopWindowTicks, other.uncertainAfterTicks});
+    }
+
+    @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.confirmStopWindowTicks, this.uncertainAfterTicks}); }
+
+    @Override public String toString() { return "ReleasePolicy[" + "confirmStopWindowTicks=" + confirmStopWindowTicks + ", " + "uncertainAfterTicks=" + uncertainAfterTicks + "]"; }
+
 
     /** No release ever: the Stage 3 behaviour. */
     public static ReleasePolicy none() {
