@@ -12,6 +12,8 @@ ext.mcTargets = [
                 ostinatoDir: findProperty('ostinatoDir_1_21_4') ?: "${rootDir}/../Ostinato-1.21.4"],
     // A legacy target to test how far version-agnostic modules reach: no Parchment, no Ostinato, its own content code.
     '1.16.1' : [legacy: true, loader: '0.19.5'],
+    // The same legacy shape on Minecraft 1.16.5 (pack format 6; dimension files are not translated yet).
+    '1.16.5' : [legacy: true, loader: '0.19.5'],
     // The first year-numbered release Conductor targets: Mojang ships it unobfuscated (no intermediary) and it needs
     // Java 25. No engine layer yet.
     '26.3'   : [noEngine: true, unobfuscated: true, java: 25, loader: '0.19.5'],
