@@ -153,7 +153,7 @@ public final class ContentInstaller {
         for (MobDeclaration d : entry.mobs()) {
             ResourceKey<EntityType<?>> key = VersionIds.key(Registries.ENTITY_TYPE, d.id());
             EntityType<? extends Mob> type = Registry.register(BuiltInRegistries.ENTITY_TYPE, key,
-                    VersionMobs.type(d.archetype(), key, d.scale()));
+                    VersionMobs.type(d, key));
             // Attributes are registry holders that are bound only when the registries freeze: build them on first use.
             MOBS.put(type, d);
         }
@@ -233,12 +233,20 @@ public final class ContentInstaller {
             return null;
         }
         return MOB_ATTRIBUTES.computeIfAbsent(type, t -> {
-            AttributeSupplier.Builder attributes = VersionMobs.attributes(d.archetype());
+            AttributeSupplier.Builder attributes = VersionMobs.attributes(d);
             d.health().ifPresent(v -> attributes.add(Attributes.MAX_HEALTH, v));
             d.speed().ifPresent(v -> attributes.add(Attributes.MOVEMENT_SPEED, v));
             d.attackDamage().ifPresent(v -> attributes.add(Attributes.ATTACK_DAMAGE, v));
+            d.armor().ifPresent(v -> attributes.add(Attributes.ARMOR, v));
+            d.knockbackResistance().ifPresent(v -> attributes.add(Attributes.KNOCKBACK_RESISTANCE, v));
+            d.followRange().ifPresent(v -> attributes.add(Attributes.FOLLOW_RANGE, v));
             return attributes.build();
         });
+    }
+
+    /** The declaration a mob type was registered from, or null. */
+    static MobDeclaration declaration(EntityType<?> type) {
+        return MOBS.get(type);
     }
 
     /** Whether {@code type} is a declared mob (cheap: builds nothing). */
@@ -270,7 +278,7 @@ public final class ContentInstaller {
                 soundEvent(s.hit()), soundEvent(s.fall()));
     }
 
-    private static net.minecraft.sounds.SoundEvent soundEvent(String id) {
+    static net.minecraft.sounds.SoundEvent soundEvent(String id) {
         // a vanilla sound's holder can still be unbound this early (seen live on 1.21.11): reading it throws. A sound
         // event made from the id plays the same sound, since the client finds sounds by id.
         var known = BuiltInRegistries.SOUND_EVENT.get(VersionIds.key(Registries.SOUND_EVENT, id));

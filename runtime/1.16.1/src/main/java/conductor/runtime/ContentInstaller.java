@@ -147,6 +147,10 @@ public final class ContentInstaller {
             }
         }
         for (MobDeclaration d : entry.mobs()) {
+            if (d.archetype() == conductor.contract.MobArchetype.CUSTOM) {
+                LOG.warn("Conductor content: custom mob {} is not supported on Minecraft 1.16.1 yet; it is left out", d.id());
+                continue;
+            }
             EntityType<? extends Mob> type = Registry.register(Registry.ENTITY_TYPE, new ResourceLocation(d.id()),
                     mobType(d));
             MOBS.put(type, d);
@@ -178,13 +182,13 @@ public final class ContentInstaller {
         float k = d.scale();
         switch (d.archetype()) {
             case ZOMBIE:
-                return new EntityType<Zombie>(Zombie::new, MobCategory.MONSTER, true, true, false, false, ImmutableSet.of(),
+                return new EntityType<Zombie>(Zombie::new, MobCategory.MONSTER, true, true, d.fireImmune(), false, ImmutableSet.of(),
                         EntityDimensions.scalable(0.6f * k, 1.95f * k), 8, 3);
             case SPIDER:
-                return new EntityType<Spider>(Spider::new, MobCategory.MONSTER, true, true, false, false, ImmutableSet.of(),
+                return new EntityType<Spider>(Spider::new, MobCategory.MONSTER, true, true, d.fireImmune(), false, ImmutableSet.of(),
                         EntityDimensions.scalable(1.4f * k, 0.9f * k), 8, 3);
             case PIG:
-                return new EntityType<Pig>(Pig::new, MobCategory.CREATURE, true, true, false, false, ImmutableSet.of(),
+                return new EntityType<Pig>(Pig::new, MobCategory.CREATURE, true, true, d.fireImmune(), false, ImmutableSet.of(),
                         EntityDimensions.scalable(0.9f * k, 0.9f * k), 10, 3);
             default:
                 throw new IllegalArgumentException("no Minecraft 1.16.1 class for mob archetype " + d.archetype());
@@ -356,6 +360,9 @@ public final class ContentInstaller {
             d.health().ifPresent(v -> attributes.add(Attributes.MAX_HEALTH, v));
             d.speed().ifPresent(v -> attributes.add(Attributes.MOVEMENT_SPEED, v));
             d.attackDamage().ifPresent(v -> attributes.add(Attributes.ATTACK_DAMAGE, v));
+            d.armor().ifPresent(v -> attributes.add(Attributes.ARMOR, v));
+            d.knockbackResistance().ifPresent(v -> attributes.add(Attributes.KNOCKBACK_RESISTANCE, v));
+            d.followRange().ifPresent(v -> attributes.add(Attributes.FOLLOW_RANGE, v));
             return attributes.build();
         });
     }

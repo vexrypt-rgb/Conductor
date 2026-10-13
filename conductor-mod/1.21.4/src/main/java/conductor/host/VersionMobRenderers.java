@@ -3,6 +3,8 @@ package conductor.host;
 import com.mojang.blaze3d.vertex.PoseStack;
 import conductor.contract.MobDeclaration;
 import conductor.host.mixin.EntityRenderersInvoker;
+import conductor.runtime.ConductorMob;
+import conductor.runtime.VersionIds;
 import net.minecraft.client.renderer.entity.PigRenderer;
 import net.minecraft.client.renderer.entity.SpiderRenderer;
 import net.minecraft.client.renderer.entity.ZombieRenderer;
@@ -17,7 +19,7 @@ import net.minecraft.world.entity.animal.Pig;
 
 import java.util.Map;
 
-/** Draws declared mobs with their archetype's renderer, the module's texture and scale (Minecraft 1.21.4). Client only. */
+/** Draws declared mobs with their archetype's renderer (custom mobs with {@link CustomMobRenderer}), the module's texture and scale (Minecraft 1.21.4). Client only. */
 final class VersionMobRenderers {
 
     private VersionMobRenderers() {}
@@ -64,6 +66,13 @@ final class VersionMobRenderers {
                         pose.scale(k, k, k);
                     }
                 });
+                case CUSTOM -> EntityRenderersInvoker.conductor$register((EntityType<ConductorMob>) type,
+                        ctx -> new CustomMobRenderer(ctx, d, VersionIds.MINECRAFT) {
+                            @Override
+                            public ResourceLocation getTextureLocation(CustomMobRenderState state) {
+                                return texture;
+                            }
+                        });
             }
         });
         return mobs.size();

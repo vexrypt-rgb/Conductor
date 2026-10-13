@@ -24,6 +24,7 @@ public final class ContentDeclarations {
     static final Pattern TAB = Pattern.compile("[a-z0-9_.-]+:[a-z0-9_./-]+");
     /** More boxes than this make outline checks slow; real models have far fewer. */
     static final int MAX_BOXES = 256;
+    static final Pattern MOB_FILE = Pattern.compile("assets/[a-z0-9_.-]+/conductor/(geo|animations)/[a-z0-9_./-]+\\.(geo|animation)\\.json");
     static final Pattern TEXTURE = Pattern.compile("[a-z0-9_.-]+:textures/[a-z0-9_./-]+\\.png");
 
     private final String namespace;
@@ -51,7 +52,7 @@ public final class ContentDeclarations {
         return b;
     }
 
-    /** A mob built on a vanilla archetype; see {@link MobDeclaration}. */
+    /** A mob, built on a vanilla archetype or fully custom; see {@link MobDeclaration}. */
     public MobDeclaration.Builder mob(String path) {
         MobDeclaration.Builder b = new MobDeclaration.Builder(namespace + ":" + path);
         mobs.add(b);
@@ -185,10 +186,58 @@ public final class ContentDeclarations {
             if (d.attackDamage().isPresent() && !(d.attackDamage().getAsDouble() >= 0 && d.attackDamage().getAsDouble() <= 2048)) {
                 problems.add("mob " + d.id() + ": attack damage must be 0..2048");
             }
+            range(d, "armor", d.armor(), 0, 30, problems);
+            range(d, "knockback resistance", d.knockbackResistance(), 0, 1, problems);
+            range(d, "follow range", d.followRange(), 1, 128, problems);
+            List<String> customOnly = b.customOnly();
+            if (!customOnly.isEmpty()) {
+                problems.add("mob " + d.id() + ": " + String.join(", ", customOnly) + " need a custom mob (model(...)), not like(" + d.archetype() + ")");
+            }
+            d.custom().ifPresent(c -> custom(d.id(), c, problems));
             checkedMobs.add(d);
         }
         return new Checked(namespace, List.copyOf(checkedItems), List.copyOf(checkedBlocks), List.copyOf(checkedMobs),
                 List.copyOf(problems));
+    }
+
+    private static void range(MobDeclaration d, String what, java.util.OptionalDouble value, double min, double max, List<String> problems) {
+        if (value.isPresent() && !(value.getAsDouble() >= min && value.getAsDouble() <= max)) {
+            problems.add("mob " + d.id() + ": " + what + " must be " + min + ".." + max);
+        }
+    }
+
+    private static void custom(String id, MobDeclaration.Custom c, List<String> problems) {
+        if (c.model().isEmpty()) {
+            problems.add("mob " + id + ": a custom mob needs model(...)");
+        } else if (!MOB_FILE.matcher(c.model()).matches()) {
+            problems.add("mob " + id + ": model file '" + c.model() + "' must be a name matching " + PATH.pattern());
+        }
+        c.animations().filter(a -> !MOB_FILE.matcher(a).matches())
+                .ifPresent(a -> problems.add("mob " + id + ": animation file '" + a + "' must be a name matching " + PATH.pattern()));
+        if (!(c.width() >= 0.1f && c.width() <= 8f && c.height() >= 0.1f && c.height() <= 8f)) {
+            problems.add("mob " + id + ": size must be 0.1..8 blocks each way");
+        }
+        for (MobGoal g : c.goals()) {
+            if (g == null || g.kind() == null) {
+                problems.add("mob " + id + ": a goal is null");
+                continue;
+            }
+            if (!(g.speed() > 0 && g.speed() <= 4)) {
+                problems.add("mob " + id + ": goal " + g.kind() + ": speed must be above 0, up to 4");
+            }
+            if (!(g.range() >= 0 && g.range() <= 64)) {
+                problems.add("mob " + id + ": goal " + g.kind() + ": range must be 0..64");
+            }
+            if (g.kind() == MobGoal.Kind.RANGED_ATTACK && (g.projectile() == null || g.interval() < 1 || g.interval() > 1200 || !(g.range() >= 1))) {
+                problems.add("mob " + id + ": ranged attack needs a projectile, an interval of 1..1200 ticks and a range of 1..64");
+            }
+        }
+        c.boss().filter(b -> b.color() == null || b.style() == null)
+                .ifPresent(b -> problems.add("mob " + id + ": boss bar colour and style must be set"));
+        MobDeclaration.Sounds s = c.sounds();
+        java.util.stream.Stream.of(s.ambient(), s.hurt(), s.death(), s.step()).flatMap(java.util.Optional::stream)
+                .filter(sound -> !TAB.matcher(sound).matches())
+                .forEach(sound -> problems.add("mob " + id + ": sound '" + sound + "' must be namespace:path"));
     }
 
     private static void path(String id, List<String> problems) {

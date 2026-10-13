@@ -10,5 +10,6 @@
   "block.ruby.ruby_door": "Ruby Door",
   "entity.ruby.ruby_zombie": "Ruby Zombie",
   "entity.ruby.ruby_spider": "Ruby Spider",
-  "entity.ruby.ruby_pig": "Ruby Pig"
+  "entity.ruby.ruby_pig": "Ruby Pig",
+  "entity.ruby.ruby_golem": "Ruby Golem"
 }

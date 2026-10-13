@@ -176,6 +176,45 @@ class ContentPlanTest {
     }
 
     @Test
+    void customMobsResolveTheirFilesAndCheckTheirSettings() {
+        ContentPlan plan = ContentPlan.of(Map.of("m", module("ruby", c -> {
+            c.mob("ruby_golem").model("ruby_golem").animations("ruby_golem").size(1.4f, 2.7f).health(300).armor(8)
+                    .knockbackResistance(1).fireImmune().boss(BossBar.Color.RED, BossBar.Style.NOTCHED_10)
+                    .sounds(null, "minecraft:entity.iron_golem.hurt", "minecraft:entity.iron_golem.death");
+            c.mob("ruby_sprite").model("ruby_sprite").passive()
+                    .goals(MobGoal.swim(), MobGoal.rangedAttack(MobProjectile.SNOWBALL, 40, 12), MobGoal.retaliate());
+        })));
+        assertEquals(List.of(), plan.problems());
+        MobDeclaration golem = plan.entries().get(0).mobs().get(0);
+        assertEquals(MobArchetype.CUSTOM, golem.archetype());
+        assertTrue(golem.fireImmune());
+        MobDeclaration.Custom custom = golem.custom().orElseThrow();
+        assertEquals("assets/ruby/conductor/geo/ruby_golem.geo.json", custom.model());
+        assertEquals(Optional.of("assets/ruby/conductor/animations/ruby_golem.animation.json"), custom.animations());
+        assertTrue(custom.hostile(), "custom mobs are hostile unless passive()");
+        assertEquals(MobGoal.Kind.TARGET_PLAYERS, custom.goals().get(custom.goals().size() - 1).kind(), "hostile defaults");
+        assertEquals(Optional.of(new BossBar(BossBar.Color.RED, BossBar.Style.NOTCHED_10)), custom.boss());
+        assertEquals(Optional.empty(), custom.sounds().ambient());
+        MobDeclaration.Custom sprite = plan.entries().get(0).mobs().get(1).custom().orElseThrow();
+        assertEquals(3, sprite.goals().size(), "given goals replace the defaults");
+        assertTrue(!sprite.hostile());
+
+        ContentPlan bad = ContentPlan.of(Map.of("m", module("ruby", c -> {
+            c.mob("zombie_with_goals").like(MobArchetype.ZOMBIE).goals(MobGoal.swim()).boss(BossBar.Color.RED, BossBar.Style.PROGRESS);
+            c.mob("no_model").like(MobArchetype.CUSTOM);
+            c.mob("flat").model("flat").size(0, 1);
+            c.mob("no_projectile").model("x").goals(MobGoal.rangedAttack(null, 20, 10));
+            c.mob("bad_sound").model("x").sounds("hurt", null, null);
+            c.mob("bad_model").model("Ruby Golem");
+            c.mob("heavy").model("x").armor(40);
+        })));
+        assertEquals(7, bad.problems().size(), bad.problems().toString());
+        assertTrue(bad.problems().get(0).contains("goals, boss need a custom mob"), bad.problems().get(0));
+        assertEquals(MobArchetype.ZOMBIE, ContentPlan.of(Map.of("m", module("ruby", c -> c.mob("z"))))
+                .entries().get(0).mobs().get(0).archetype(), "mobs stay zombies by default");
+    }
+
+    @Test
     void modelBlocksNeedValidBoxesAndTurnWithTheBlock() {
         ContentPlan ok = ContentPlan.of(Map.of("m", module("m", c -> c.block("lamp").box(7, 0, 7, 9, 4, 9).box(6, 4, 6, 10, 8, 10)
                 .sounds("minecraft:block.lantern.break", "minecraft:block.glass.step", "minecraft:block.lantern.place",
