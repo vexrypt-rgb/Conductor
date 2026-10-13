@@ -26,12 +26,18 @@ sourceSets {
 unimined.minecraft {
     version mc
     mappings {
-        if (!target.unobfuscated) {
-            intermediary()
-        }
-        mojmap()
-        if (target.parchment) {
-            parchment(mc, target.parchment)
+        if (target.yarn) {
+            // Legacy Fabric: intermediary and legacy Yarn names (no Mojang names exist for this version)
+            legacyIntermediary()
+            legacyYarn(target.yarn)
+        } else {
+            if (!target.unobfuscated) {
+                intermediary()
+            }
+            mojmap()
+            if (target.parchment) {
+                parchment(mc, target.parchment)
+            }
         }
     }
     runs.off = true

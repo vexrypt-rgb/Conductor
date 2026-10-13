@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "conductor",
+  "version": "${version}",
+  "name": "Conductor",
+  "description": "Version-agnostic module platform for Minecraft. Needs no other mod; uses Ostinato as a movement engine when installed. Hosts content modules (items, blocks, data) on clients and servers, and server modules on dedicated and single-player servers. This build is for Minecraft ${mc}.",
+  "environment": "*",
+  "entrypoints": {
+    "preLaunch": ["conductor.host.ConductorPreLaunch"],
+    "client": ["conductor.host.ConductorHostMod"]
+  },
+  "mixins": ["conductor.mixins.json"],
+  "depends": {
+    "fabricloader": "*",
+    "minecraft": "${mc}"
+  },
+  "suggests": {
+    "baritone": "*"
+  }
+}

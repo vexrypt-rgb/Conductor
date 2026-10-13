@@ -14,10 +14,12 @@ ext.mcTargets = [
     '1.16.1' : [legacy: true, loader: '0.19.5'],
     // The same legacy shape on Minecraft 1.16.5 (pack format 6; dimension files are not translated yet).
     '1.16.5' : [legacy: true, loader: '0.19.5'],
-    // The first year-numbered release Conductor targets: Mojang ships it unobfuscated (no intermediary) and it needs
-    // Java 25. No engine layer yet.
-    // The same unobfuscated, Java 25 shape as 26.3 (its renderer is still the one 26.3 changed; see the live run).
+    // Minecraft 1.12.2 on Legacy Fabric (no Mojang names; legacy Yarn names), no movement engine yet.
+    '1.12.2' : [legacy: true, legacyFabric: true, yarn: 604, noEngine: true, loader: '0.19.5'],
+    // The year-numbered releases: Mojang ships them unobfuscated (no intermediary) and they need Java 25. No engine
+    // layer yet. 26.2 is the same shape as 26.3 (its renderer is still the one 26.3 changed; see the live run).
     '26.2'   : [noEngine: true, unobfuscated: true, java: 25, loader: '0.19.5'],
+    // The first year-numbered release Conductor targets (see the comment above).
     '26.3'   : [noEngine: true, unobfuscated: true, java: 25, loader: '0.19.5'],
 ]
 
