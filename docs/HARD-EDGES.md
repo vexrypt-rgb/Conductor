@@ -11,12 +11,13 @@
 
 ## 1. What already shows this works (Verified, with live evidence in this repository)
 
-| Case | What changed between 1.21.4 and 1.21.11 | What the modules had to change |
+| Case | What changed (1.21.4 → 1.21.11 unless noted) | What the modules had to change |
 |---|---|---|
 | **Overlays** (boxes, lines, tracers) | The world renderer itself. 1.21.4 draws in immediate mode (`Tesselator`, `BufferUploader`, `CoreShaders`). 1.21.11 uses `RenderPipeline` and `RenderType` built from private APIs. Conductor's two `VersionLineDrawer`s are about 70 lines each. | **Nothing.** The same `block-highlighter` jar drew on both versions ([live-run-highlighter.md](live-run-highlighter.md), [live-run-no-ostinato.md](live-run-no-ostinato.md)). |
 | **Block render layers** (see-through glass and doors) | The layer type: `RenderType` became `ChunkSectionLayer`. | Nothing: modules say `RenderLayer.CUTOUT` ([live-run-content.md](live-run-content.md) §3). |
 | **Mob renderers** | Renderer and model classes moved packages; renderers became render-state based. | Nothing: modules say `like(MobArchetype.ZOMBIE)` plus a texture (§5 there). |
 | **Deep engine replacements next to Conductor** | Sodium replaces the chunk renderer; Lithium rewrites game logic. | Nothing: Conductor's hooks, content and overlays worked next to both (§4 there). |
+| **A whole new renderer: 1.21.11 → 26.3** | 26.3 extracts the level into a frame before drawing it, and draws debug lines as gizmos. It picks block render layers from texture pixels; `RenderType` registration for blocks is gone. Conductor's 26.3 render hook moved to `LevelExtractor`, its `VersionLineDrawer` emits gizmos, and its render-layer class became a no-op. | **Nothing.** The same `block-highlighter` and `ruby-content` jars drew overlays, see-through glass, doors and mobs on 26.3 ([live-run-26.3.md](live-run-26.3.md)). |
 | **A failing hook** | `Hooks.renderWorld` catches a renderer failure and switches overlays off; all Conductor Mixins are `required: false`. | The game keeps running. This is the platform rule "Conductor never crashes the game". |
 
 The pattern: **a module states what it wants, and Conductor's per-version code decides how.** When the engine changes, that per-version code is the only thing that moves.
@@ -51,7 +52,7 @@ The pattern: **a module states what it wants, and Conductor's per-version code d
    - Native modules will declare the Minecraft version they were built for, and Conductor will refuse one built for another version with a clear message.
    - Conductor will load a native module's Mixins as non-required and check every injection point.
    - When one is missing, Conductor will switch off *that module*, with a report naming the target, instead of crashing.
-5. **Cheaper per-version work.** Mojang has announced unobfuscated game jars from the 26.x line (Reported). That makes "reference once per version" cheaper: no mapping step. It does not stop code structure changing, which is why steps 1–4 matter.
+5. **Cheaper per-version work.** Mojang ships the 26.x line unobfuscated (Verified on 26.3: no `client_mappings`, and Conductor's 26.3 build uses Mojang's names directly). That makes "reference once per version" cheaper: no mapping step. It does not stop code structure changing, which is why steps 1–4 matter.
 
 **What Conductor will not promise:**
 - A mod that rewrites the lighting engine's internals needs rewriting when Mojang rewrites lighting.
