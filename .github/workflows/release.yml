@@ -24,11 +24,12 @@ jobs:
         with:
           path: conductor
       # The optional Ostinato engine layer (1.21.11, 1.21.4) compiles against an Ostinato checkout's classes; Ostinato
-      # itself is not shipped. Branches as in build.gradle's mcTargets.
+      # itself is not shipped. Branches as in build.gradle's mcTargets: '1.21.11' and '1.21.4' (Ostinato main is the 26.3
+      # line, which has no engine layer yet).
       - uses: actions/checkout@v4
         with:
           repository: vexrypt-rgb/Ostinato
-          ref: main
+          ref: '1.21.11'
           path: ostinato
       - uses: actions/checkout@v4
         with:

@@ -83,7 +83,7 @@ Keep these in mind and none of the rejections in §6 will surprise you.
 You need:
 - **JDK 21**
 - **An Ostinato checkout for each Minecraft version you build the Conductor mod for**, with its classes compiled. The Conductor mod bundles the optional Ostinato engine layer, which is compiled against them. This is a build-time need only: the built mod runs with or without Ostinato.
-  - `main` branch, for 1.21.11: put it next to Conductor as `../Ostinato`
+  - `1.21.11` branch (not `main`, which is the 26.3 line): put it next to Conductor as `../Ostinato`, or pass `-PostinatoDir=/path`
   - `1.21.4` branch: put it next to Conductor as `../Ostinato-1.21.4`, or pass `-PostinatoDir_1_21_4=/path`
 
   Writing a **module** needs none of this: a module only needs the `contract` project.

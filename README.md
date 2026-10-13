@@ -78,7 +78,8 @@ Deferred capability candidates (combat and others): [docs/deferred-candidates.md
 ./gradlew :runtime-1.21.11:test
 
 # the Conductor mod bundles the optional Ostinato engine layer, which compiles against a local Ostinato checkout's
-# classes (default ../Ostinato; -PostinatoDir_1_21_4=/path for 1.21.4). This is a build-time need only: the built
+# classes (default ../Ostinato on its 1.21.11 branch, and ../Ostinato-1.21.4 on its 1.21.4 branch; -PostinatoDir=/path
+# and -PostinatoDir_1_21_4=/path override them). This is a build-time need only: the built
 # mod runs with or without Ostinato installed.
 (cd ../Ostinato && ./gradlew compileJava compileApiJava)
 ./gradlew test build

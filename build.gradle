@@ -6,7 +6,8 @@ plugins {
 // compiles against an Ostinato branch checkout's classes (ostinatoDir); Ostinato is never repackaged. Values mirror each branch's
 // gradle.properties / build.gradle.
 ext.mcTargets = [
-    '1.21.11': [branch: 'main', parchment: '2025.12.20', loader: '0.19.5',
+    // The default ../Ostinato checkout must be on Ostinato's 1.21.11 branch (Ostinato main is the 26.3 line).
+    '1.21.11': [branch: '1.21.11', parchment: '2025.12.20', loader: '0.19.5',
                 ostinatoDir: findProperty('ostinatoDir') ?: "${rootDir}/../Ostinato"],
     '1.21.4' : [branch: '1.21.4', parchment: '2025.03.23', loader: '0.18.5',
                 ostinatoDir: findProperty('ostinatoDir_1_21_4') ?: "${rootDir}/../Ostinato-1.21.4"],
