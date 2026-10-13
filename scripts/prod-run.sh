@@ -124,10 +124,14 @@ fi
 ( until grep -q "Dev joined the game" "$JOINLOG" 2>/dev/null; do sleep 1; done; sleep "$HOLD"; pkill -f "KnotClient" || true ) &
 
 JVM_PROPS="${CONDUCTOR_MODULES:+-Dconductor.modulesDir=$CONDUCTOR_MODULES} ${CONDUCTOR_CONFIG:+-Dconductor.configDir=$CONDUCTOR_CONFIG} ${CLIENT_JVM_ARGS:-}"
+[ -d "$WORK/natives" ] && JVM_PROPS="$JVM_PROPS -Djava.library.path=$WORK/natives"
 # quick play arrived in 1.20. Before it, --server connects during the first resource reload, and vanilla 1.16.1 then
 # crashes drawing chunks before block models are baked (seen with no mods at all). Older versions join through
 # scripts/legacy-join, a harness-only mod that connects once loading is over.
 case "$MC" in
+    1.1[0-2]|1.1[0-2].*)
+        # 1.10 to 1.12: a direct connect argument (quick play is 1.20+)
+        JOIN="--server localhost --port 25565" ;;
     1.1[0-9]|1.1[0-9].*)
         JOIN=""
         JOINDIR="$WORK/legacy-join"; rm -rf "$JOINDIR"; mkdir -p "$JOINDIR/classes"
@@ -142,7 +146,7 @@ esac
 case "$MC" in
     2[6-9].*) export SDL_VIDEO_FORCE_EGL=${SDL_VIDEO_FORCE_EGL-1} ;;
 esac
-timeout "${CLIENT_TIMEOUT:-900}" xvfb-run -a -s "-screen 0 1280x720x24" \
+timeout "${CLIENT_TIMEOUT:-900}" xvfb-run -a -s "${XVFB_ARGS:--screen 0 1280x720x24}" \
     java -Xmx3G $JVM_PROPS -cp "$CP" net.fabricmc.loader.impl.launch.knot.KnotClient \
     --username Dev --version "$MC" --gameDir "$GAME" --assetsDir /root/.gradle/caches/unimined/assets \
     --assetIndex "$ASSET_INDEX" --uuid 00000000-0000-0000-0000-0000000000d1 --accessToken 0 --userType legacy \

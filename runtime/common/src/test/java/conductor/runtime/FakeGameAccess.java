@@ -51,7 +51,7 @@ public final class FakeGameAccess implements GameAccess {
     }
 
     @Override
-    public boolean canReach(net.minecraft.world.entity.Entity target) {
+    public boolean canReach(Object target) {
         return true;
     }
 

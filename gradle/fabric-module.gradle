@@ -34,16 +34,27 @@ sourceSets {
 unimined.minecraft {
     version mc
     mappings {
-        if (!target.unobfuscated) {
-            intermediary()
-        }
-        mojmap()
-        if (target.parchment) {
-            parchment(mc, target.parchment)
+        if (target.yarn) {
+            legacyIntermediary()
+            legacyYarn(target.yarn)
+        } else {
+            if (!target.unobfuscated) {
+                intermediary()
+            }
+            mojmap()
+            if (target.parchment) {
+                parchment(mc, target.parchment)
+            }
         }
     }
-    fabric {
-        loader target.loader
+    if (target.legacyFabric) {
+        legacyFabric {
+            loader target.loader
+        }
+    } else {
+        fabric {
+            loader target.loader
+        }
     }
     runs.off = true
 }
