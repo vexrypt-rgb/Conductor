@@ -7,8 +7,8 @@ import conductor.runtime.Hooks;
 import conductor.runtime.ModuleDiscovery;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import java.nio.file.Path;
 
@@ -25,7 +25,7 @@ import java.nio.file.Path;
  */
 public final class ConductorHostMod implements ClientModInitializer {
 
-    private static final Logger LOG = LoggerFactory.getLogger("conductor");
+    private static final Logger LOG = LogManager.getLogger("conductor");
 
     @Override
     public void onInitializeClient() {

@@ -27,7 +27,7 @@ abstract class CreativeModeTabMixin {
         try {
             ContentInstaller.addTabItems((CreativeModeTab) (Object) this, displayItems, displayItemsSearchTab);
         } catch (RuntimeException | LinkageError e) {
-            org.slf4j.LoggerFactory.getLogger("conductor").warn("Conductor could not list module items in a creative tab: {}", e.toString());
+            org.apache.logging.log4j.LogManager.getLogger("conductor").warn("Conductor could not list module items in a creative tab: {}", e.toString());
         }
     }
 }

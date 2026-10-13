@@ -5,8 +5,8 @@ import conductor.runtime.ContentHooks;
 import conductor.runtime.ModuleDiscovery;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,7 +17,7 @@ import java.nio.file.Path;
  */
 public final class ConductorPreLaunch implements PreLaunchEntrypoint {
 
-    private static final Logger LOG = LoggerFactory.getLogger("conductor");
+    private static final Logger LOG = LogManager.getLogger("conductor");
     @Override
     public void onPreLaunch() {
         try {

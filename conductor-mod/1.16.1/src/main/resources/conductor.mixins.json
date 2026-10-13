@@ -1,0 +1,17 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "conductor.host.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [],
+  "client": [
+    "MinecraftMixin",
+    "LocalPlayerMixin",
+    "ClientPacketListenerMixin",
+    "LevelRendererMixin",
+    "ItemBlockRenderTypesAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

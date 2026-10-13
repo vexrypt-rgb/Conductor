@@ -4,8 +4,8 @@ import conductor.contract.ContextTracker;
 import conductor.contract.ContractService;
 import conductor.contract.DiagnosticSink;
 import conductor.contract.ReleasePolicy;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import java.util.Objects;
 import java.util.ServiceLoader;
@@ -16,7 +16,7 @@ import java.util.ServiceLoader;
  */
 public final class ConductorRuntime {
 
-    private static final Logger LOG = LoggerFactory.getLogger("conductor");
+    private static final Logger LOG = LogManager.getLogger("conductor");
 
     /** The installed core: the contract service plus the pieces the bootstrap and tests drive. */
     public record Installed(ContractService service, String engine, Runnable tick, Lifecycle lifecycle) {

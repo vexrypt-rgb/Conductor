@@ -7,8 +7,8 @@ import conductor.contract.InMemoryDiagnosticSink;
 import conductor.contract.ModuleHost;
 import conductor.contract.ReleasePolicy;
 import conductor.contract.SettingsStore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -24,7 +24,7 @@ import java.util.Objects;
  */
 public final class ConductorBootstrap {
 
-    private static final Logger LOG = LoggerFactory.getLogger("conductor");
+    private static final Logger LOG = LogManager.getLogger("conductor");
 
     private ConductorBootstrap() {}
 

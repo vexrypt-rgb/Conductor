@@ -51,8 +51,8 @@ import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -70,7 +70,7 @@ import java.util.Set;
  */
 public final class ContentInstaller {
 
-    private static final Logger LOG = LoggerFactory.getLogger("conductor");
+    private static final Logger LOG = LogManager.getLogger("conductor");
     private static boolean installed;
     /** Creative tab id to the items listed in it, in declaration order. */
     private static final Map<String, List<Item>> TAB_ITEMS = new HashMap<>();

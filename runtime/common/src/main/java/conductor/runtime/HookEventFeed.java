@@ -3,8 +3,8 @@ package conductor.runtime;
 import conductor.contract.BlockPoint;
 import conductor.contract.EventPort;
 import conductor.contract.GameEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 final class HookEventFeed implements EventPort {
 
-    private static final Logger LOG = LoggerFactory.getLogger("conductor");
+    private static final Logger LOG = LogManager.getLogger("conductor");
     static final int MAX_QUEUED = 50_000;
 
     /** A player chat line whose sender name is resolved on the game thread. */

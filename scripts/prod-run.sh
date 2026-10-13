@@ -13,7 +13,8 @@
 #      HOLD (seconds to stay in the world, default 60),
 #      SERVER_MODS (colon-separated jars: run the server as a Fabric dedicated server with these in its mods/ folder;
 #      it needs <workdir>/server to have run once so the vanilla bundler unpacked versions/ and libraries/),
-#      SERVER_MODULES (modules folder for that server, as CONDUCTOR_MODULES is for the client).
+#      SERVER_MODULES (modules folder for that server, as CONDUCTOR_MODULES is for the client),
+#      CLIENT_JVM_ARGS (extra JVM options for the client, e.g. -Dmixin.debug.export=true).
 # The game, assets and libraries come from the local Gradle caches (scripts/prod_classpath.py).
 # Output: <workdir>/prod-client.log, server.log, screenshot.png.
 set -euo pipefail
@@ -105,11 +106,25 @@ fi
 # stop the client HOLD seconds after it joined
 ( until grep -q "Dev joined the game" "$WORK/server.log" 2>/dev/null; do sleep 1; done; sleep "$HOLD"; pkill -f "KnotClient" || true ) &
 
-JVM_PROPS="${CONDUCTOR_MODULES:+-Dconductor.modulesDir=$CONDUCTOR_MODULES} ${CONDUCTOR_CONFIG:+-Dconductor.configDir=$CONDUCTOR_CONFIG}"
+JVM_PROPS="${CONDUCTOR_MODULES:+-Dconductor.modulesDir=$CONDUCTOR_MODULES} ${CONDUCTOR_CONFIG:+-Dconductor.configDir=$CONDUCTOR_CONFIG} ${CLIENT_JVM_ARGS:-}"
+# quick play arrived in 1.20. Before it, --server connects during the first resource reload, and vanilla 1.16.1 then
+# crashes drawing chunks before block models are baked (seen with no mods at all). Older versions join through
+# scripts/legacy-join, a harness-only mod that connects once loading is over.
+case "$MC" in
+    1.1[0-9]|1.1[0-9].*)
+        JOIN=""
+        JOINDIR="$WORK/legacy-join"; rm -rf "$JOINDIR"; mkdir -p "$JOINDIR/classes"
+        javac --release 8 -nowarn -d "$JOINDIR/classes" -cp "$(head -1 "$WORK/prod-classpath.txt")" \
+            "$ROOT/scripts/legacy-join/src/conductor/testjoin/LegacyJoin.java"
+        cp "$ROOT/scripts/legacy-join/fabric.mod.json" "$JOINDIR/classes/"
+        (cd "$JOINDIR/classes" && jar cf "$GAME/mods/conductor-test-join.jar" .)
+        JVM_PROPS="$JVM_PROPS -Dconductor.testJoin=localhost:25565" ;;
+    *) JOIN="--quickPlayMultiplayer localhost:25565" ;;
+esac
 timeout "${CLIENT_TIMEOUT:-900}" xvfb-run -a -s "-screen 0 1280x720x24" \
     java -Xmx3G $JVM_PROPS -cp "$CP" net.fabricmc.loader.impl.launch.knot.KnotClient \
     --username Dev --version "$MC" --gameDir "$GAME" --assetsDir /root/.gradle/caches/unimined/assets \
     --assetIndex "$ASSET_INDEX" --uuid 00000000-0000-0000-0000-0000000000d1 --accessToken 0 --userType legacy \
-    --versionType release --quickPlayMultiplayer localhost:25565 \
+    --versionType release $JOIN \
     > "$WORK/prod-client.log" 2>&1 || echo "client exited with $?"
 echo "done; client log: $WORK/prod-client.log"

@@ -10,6 +10,8 @@ ext.mcTargets = [
                 ostinatoDir: findProperty('ostinatoDir') ?: "${rootDir}/../Ostinato"],
     '1.21.4' : [branch: '1.21.4', parchment: '2025.03.23', loader: '0.18.5',
                 ostinatoDir: findProperty('ostinatoDir_1_21_4') ?: "${rootDir}/../Ostinato-1.21.4"],
+    // A legacy target to test how far version-agnostic modules reach: no Parchment, no Ostinato, its own content code.
+    '1.16.1' : [legacy: true, loader: '0.19.5'],
 ]
 
 subprojects {

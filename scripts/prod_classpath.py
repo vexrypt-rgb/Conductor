@@ -52,6 +52,10 @@ for lib in v['libraries']:
     p = find(g, a, ver, cls)
     if p: cp.append(p)
     else: missing.append(lib['name'])
+    native = lib.get('natives', {}).get('linux')  # versions before 1.19 list natives as a classifier of the library
+    if native:
+        p = find(g, a, ver, native)
+        (cp.append(p) if p else missing.append(f"{lib['name']}:{native}"))
 if not server_dir:
     cp.append(f"{U}/net/minecraft/minecraft/{mc}/minecraft-{mc}-client.jar")
 seen=[]; [seen.append(x) for x in cp if x and x not in seen]

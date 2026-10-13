@@ -535,9 +535,11 @@ Read the script header for the details.
 
 Thanks to the shared code, a new version is mostly configuration:
 
-1. **Add the version to `mcTargets`** in `build.gradle`, with its Parchment and Fabric Loader versions and, if there is an Ostinato branch for it, where its checkout lives.
+1. **Add the version to `mcTargets`** in `build.gradle`, with its Parchment and Fabric Loader versions and, if there is an Ostinato branch for it, where its checkout lives (or `legacy: true`, see step 3).
 2. **Create `runtime/<mc>/`** with a 2-line `build.gradle` and its own `MinecraftGameAccess.java`. That class holds every Minecraft call that can differ between versions (thread check, dimension name, connection, reach, selected slot). For 1.21.4 versus 1.21.11 the differences were a handful of renamed methods.
-3. **Create `conductor-mod/<mc>/`** with a 3-line `build.gradle`, its `conductor.mixins.json`, and the per-version render hook: `LevelRendererMixin` and `VersionLineDrawer` (overlay drawing changed a lot between versions). The other hooks (tick, chat, packets) are shared in `conductor-mod/common` and only need checking.
+3. **Create `conductor-mod/<mc>/`** with a 3-line `build.gradle`, its `conductor.mixins.json`, and the per-version render hook: `LevelRendererMixin` and `VersionLineDrawer` (overlay drawing changed a lot between versions). The client-tick hook and the entrypoints are shared in `conductor-mod/common`. The chat and packet hooks and the content Mixins are shared by the 1.21 versions in `conductor-mod/modern` and only need checking there.
+
+   **An older version** (one whose APIs differ too much for `runtime/modern` and `conductor-mod/modern`) is a `legacy: true` target, as 1.16.1 is. It gets no Parchment and no Ostinato. It brings its own `MinecraftPlayerAccess`, `ContentInstaller`, chat and packet Mixins. See [`live-run-1.16.1.md`](live-run-1.16.1.md).
 4. **Optional, for travel and combat: `engine-ostinato/<mc>/`.** Check the Ostinato branch has the API Conductor uses (`IMovementEngine`, `IPathingBehavior`, `IPathingControlManager`, `IInputOverrideHandler`): `git diff` those files against `main`. Then `live-harness/<mc>/` (with its `Compat.java`) for evidence runs.
 5. **Add the version** to the list in `settings.gradle`. Existing modules need **nothing**: they keep working, because they never touch Minecraft.
 6. **Run `./gradlew test`**: the same runtime and engine-layer tests now run on the new version too. Then do a live run with `MC=<version>`.

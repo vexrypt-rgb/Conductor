@@ -44,7 +44,7 @@ abstract class PackRepositoryMixin {
             with.add(ContentInstaller.packSource(type));
             sources = Set.copyOf(with);
         } catch (RuntimeException | LinkageError e) {
-            org.slf4j.LoggerFactory.getLogger("conductor").warn("Conductor could not add module packs: {}", e.toString());
+            org.apache.logging.log4j.LogManager.getLogger("conductor").warn("Conductor could not add module packs: {}", e.toString());
         }
     }
 }

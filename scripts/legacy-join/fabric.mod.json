@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "conductor-test-join",
+  "version": "1.0.0",
+  "name": "Conductor test join (harness only)",
+  "description": "Joins a server once the first resource reload is over. Used by scripts/prod-run.sh on Minecraft 1.16.x.",
+  "environment": "client",
+  "entrypoints": { "client": ["conductor.testjoin.LegacyJoin"] }
+}

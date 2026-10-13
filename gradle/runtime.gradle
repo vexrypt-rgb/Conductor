@@ -1,5 +1,5 @@
-// Conductor's runtime for one Minecraft version. Applied by runtime/<mc>/build.gradle, which sets ext.mc. Shared
-// sources and tests live in runtime/common. No engine (Ostinato or otherwise) is on the classpath: the compiler
+// Conductor's runtime for one Minecraft version. Applied by runtime/<mc>/build.gradle, which sets ext.mc. Sources
+// and tests every version shares live in runtime/common; runtime/modern adds the ones only 1.21.x shares. No engine (Ostinato or otherwise) is on the classpath: the compiler
 // itself keeps the runtime independent of it.
 apply plugin: 'xyz.wagyourtail.unimined'
 
@@ -13,7 +13,9 @@ repositories {
 
 sourceSets {
     main.java.srcDirs += rootProject.file('runtime/common/src/main/java')
-    main.resources.srcDirs += rootProject.file('runtime/common/src/main/resources')
+    if (!target.legacy) {
+        main.java.srcDirs += rootProject.file('runtime/modern/src/main/java')
+    }
     test.java.srcDirs += rootProject.file('runtime/common/src/test/java')
 }
 
@@ -22,7 +24,9 @@ unimined.minecraft {
     mappings {
         intermediary()
         mojmap()
-        parchment(mc, target.parchment)
+        if (target.parchment) {
+            parchment(mc, target.parchment)
+        }
     }
     runs.off = true
     defaultRemapJar = false

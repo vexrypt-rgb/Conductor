@@ -5,9 +5,11 @@ apply plugin: 'xyz.wagyourtail.unimined'
 
 def target = rootProject.mcTargets[mc]
 def runtime = project(":runtime-${mc}")
-def engine = project(":engine-ostinato-${mc}")
+def engine = target.legacy ? null : project(":engine-ostinato-${mc}") // no Ostinato build for legacy targets
 evaluationDependsOn(runtime.path)
-evaluationDependsOn(engine.path)
+if (engine) {
+    evaluationDependsOn(engine.path)
+}
 
 repositories {
     maven { url = 'https://maven.fabricmc.net/' }
@@ -18,6 +20,11 @@ repositories {
 sourceSets {
     main.java.srcDirs += rootProject.file("${commonDir}/src/main/java")
     main.resources.srcDirs += rootProject.file("${commonDir}/src/main/resources")
+    // a module's code that only 1.21.x shares, if it has any (the Conductor mod's content mixins)
+    def modern = rootProject.file("${commonDir}/../modern/src/main/java")
+    if (!target.legacy && modern.isDirectory()) {
+        main.java.srcDirs += modern
+    }
 }
 
 unimined.minecraft {
@@ -25,7 +32,9 @@ unimined.minecraft {
     mappings {
         intermediary()
         mojmap()
-        parchment(mc, target.parchment)
+        if (target.parchment) {
+            parchment(mc, target.parchment)
+        }
     }
     fabric {
         loader target.loader
@@ -40,11 +49,15 @@ dependencies {
     if (bundle) {
         implementation project(':contract')
         implementation runtime
-        implementation engine
+        if (engine) {
+            implementation engine
+        }
     } else {
         compileOnly project(':contract')
     }
-    compileOnly engine.ostinatoClasses // only the live harness uses Ostinato directly
+    if (engine) {
+        compileOnly engine.ostinatoClasses // only the live harness uses Ostinato directly
+    }
 }
 
 processResources {
@@ -61,6 +74,8 @@ if (bundle) {
     jar {
         from project(':contract').sourceSets.main.output
         from runtime.sourceSets.main.output
-        from engine.sourceSets.main.output
+        if (engine) {
+            from engine.sourceSets.main.output
+        }
     }
 }
