@@ -75,8 +75,8 @@ final class MinecraftGameAccess implements GameAccess {
     }
 
     @Override
-    public boolean canReach(net.minecraft.world.entity.Entity target) {
-        return ctx.player().canInteractWithEntity(target, 0);
+    public boolean canReach(Object target) {
+        return ctx.player().canInteractWithEntity((net.minecraft.world.entity.Entity) target, 0);
     }
 
     @Override

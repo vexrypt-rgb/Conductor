@@ -16,6 +16,10 @@ if (engine) {
 }
 
 repositories {
+    if (target.ancient) {
+        maven { url = 'https://maven.ornithemc.net/releases' }
+        maven { url = 'https://repo.legacyfabric.net/repository/legacyfabric/' } // 1.0's LWJGL 2 build
+    }
     maven { url = 'https://maven.fabricmc.net/' }
     maven { url = 'https://maven.parchmentmc.net/' }
     mavenCentral()
@@ -23,7 +27,13 @@ repositories {
 
 sourceSets {
     main.java.srcDirs += rootProject.file("${commonDir}/src/main/java")
-    main.resources.srcDirs += rootProject.file("${commonDir}/src/main/resources")
+    if (target.ancient) {
+        // 1.0's hooks are its own (no Brigadier, other class names), and so is its fabric.mod.json (it lists a
+        // server-only mixin config)
+        main.java.exclude 'conductor/host/mixin/**'
+    } else {
+        main.resources.srcDirs += rootProject.file("${commonDir}/src/main/resources")
+    }
     // a module's code that only 1.21.x shares, if it has any (the Conductor mod's content mixins)
     def modern = rootProject.file("${commonDir}/../modern/src/main/java")
     if (!target.legacy && modern.isDirectory()) {
@@ -32,26 +42,72 @@ sourceSets {
 }
 
 unimined.minecraft {
-    version mc
-    mappings {
-        if (!target.unobfuscated) {
-            intermediary()
+    if (target.ancient) {
+        minecraftData.launcherMetaUrl = uri('https://ornithemc.net/mc-versions/version_manifest.json')
+        version mc
+        side 'client'
+        mappings {
+            ornitheGenVersion = 2
+            calamus()
+            feather(target.feather)
+            devNamespace 'feather'
         }
-        mojmap()
-        if (target.parchment) {
-            parchment(mc, target.parchment)
+        ornitheFabric {
+            loader target.loader
+            prodNamespace 'calamus'
         }
-    }
-    fabric {
-        loader target.loader
+    } else {
+        version mc
+        mappings {
+            if (!target.unobfuscated) {
+                intermediary()
+            }
+            mojmap()
+            if (target.parchment) {
+                parchment(mc, target.parchment)
+            }
+        }
+        fabric {
+            loader target.loader
+        }
     }
     runs.off = true
+}
+
+// 1.0's client and server are separate jars with separate Calamus names, so server hooks are compiled against the
+// server jar in their own source set (src/server, plus the runtime's runtime/<mc>/src/server) and remapped with the
+// server's names. modJar is the one mod jar: the client-remapped jar plus the server source set's own classes from the
+// server-remapped jar. Fabric loads only the server mixin config on a server, and never loads client classes there.
+if (target.ancient) {
+    sourceSets {
+        server {
+            java.srcDirs += rootProject.file("runtime/${mc}/src/server/java")
+            // not main's classpath: that holds the client jar, whose classes share names (not members) with the server's
+            compileClasspath += main.output + files(runtime.sourceSets.main.output, project(':contract').sourceSets.main.output)
+        }
+    }
+    unimined.minecraft(sourceSets.server) {
+        combineWith(sourceSets.main)
+        side 'server'
+    }
+    tasks.register('modJar', Jar) {
+        dependsOn remapJar, remapServerJar
+        archiveClassifier = 'mod'
+        from(zipTree(remapJar.archiveFile))
+        from(zipTree(remapServerJar.archiveFile)) {
+            include 'conductor/runtime/ServerHooks*.class', 'conductor/host/mc10/server/**', 'conductor-server.mixins*.json'
+        }
+    }
+    build.dependsOn modJar
 }
 
 // bundleConductor = false: a module that runs inside an installed Conductor mod; contract and runtime come from it.
 def bundle = !project.hasProperty('bundleConductor') || project.bundleConductor
 
 dependencies {
+    if (target.ancient) {
+        compileOnly 'org.apache.logging.log4j:log4j-api:2.19.0' // see runtime.gradle
+    }
     if (bundle) {
         implementation project(':contract')
         implementation runtime
@@ -69,8 +125,9 @@ dependencies {
 processResources {
     inputs.property 'mc', mc
     inputs.property 'version', project.version
+    inputs.property 'java', target.java ?: 21
     filesMatching('fabric.mod.json') {
-        expand mc: mc, version: project.version
+        expand mc: mc, version: project.version, java: target.java ?: 21
     }
 }
 

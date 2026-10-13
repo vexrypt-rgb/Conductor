@@ -43,7 +43,7 @@ public final class ServerModules {
         Optional<String> blockAt(String dimension, int x, int y, int z);
     }
 
-    /** Where this class reports; log4j in the game, a list in tests. */
+    /** Where this class reports; ConductorLog in the game, a list in tests. */
     public interface Log {
         void info(String message);
 
@@ -313,7 +313,7 @@ public final class ServerModules {
         }
         synchronized (ServerModules.class) {
             if (instance == null) {
-                Log log = log4j();
+                Log log = gameLog();
                 Map<String, ServerModule> found = Map.of();
                 try {
                     ModuleDiscovery.Found f = ModuleDiscovery.discoverServer(modulesDir, loader != null ? loader
@@ -332,19 +332,18 @@ public final class ServerModules {
         }
     }
 
-    private static Log log4j() {
-        org.apache.logging.log4j.Logger l = org.apache.logging.log4j.LogManager.getLogger("conductor");
+    private static Log gameLog() {
         return new Log() {
             public void info(String message) {
-                l.info(message);
+                ConductorLog.info("{}", message);
             }
 
             public void warn(String message) {
-                l.warn(message);
+                ConductorLog.warn("{}", message);
             }
 
             public void error(String message, Throwable t) {
-                l.error(message, t);
+                ConductorLog.error("{}", message, t);
             }
         };
     }

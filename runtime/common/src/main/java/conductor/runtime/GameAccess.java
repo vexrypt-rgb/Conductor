@@ -33,8 +33,12 @@ interface GameAccess {
     /** Game thread only. The name of the player with this id on the current server, or null when not known. */
     String playerName(java.util.UUID id);
 
-    /** Game thread only. Whether the player can reach {@code target} to attack it; only called with a player. */
-    boolean canReach(net.minecraft.world.entity.Entity target);
+    /**
+     * Game thread only. Whether the player can reach {@code target} to attack it; only called with a player, and with
+     * an entity of this version's world. Typed Object so this interface names no Minecraft class (1.0's entity class
+     * is not where newer versions keep theirs).
+     */
+    boolean canReach(Object target);
 
     /** Game thread only. The selected hotbar slot (0-8); only called with a player. */
     int selectedSlot();

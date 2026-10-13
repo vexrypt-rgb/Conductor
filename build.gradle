@@ -15,6 +15,10 @@ ext.mcTargets = [
     // The first year-numbered release Conductor targets: Mojang ships it unobfuscated (no intermediary) and it needs
     // Java 25. No engine layer yet.
     '26.3'   : [noEngine: true, unobfuscated: true, java: 25, loader: '0.19.5'],
+    // The oldest target: Mojang's 1.0 has no official names, so it is built with Ornithe's (Calamus intermediary,
+    // Feather names). Its client and server are separate jars with separate names; the server's hooks are their own
+    // source set. Behaviour and server modules only: 1.0 has nothing content modules could register into.
+    '1.0.0'  : [ancient: true, legacy: true, noEngine: true, loader: '0.19.5', feather: 2],
 ]
 
 subprojects {

@@ -1,0 +1,16 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "conductor.host.mc10.client",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "MinecraftMixin",
+    "LocalClientPlayerEntityMixin",
+    "ClientNetworkHandlerMixin",
+    "GameRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  },
+  "refmap": "conductor.mixins-refmap.json"
+}

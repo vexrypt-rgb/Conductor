@@ -42,18 +42,14 @@ public final class CustomMobAssets {
                 animations = MobAnimations.parse(MobFiles.read(jar, file, minecraft));
                 java.util.List<String> unknown = animations.unknownBones(geometry.boneNames());
                 if (!unknown.isEmpty()) {
-                    log().warn("Conductor mob {}: animations move bones {} that the model does not have; those parts do nothing",
+                    ConductorLog.warn("Conductor mob {}: animations move bones {} that the model does not have; those parts do nothing",
                             d.id(), unknown);
                 }
             }
             return Optional.of(new Loaded(geometry, animations));
         } catch (java.io.IOException | RuntimeException e) {
-            log().error("Conductor mob {}: cannot use {}: {}", d.id(), file, e.getMessage());
+            ConductorLog.error("Conductor mob {}: cannot use {}: {}", d.id(), file, e.getMessage());
             return Optional.empty();
         }
-    }
-
-    private static org.apache.logging.log4j.Logger log() {
-        return org.apache.logging.log4j.LogManager.getLogger("conductor");
     }
 }

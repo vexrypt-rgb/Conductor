@@ -10,6 +10,10 @@ if (target.java) {
 }
 
 repositories {
+    if (target.ancient) {
+        maven { url = 'https://maven.ornithemc.net/releases' }
+        maven { url = 'https://repo.legacyfabric.net/repository/legacyfabric/' } // 1.0's LWJGL 2 build
+    }
     maven { url = 'https://maven.fabricmc.net/' }
     maven { url = 'https://maven.parchmentmc.net/' }
     mavenCentral()
@@ -24,14 +28,28 @@ sourceSets {
 }
 
 unimined.minecraft {
-    version mc
-    mappings {
-        if (!target.unobfuscated) {
-            intermediary()
+    if (target.ancient) {
+        // Mojang's manifest calls it "1.0" and lists no server jar; Ornithe's names it 1.0.0 and has both. The
+        // runtime is client code; the server's hooks are compiled in the Conductor mod (gradle/fabric-module.gradle).
+        minecraftData.launcherMetaUrl = uri('https://ornithemc.net/mc-versions/version_manifest.json')
+        version mc
+        side 'client'
+        mappings {
+            ornitheGenVersion = 2
+            calamus()
+            feather(target.feather)
+            devNamespace 'feather'
         }
-        mojmap()
-        if (target.parchment) {
-            parchment(mc, target.parchment)
+    } else {
+        version mc
+        mappings {
+            if (!target.unobfuscated) {
+                intermediary()
+            }
+            mojmap()
+            if (target.parchment) {
+                parchment(mc, target.parchment)
+            }
         }
     }
     runs.off = true
@@ -41,6 +59,9 @@ unimined.minecraft {
 dependencies {
     implementation project(':contract')
     compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    if (target.ancient) {
+        compileOnly 'org.apache.logging.log4j:log4j-api:2.19.0' // ConductorLog names it; 1.0 has none, so it is never loaded
+    }
 
     testImplementation platform('org.junit:junit-bom:5.11.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'

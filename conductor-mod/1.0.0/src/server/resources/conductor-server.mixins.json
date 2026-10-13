@@ -1,0 +1,15 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "conductor.host.mc10.server",
+  "compatibilityLevel": "JAVA_21",
+  "server": [
+    "MinecraftServerMixin",
+    "ServerPlayNetworkHandlerMixin",
+    "CommandHandlerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  },
+  "refmap": "conductor-server.mixins-refmap.json"
+}

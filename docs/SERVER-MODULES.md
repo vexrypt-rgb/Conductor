@@ -11,7 +11,7 @@ It can also:
 - run console commands;
 - read blocks.
 
-The module is a plain jar written against `conductor.contract` only. The **same jar** runs on Minecraft 1.16.1, 1.21.4, 1.21.11 and 26.3. This was verified live on all four, on a dedicated server with a real client joining, and in single-player worlds on 1.21.4, 1.21.11 and 26.3 ([live-run-server-modules.md](live-run-server-modules.md)).
+The module is a plain jar written against `conductor.contract` only. The **same jar** runs on Minecraft 1.16.1, 1.21.4, 1.21.11 and 26.3. This was verified live on all four, on a dedicated server with a real client joining, and in single-player worlds on 1.21.4, 1.21.11 and 26.3 ([live-run-server-modules.md](live-run-server-modules.md)). It also runs on the Minecraft 1.0.0 dedicated server ([live-run-1.0.0.md](live-run-1.0.0.md)); §7 lists how 1.0 differs.
 
 Server modules sit beside the other kinds of module:
 
@@ -153,6 +153,12 @@ That client did not type the commands itself, so a mod-free client's command lis
 | Live-verified: dedicated server + client | yes | yes | yes | yes |
 | Live-verified: client without Conductor | yes | not run | yes | not run |
 | Live-verified: single-player | not run | yes | yes | yes |
+
+**Minecraft 1.0.0** has no Brigadier and no command framework at all, so it has its own hooks (`runtime/1.0.0/src/server`, `conductor-mod/1.0.0/src/server`):
+- **Commands:** a player's `/line` is checked in `ServerPlayNetworkHandler.runCommand` and the console's in `CommandHandler.run`, before vanilla sees it. A module command is answered there. Anything else goes on to vanilla.
+- **Players:** a non-operator who uses an operator-only command is told "You do not have permission". Newer versions hide the command instead.
+- **Chat and ids:** chat is passed on where vanilla broadcasts it. Players are known by name and their offline id. Replies longer than 119 characters are split, because a 1.0 client disconnects on a longer line. `runCommand("give <player> <item id> ...")` is rewritten to 1.0's numeric ids.
+- **Not checked:** single-player on 1.0, because 1.0's single-player runs no server.
 
 The rest (events, failures, commands, the module API) is one shared copy in `runtime/common` (`ServerModules`).
 

@@ -74,7 +74,8 @@ final class MinecraftGameAccess implements GameAccess {
     }
 
     @Override
-    public boolean canReach(Entity target) {
+    public boolean canReach(Object entity) {
+        Entity target = (Entity) entity;
         // 1.16.1 has no reach query: the distance from the eyes to the nearest point of the target's box
         Vec3 eye = player().getEyePosition(1.0F);
         AABB box = target.getBoundingBox();

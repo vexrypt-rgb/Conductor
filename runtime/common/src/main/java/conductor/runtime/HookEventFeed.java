@@ -3,8 +3,6 @@ package conductor.runtime;
 import conductor.contract.BlockPoint;
 import conductor.contract.EventPort;
 import conductor.contract.GameEvent;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.LogManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +18,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 final class HookEventFeed implements EventPort {
 
-    private static final Logger LOG = LogManager.getLogger("conductor");
     static final int MAX_QUEUED = 50_000;
 
     /** A player chat line whose sender name is resolved on the game thread. */
@@ -40,7 +37,7 @@ final class HookEventFeed implements EventPort {
         if (queued.incrementAndGet() > MAX_QUEUED) {
             queued.decrementAndGet();
             if (dropped.getAndIncrement() == 0) {
-                LOG.warn("Conductor event queue full ({}); dropping events until it drains", MAX_QUEUED);
+                ConductorLog.warn("Conductor event queue full ({}); dropping events until it drains", MAX_QUEUED);
             }
             return;
         }
@@ -63,7 +60,7 @@ final class HookEventFeed implements EventPort {
         }
         int lost = dropped.getAndSet(0);
         if (lost > 0) {
-            LOG.warn("Conductor dropped {} game events (queue full)", lost);
+            ConductorLog.warn("Conductor dropped {} game events (queue full)", lost);
         }
         return out;
     }
