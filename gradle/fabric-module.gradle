@@ -125,8 +125,9 @@ dependencies {
 processResources {
     inputs.property 'mc', mc
     inputs.property 'version', project.version
+    inputs.property 'java', target.java ?: 21
     filesMatching('fabric.mod.json') {
-        expand mc: mc, version: project.version
+        expand mc: mc, version: project.version, java: target.java ?: 21
     }
 }
 

@@ -15,6 +15,7 @@
   ],
   "depends": {
     "fabricloader": "*",
-    "minecraft": "${mc}"
+    "minecraft": "${mc}",
+    "java": ">=${java}"
   }
 }

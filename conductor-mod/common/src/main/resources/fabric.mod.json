@@ -12,7 +12,8 @@
   "mixins": ["conductor.mixins.json"],
   "depends": {
     "fabricloader": "*",
-    "minecraft": "${mc}"
+    "minecraft": "${mc}",
+    "java": ">=${java}"
   },
   "suggests": {
     "baritone": "*"

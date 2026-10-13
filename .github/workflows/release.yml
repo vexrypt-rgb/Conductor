@@ -1,0 +1,85 @@
+name: Release
+
+# Builds the Conductor mod for every Minecraft version it supports, the example modules and the module contract, and
+# publishes them as one GitHub release. Runs on a `v*` tag push; a tag with a `-` in it (v0.6.0-beta.1) is published
+# as a pre-release. Release text: RELEASE_NOTES.md; install steps: docs/INSTALL.md.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: conductor
+      # The optional Ostinato engine layer (1.21.11, 1.21.4) compiles against an Ostinato checkout's classes; Ostinato
+      # itself is not shipped. Branches as in build.gradle's mcTargets.
+      - uses: actions/checkout@v4
+        with:
+          repository: vexrypt-rgb/Ostinato
+          ref: main
+          path: ostinato
+      - uses: actions/checkout@v4
+        with:
+          repository: vexrypt-rgb/Ostinato
+          ref: '1.21.4'
+          path: ostinato-1.21.4
+      # Java 25 for the 26.3 target (a Gradle toolchain); Java 21 runs Gradle and everything else (the last one listed
+      # becomes JAVA_HOME).
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: |
+            25
+            21
+      - name: Compile Ostinato classes
+        run: |
+          for d in ostinato ostinato-1.21.4; do
+            (cd "$d" && chmod +x gradlew && ./gradlew --no-daemon compileJava compileApiJava)
+          done
+      - name: Build and test Conductor
+        working-directory: conductor
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon test build \
+            -PostinatoDir="$GITHUB_WORKSPACE/ostinato" \
+            -PostinatoDir_1_21_4="$GITHUB_WORKSPACE/ostinato-1.21.4" \
+            -Porg.gradle.java.installations.fromEnv=JAVA_HOME_25_X64 \
+            -Porg.gradle.java.installations.auto-download=false
+      - name: Collect release files
+        working-directory: conductor
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          v="${tag#v}"
+          version=$(sed -n "s/^ *version = '\(.*\)'/\1/p" build.gradle | head -1)
+          mkdir -p ../out
+          for mc in 1.0.0 1.16.1 1.21.4 1.21.11 26.3; do
+            # 1.0.0's mod jar is the client jar plus the server hooks (modJar, classifier "mod")
+            if [ "$mc" = 1.0.0 ]; then jar="conductor-mod/$mc/build/libs/conductor-mod-$mc-$version-mod.jar"
+            else jar="conductor-mod/$mc/build/libs/conductor-mod-$mc-$version.jar"; fi
+            cp -v "$jar" "../out/conductor-$v-mc$mc.jar"
+          done
+          # modules keep their built names: a module's id (and its settings file) comes from the jar's name
+          for m in walk-and-stop agnostic-combat player-actions block-highlighter engine-commands ruby-content server-greeter; do
+            cp -v "examples/$m/build/libs/example-$m-$version.jar" ../out/
+          done
+          cp -v "contract/build/libs/contract-$version.jar" "../out/conductor-contract-$version.jar"
+          (cd ../out && sha256sum *.jar > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          echo "PRERELEASE=$([[ "$tag" == *-* ]] && echo true || echo false)" >> "$GITHUB_ENV"
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Conductor ${{ github.ref_name }}
+          body_path: conductor/RELEASE_NOTES.md
+          prerelease: ${{ env.PRERELEASE }}
+          files: |
+            out/*.jar
+            out/SHA256SUMS.txt
+          fail_on_unmatched_files: true

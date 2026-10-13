@@ -28,6 +28,8 @@ Conductor is a version-agnostic module platform for Minecraft. It needs nothing 
 | **Server modules**: code on the server (dedicated or single-player): ticks, joins, leaves, deaths, chat, `/` commands, messages, console commands, block reads | Verified live with the `server-greeter` example on a Fabric dedicated server plus client on 1.16.1, 1.21.4, 1.21.11 and 26.3, same jar; single-player on 1.21.4, 1.21.11 and 26.3; a client without Conductor joining on 1.16.1 and 1.21.11 | [docs/SERVER-MODULES.md](docs/SERVER-MODULES.md), [docs/live-run-server-modules.md](docs/live-run-server-modules.md) |
 | **Ostinato as a module** (Ostinato branch `conductor-module`: its `#` commands take the movement lease; `EngineCommands` for every Ostinato feature) and the **1.21.11 release** | Released (Ostinato 1.21.0 + Conductor 0.5.0); verified in a production Fabric launch with the shipped jars | [docs/live-run-ostinato-module.md](docs/live-run-ostinato-module.md) |
 
+**Install it:** download the jars from [Releases](https://github.com/vexrypt-rgb/Conductor/releases) (the 0.6.0 beta covers 26.3, 1.21.11, 1.21.4, 1.16.1 and 1.0.0). Which file you need and the steps for each version are in [docs/INSTALL.md](docs/INSTALL.md).
+
 **New here? Start with the [tutorial](docs/TUTORIAL.md)**: what Conductor does, every capability, and how to build a module. Worked examples:
 - [`examples/walk-and-stop`](examples/walk-and-stop): travel.
 - [`examples/agnostic-combat`](examples/agnostic-combat): one jar whose spear part switches itself off on 1.21.4.
