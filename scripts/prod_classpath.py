@@ -12,8 +12,10 @@ cp, missing = [], []
 loader = find('net.fabricmc', 'fabric-loader', loader_ver)
 cp.append(loader)
 inst = json.loads(zipfile.ZipFile(loader).read('fabric-installer.json'))
+taken = set()
 for lib in inst['libraries']['common'] + inst['libraries'].get('client', []):
     g, a, v = lib['name'].split(':')[:3]
+    taken.add((g, a, None))
     p = find(g, a, v)
     (cp.append(p) if p else missing.append(lib['name']))
 inter = glob.glob(f"{G}/net.fabricmc/intermediary/{mc}/*/intermediary-{mc}-v2.jar")
@@ -33,6 +35,7 @@ for lib in v['libraries']:
     parts = lib['name'].split(':')
     g, a, ver = parts[:3]
     cls = parts[3] if len(parts) > 3 else None
+    if (g, a, cls) in taken: continue  # the loader's copy wins, as in the launcher (MC 1.21.4 lists asm 9.6 too)
     p = find(g, a, ver, cls)
     if p: cp.append(p)
     else: missing.append(lib['name'])

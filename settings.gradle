@@ -24,11 +24,13 @@ project(':example-block-highlighter').projectDir = file('examples/block-highligh
 include 'example-engine-commands'
 project(':example-engine-commands').projectDir = file('examples/engine-commands')
 
-// Per Minecraft version (see mcTargets in build.gradle): the runtime adapter, the Conductor mod that hosts modules,
-// and the live test harness.
+// Per Minecraft version (see mcTargets in build.gradle): Conductor's runtime (no engine), the optional Ostinato engine
+// layer, the Conductor mod that hosts modules, and the live test harness.
 ['1.21.11', '1.21.4'].each { mc ->
-    include "runtime-ostinato-${mc}"
-    project(":runtime-ostinato-${mc}").projectDir = file("runtime-ostinato/${mc}")
+    include "runtime-${mc}"
+    project(":runtime-${mc}").projectDir = file("runtime/${mc}")
+    include "engine-ostinato-${mc}"
+    project(":engine-ostinato-${mc}").projectDir = file("engine-ostinato/${mc}")
     include "live-harness-${mc}"
     project(":live-harness-${mc}").projectDir = file("live-harness/${mc}")
     include "conductor-mod-${mc}"

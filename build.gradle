@@ -2,8 +2,8 @@ plugins {
     id 'xyz.wagyourtail.unimined' version '1.4.2-SNAPSHOT' apply false
 }
 
-// Minecraft versions Conductor has a runtime adapter for. Each pairs with an Ostinato branch checkout, whose compiled
-// classes the adapter compiles against (Ostinato is not modified or repackaged). Values mirror each branch's
+// Minecraft versions Conductor has a runtime for. The runtime needs only Minecraft. The optional Ostinato engine layer
+// compiles against an Ostinato branch checkout's classes (ostinatoDir); Ostinato is never repackaged. Values mirror each branch's
 // gradle.properties / build.gradle.
 ext.mcTargets = [
     '1.21.11': [branch: 'main', parchment: '2025.12.20', loader: '0.19.5',
@@ -16,7 +16,7 @@ subprojects {
     apply plugin: 'java'
 
     group = 'conductor'
-    version = '0.5.0'
+    version = '0.6.0'
 
     java {
         toolchain {

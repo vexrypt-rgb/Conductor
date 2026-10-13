@@ -1,7 +1,7 @@
 # Conductor
 Version agnostic modular system for bot capabilities in Minecraft
 
-Conductor is the modularity and capability-contract layer for Ostinato. It evolves Ostinato in small stages rather than rewriting it.
+Conductor is a version-agnostic module platform for Minecraft. It needs nothing but Minecraft and a boot shim: its own small set of game hooks (Mixins) gives modules the player, the world, actions, events and overlays. A movement engine is optional: when Ostinato (a Baritone fork) is installed, Conductor adds travel and combat on top, with the same evidence-based safety rules. Conductor began as the modularity layer for Ostinato and still never changes it.
 
 ## Status
 
@@ -17,6 +17,7 @@ Conductor is the modularity and capability-contract layer for Ostinato. It evolv
 | Player, world and actions (status, entities, inventory, blocks; hotbar, look, attack, use, chat) | Implemented; verified live on both versions | [docs/live-run-player-actions.md](docs/live-run-player-actions.md) |
 | Overlays, game events, chat commands, local messages, saved settings | Implemented; verified live on both versions, with screenshots | [docs/live-run-highlighter.md](docs/live-run-highlighter.md) |
 | Meteor Client survey: what a full client needs, and the roadmap | Survey done | [docs/survey-meteor-client.md](docs/survey-meteor-client.md) |
+| **No other mod needed**: Conductor's own game hooks (Mixins); Ostinato is an optional engine layer | Done; verified in production Fabric launches on 1.21.11 and 1.21.4 with no Ostinato, and with Ostinato as an add-on on 1.21.11 | [docs/live-run-no-ostinato.md](docs/live-run-no-ostinato.md) |
 | **Ostinato as a module** (Ostinato branch `conductor-module`: its `#` commands take the movement lease; `EngineCommands` for every Ostinato feature) and the **1.21.11 release** | Released (Ostinato 1.21.0 + Conductor 0.5.0); verified in a production Fabric launch with the shipped jars | [docs/live-run-ostinato-module.md](docs/live-run-ostinato-module.md) |
 
 **New here? Start with the [tutorial](docs/TUTORIAL.md)**: what Conductor does, every capability, and how to build a module. Worked examples:
@@ -26,10 +27,11 @@ Conductor is the modularity and capability-contract layer for Ostinato. It evolv
 - [`examples/block-highlighter`](examples/block-highlighter): a block ESP with overlays, commands and settings.
 
 **Limitations (today):**
+- Travel and combat need a movement engine (Ostinato). Without one, `discover()` lists no navigation or combat, and requests are rejected with `NO_NAVIGATION` / `NO_COMBAT`. Everything else works without it.
 - Travel and combat are the only engine actions. Mining, building and the rest are still deferred.
 - No 2D HUD, keybinds, raw packets, motion writes, inventory moves or block placing yet. Next steps are in [the Meteor survey](docs/survey-meteor-client.md) §5.
 - Modules are trusted code. Leases coordinate them but can't stop a module that bypasses Conductor.
-- Boots on Fabric only, on Minecraft 1.21.11 and 1.21.4. Modules themselves don't depend on any loader. Ostinato is a Fabric mod.
+- Boots on Fabric only, on Minecraft 1.21.11 and 1.21.4. Modules themselves don't depend on any loader. Conductor's hooks are plain Mixins, which every major loader runs.
 - Stops take as long as Ostinato's engine takes (up to about 17 s observed).
 
 Full list: [tutorial §10](docs/TUTORIAL.md#10-limits-you-should-know-about).
@@ -41,8 +43,9 @@ Deferred capability candidates (combat and others): [docs/deferred-candidates.md
 ## Layout
 
 - `contract/`: the normative contract, the Java binding (`Conductor`) and the module interface (`ConductorModule`). Pure Java 21, no Minecraft dependency.
-- `runtime-ostinato/`: the runtime adapter for Ostinato. Shared code is in `common/`; `1.21.11/` (Ostinato `main`) and `1.21.4/` (Ostinato `1.21.4`) differ only in `MinecraftGameAccess`. Includes `ConductorBootstrap`, which starts a module.
-- `conductor-mod/`: the Conductor mod (one per Minecraft version) that hosts every module. Its only loader-specific part is a 40-line Fabric boot shim ([docs/LOADER-INDEPENDENCE.md](docs/LOADER-INDEPENDENCE.md)).
+- `runtime/`: Conductor's runtime. It needs only Minecraft (no engine is on its compile classpath). Shared code is in `common/`; `1.21.11/` and `1.21.4/` differ only in `MinecraftGameAccess`. Includes `Hooks` (the entry points Conductor's Mixins call), `ConductorRuntime` and `ConductorBootstrap`.
+- `engine-ostinato/`: the optional Ostinato engine layer (travel, combat, engine signals). Bundled in the Conductor mod and loaded only when Ostinato is installed (`META-INF/services/conductor.runtime.EngineLayerProvider`).
+- `conductor-mod/`: the Conductor mod (one per Minecraft version) that hosts every module. It holds Conductor's game hooks (Mixins for tick, chat, packets and world rendering) and a 40-line Fabric boot shim, its only loader-specific part ([docs/LOADER-INDEPENDENCE.md](docs/LOADER-INDEPENDENCE.md)).
 - `examples/walk-and-stop/`, `examples/agnostic-combat/`: example modules. Each is a plain jar (not a Fabric mod) for every version, and goes in `<game dir>/conductor/modules/`.
 - `live-harness/`: test-only mod for live runs, built for both versions.
 
@@ -56,7 +59,12 @@ Deferred capability candidates (combat and others): [docs/deferred-candidates.md
 # contract only (no Minecraft needed)
 ./gradlew :contract:test
 
-# runtime-ostinato compiles against a local Ostinato checkout's classes (default ../Ostinato)
+# the runtime needs only Minecraft
+./gradlew :runtime-1.21.11:test
+
+# the Conductor mod bundles the optional Ostinato engine layer, which compiles against a local Ostinato checkout's
+# classes (default ../Ostinato; -PostinatoDir_1_21_4=/path for 1.21.4). This is a build-time need only: the built
+# mod runs with or without Ostinato installed.
 (cd ../Ostinato && ./gradlew compileJava compileApiJava)
-./gradlew :runtime-ostinato:test            # or -PostinatoDir=/path/to/Ostinato
+./gradlew test build
 ```

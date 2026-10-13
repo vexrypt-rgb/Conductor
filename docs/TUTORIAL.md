@@ -20,17 +20,18 @@ This guide explains what Conductor is, everything it can do today, and how to bu
 
 ## 1. What Conductor is, in one minute
 
-**Ostinato** is a Minecraft bot engine (based on Baritone): it finds paths, walks, mines, builds and fights.
+**Conductor** gives your code a **small, safe, version-independent way to use the game**: the player, the world, actions, events, overlays, settings and commands. It needs nothing but Minecraft and the Conductor mod.
 
-**Conductor** sits on top of Ostinato and gives your code a **small, safe, version-independent way to use it**:
+**Ostinato** is an optional Minecraft bot engine (based on Baritone): it finds paths, walks, mines, builds and fights. When it is installed, Conductor also offers travel and combat on top of it.
 
 ```
- your module (one jar, any version)  ──►  Conductor contract  ──►  Conductor mod for this Minecraft version  ──►  Ostinato
+ your module (one jar, any version)  ──►  Conductor contract  ──►  Conductor mod for this Minecraft version  ──►  Minecraft
+                                                                                     └──(optional)──►  Ostinato
 ```
 
 - **Your module** only talks to the Conductor contract. It never imports Minecraft, mod-loader (Fabric, Forge, NeoForge) or Baritone classes. It isn't even a Fabric mod: it's a plain jar ([LOADER-INDEPENDENCE.md](LOADER-INDEPENDENCE.md)).
 - **The contract** (`contract/`) is plain Java with no Minecraft code. It holds the rules.
-- **The Conductor mod** (`conductor-mod/`, built on `runtime-ostinato/`) is the only part that knows Minecraft and Ostinato. There is one per Minecraft version (today **1.21.11** and **1.21.4**), built from the same shared code. It finds your module and runs it.
+- **The Conductor mod** (`conductor-mod/`, built on `runtime/` and the optional `engine-ostinato/` layer) is the only part that knows Minecraft (and Ostinato, when it's there). There is one per Minecraft version (today **1.21.11** and **1.21.4**), built from the same shared code. It hooks the game with its own Mixins, finds your module and runs it.
 
 So **your module is one jar that works on every supported Minecraft version**. You install the Conductor mod that matches your game, plus your module. The same example jar was run live on both 1.21.11 and 1.21.4.
 
@@ -39,8 +40,8 @@ What Conductor gives you today:
 | You can... | With |
 |---|---|
 | Ask what is available | `discover()` |
-| Read what the bot engine is doing | `observe(...)`, `revalidate(...)` |
-| Send the bot somewhere | `requestTravel(...)` |
+| Read what the bot engine is doing (with Ostinato) | `observe(...)`, `revalidate(...)` |
+| Send the bot somewhere (with Ostinato) | `requestTravel(...)` |
 | Make it fight players or mobs (Ostinato's own combat) | `requestCombat(...)` (§5.9) |
 | Read the player, inventory, effects and nearby entities | `observe(PLAYER_STATUS / PLAYER_MOTION / INVENTORY_SLOTS / ACTIVE_EFFECTS / NEARBY_ENTITIES ...)` (§5.10) |
 | Read blocks, or find blocks around the player | `blockAt(...)`, `findBlocks(...)` (§5.10) |
@@ -79,7 +80,7 @@ Keep these in mind and none of the rejections in §6 will surprise you.
 
 You need:
 - **JDK 21**
-- **An Ostinato checkout for each Minecraft version you build the Conductor mod for**, with its classes compiled:
+- **An Ostinato checkout for each Minecraft version you build the Conductor mod for**, with its classes compiled. The Conductor mod bundles the optional Ostinato engine layer, which is compiled against them. This is a build-time need only: the built mod runs with or without Ostinato.
   - `main` branch, for 1.21.11: put it next to Conductor as `../Ostinato`
   - `1.21.4` branch: put it next to Conductor as `../Ostinato-1.21.4`, or pass `-PostinatoDir_1_21_4=/path`
 
@@ -91,7 +92,7 @@ You need:
 (cd ../Ostinato-1.21.4 && ./gradlew compileJava compileApiJava)
 
 # 2. build and test Conductor
-./gradlew test                                # contract tests, plus the adapter tests on both Minecraft versions
+./gradlew test                                # contract, runtime and engine-layer tests on both Minecraft versions
 ./gradlew :conductor-mod-1.21.11:build :conductor-mod-1.21.4:build
 ./gradlew :example-walk-and-stop:build        # a module: one jar for every version
 ```
@@ -100,7 +101,7 @@ What to install:
 
 | Jar | Where it goes | Where it's built | Per version? |
 |---|---|---|---|
-| Ostinato | `mods/` | Ostinato's own build | yes |
+| Ostinato (**optional**: only for travel and combat) | `mods/` | Ostinato's own build (the `unoptimized` jar) | yes |
 | **Conductor mod** | `mods/` | `conductor-mod/<mc>/build/libs/conductor-mod-<mc>-<v>.jar` (not the `-dev` one) | yes: pick your game's version |
 | **Your modules** | **`conductor/modules/`** in the game directory (created on first start) | `examples/walk-and-stop/build/libs/example-walk-and-stop-<v>.jar` | **no: the same jar everywhere, under any loader** |
 
@@ -534,12 +535,12 @@ Read the script header for the details.
 
 Thanks to the shared code, a new version is mostly configuration:
 
-1. **Check the Ostinato branch.** It must have the same API Conductor uses: `IMovementEngine`, `IPathingBehavior`, `IPathingControlManager`, `IInputOverrideHandler`, the event bus. `git diff` those files against `main`.
-2. **Add the version to `mcTargets`** in `build.gradle`, with its Parchment and Fabric Loader versions (copy them from that branch's build files) and where its Ostinato checkout lives.
-3. **Create `runtime-ostinato/<mc>/`** with a 2-line `build.gradle` and its own `MinecraftGameAccess.java`. That class holds every Minecraft call that can differ between versions (thread check, dimension name, connection). For 1.21.4 versus 1.21.11 the only difference was `dimension().location()` versus `dimension().identifier()`.
-4. **Create `conductor-mod/<mc>/` and `live-harness/<mc>/`**, each with a 3-line `build.gradle` (copy an existing one and change `mc`). The harness also needs its `Compat.java`.
+1. **Add the version to `mcTargets`** in `build.gradle`, with its Parchment and Fabric Loader versions and, if there is an Ostinato branch for it, where its checkout lives.
+2. **Create `runtime/<mc>/`** with a 2-line `build.gradle` and its own `MinecraftGameAccess.java`. That class holds every Minecraft call that can differ between versions (thread check, dimension name, connection, reach, selected slot). For 1.21.4 versus 1.21.11 the differences were a handful of renamed methods.
+3. **Create `conductor-mod/<mc>/`** with a 3-line `build.gradle`, its `conductor.mixins.json`, and the per-version render hook: `LevelRendererMixin` and `VersionLineDrawer` (overlay drawing changed a lot between versions). The other hooks (tick, chat, packets) are shared in `conductor-mod/common` and only need checking.
+4. **Optional, for travel and combat: `engine-ostinato/<mc>/`.** Check the Ostinato branch has the API Conductor uses (`IMovementEngine`, `IPathingBehavior`, `IPathingControlManager`, `IInputOverrideHandler`): `git diff` those files against `main`. Then `live-harness/<mc>/` (with its `Compat.java`) for evidence runs.
 5. **Add the version** to the list in `settings.gradle`. Existing modules need **nothing**: they keep working, because they never touch Minecraft.
-6. **Run `./gradlew test`**: the same adapter tests now run on the new version too. Then do a live run with `MC=<version>`.
+6. **Run `./gradlew test`**: the same runtime and engine-layer tests now run on the new version too. Then do a live run with `MC=<version>`.
 
 ---
 
@@ -574,12 +575,12 @@ Conductor is young. Here is everything it **cannot** do today, so you can plan a
 - **Preempting MOVEMENT is as slow as the engine's stop** (up to 17 s seen on 1.21.11). A SAFETY module that must act at once should not depend on MOVEMENT.
 - **Modules are version-agnostic only if they stay inside the contract.** A module that imports Minecraft classes works, but is tied to one version and outside Conductor's safety rules.
 - **Modules can't read the diagnostic sink at runtime yet** (only in tests).
-- **Ostinato only.** Conductor needs Ostinato, a Baritone fork. It is not a general mod loader.
-- **Boots on Fabric only, today.** Modules don't depend on any loader. Conductor's only Fabric code is a 40-line boot shim, but Ostinato is a Fabric mod, so the game runs Fabric anyway. Forge/NeoForge shims and a loader-free boot are planned: [LOADER-INDEPENDENCE.md](LOADER-INDEPENDENCE.md).
+- **Travel and combat need Ostinato.** Conductor runs without any other mod, but its only movement engine today is Ostinato. Without it, `discover()` lists no navigation or combat capability, and `requestTravel`/`requestCombat` are rejected with `NO_NAVIGATION`/`NO_COMBAT`. With no engine, MOVEMENT is free once the use key is up for the release window (nothing else could be steering).
+- **Boots on Fabric only, today.** Modules don't depend on any loader. Conductor's only Fabric code is a 40-line boot shim; its game hooks are plain Mixins, which Fabric, Quilt, Forge and NeoForge all run. Other shims and a loader-free boot are planned: [LOADER-INDEPENDENCE.md](LOADER-INDEPENDENCE.md).
 - **Modules in `conductor/modules/` are not transformed.** They get no Mixin and no remapping, which is exactly right for contract modules. Native modules that need Minecraft classes ship inside their own mod and are found on the game's classpath through the same service file.
 - **Minecraft 1.21.11 and 1.21.4 only.** Ostinato's 26.3 branch (Java 25) has no adapter yet. The 1.16.1 branch's API differs too much to reuse as is.
 - **No hot reload.** Modules load at game start. Disabling a module stops it logically; its code stays loaded.
-- **Block-change events cover what the server sends.** Section updates come through Ostinato's event, single-block updates through the packet. Changes the client makes itself (before the server confirms them) are not events.
+- **Block-change events cover what the server sends.** Single-block and section updates come from Conductor's own packet hooks. Changes the client makes itself (before the server confirms them) are not events.
 - **Overlays are outlines and lines only.** No filled boxes, text labels or 2D HUD yet.
 - **Commands are typed in chat.** No keybinds yet.
 - **`content()` covers built-in registries only.** Items, blocks, entity types and effects work. Data-driven things (enchantments, biomes, recipes, damage types) are UNKNOWN, so a feature that needs them stays off.
@@ -593,7 +594,7 @@ Conductor is young. Here is everything it **cannot** do today, so you can plan a
 - **Human input is invisible.** Keys pressed by a person are not seen by Conductor.
 
 **Building and testing**
-- **Building the Conductor mod needs local Ostinato checkouts** with compiled classes. There are no published artifacts yet. Modules need only the `contract` project.
+- **Building the Conductor mod needs local Ostinato checkouts** with compiled classes (for the bundled, optional engine layer). There are no published artifacts yet. Modules need only the `contract` project.
 - **Tested on:** flat local test worlds (stairs, trench, water, long paths, mining), the Baritone backend, about 25 live cancel trials, and one full live run per Minecraft version.
 - **Not tested:** elytra, boats, heavy parkour, Tungsten, real servers (latency, anticheat), long play sessions.
 - **The live harness hangs on loading errors.** If a mod fails to load, Fabric opens an error window that nobody can close in a headless run. The run then waits for the script's timeout instead of failing at once.
@@ -710,7 +711,7 @@ While you hold MOVEMENT, Ostinato's processes count as yours, not interference. 
 - The command language is Ostinato's: `engine()` says which engine answers.
 - A command started by another mod straight through Ostinato's API (not its command manager) is not gated; it shows up as interference, as before.
 - The module edition starts from Ostinato 1.21.0, which added the command execution guard.
-- Conductor needs Ostinato's **unoptimized** build. The obfuscated `standalone` and `api` builds rename the classes Conductor uses. With them, Conductor logs "Conductor is NOT running …" and stays off, but the game runs.
+- Conductor's Ostinato layer needs Ostinato's **unoptimized** build. The obfuscated `standalone` and `api` builds rename the classes it uses. With them, Conductor runs without an engine (it logs "Conductor engine: none") and the game runs.
 
 ---
 

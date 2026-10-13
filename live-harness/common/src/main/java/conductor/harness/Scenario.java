@@ -20,7 +20,7 @@ import conductor.contract.OperationResult;
 import conductor.contract.OperationState;
 import conductor.contract.ReleasePolicy;
 import conductor.contract.ResourceState;
-import conductor.runtime.ostinato.ConductorOstinato;
+import conductor.runtime.ConductorRuntime;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.core.BlockPos;
@@ -113,7 +113,20 @@ final class Scenario implements Runnable {
         // Release windows chosen from the evidence runs (docs/live-run-2026-10-12.md): control signals clear before
         // movement ends, and momentum lasts at most 11 ticks. They are harness settings, not contract defaults.
         ReleasePolicy policy = new ReleasePolicy(OptionalLong.of(20), OptionalLong.of(1200));
-        Conductor conductor = onGame(() -> ConductorOstinato.install(baritone, sink, policy));
+        // The harness runs without the Conductor mod (no Conductor hooks), so it drives Conductor's tick from
+        // Ostinato's tick event, which fires at the same point of the client tick.
+        ConductorRuntime.Installed installed = onGame(() -> {
+            ConductorRuntime.Installed in = ConductorRuntime.install(sink, policy);
+            baritone.getGameEventHandler().registerEventListener(new baritone.api.event.listener.AbstractGameEventListener() {
+                @Override
+                public void onTick(baritone.api.event.events.TickEvent event) {
+                    in.tick().run();
+                }
+            });
+            return in;
+        });
+        Conductor conductor = installed.service();
+        event("conductor engine", "engine", installed.engine());
         recorder = new TickRecorder(conductor, log);
         onGame(() -> {
             baritone.getGameEventHandler().registerEventListener(recorder);

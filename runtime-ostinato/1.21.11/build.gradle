@@ -1,2 +1,0 @@
-ext.mc = '1.21.11'
-apply from: rootProject.file('gradle/adapter.gradle')

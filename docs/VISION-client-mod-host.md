@@ -22,11 +22,10 @@ Every change to Conductor should be judged by one question: *does this still wor
 6. **No mod loader is a dependency.** Loaders (Fabric, Forge, NeoForge) and Mojang's mappings are *references*, used once per version or per loader inside a thin shim or adapter. Modules and the contract never depend on them.
 7. **Existing mods are welcome as they are.** Native modules (version-specific, mixins allowed) join the same leases, topics and services. Moving to contract-only is gradual and never a precondition.
 
-What it would still take to get there (none of it exists yet; each item is future work):
+What it would still take to get there (none of it exists yet; each item is future work). Done since this list was first written: **Conductor runs without Ostinato** (its own Mixin hooks; Ostinato is an optional engine layer, see [live-run-no-ostinato.md](live-run-no-ostinato.md)).
 
 | Gap | Why it matters for "the only platform" |
 |---|---|
-| A runtime without Ostinato (`runtime-vanilla`) | Most mods are not bots. Ostinato should be one optional capability provider. |
 | More Minecraft versions per adapter | "Version-agnostic" is only as wide as the adapters that exist. Today: 1.21.11 and 1.21.4. |
 | Loader independence | Modules and discovery are loader-free (plain jars, `META-INF/services`). Conductor's only Fabric code is a 40-line boot shim. Still to do: NeoForge/Forge shims, and a loader-free boot for engine-free modules. See [LOADER-INDEPENDENCE.md](LOADER-INDEPENDENCE.md). |
 | Rendering, input, world-scan, packet, sound and GUI capabilities | Most mod types need at least one (see §2). |
@@ -39,10 +38,9 @@ This document is a gap analysis, not a promise. It compares the goal with what C
 
 ## 1. Where Conductor is today
 
-Conductor today is a **safe, version-independent wrapper around Ostinato, with a module platform on top**. A module can:
-- see what the bot engine is doing;
-- send it somewhere;
-- stop it, and get proof that it has stopped;
+Conductor today is a **version-independent module platform that needs only Minecraft**, with Ostinato as an optional movement engine. A module can:
+- read the player, inventory, entities and blocks; act (hotbar, look, attack, use, chat); draw overlays; get game events, chat commands and saved settings: all from Conductor's own hooks;
+- with Ostinato installed: see what the bot engine is doing, send it somewhere or into a fight, stop it, and get proof that it has stopped;
 - run next to other modules, sharing controls through leases with priorities and preemption;
 - talk to other modules through topics and services;
 - switch parts of itself on or off depending on what the game and engine actually contain (content detection).
@@ -81,9 +79,9 @@ These points conflicted with decisions recorded in the original specification. P
    *Without* reopening anything, the allowed form is **first holder wins, others are refused**: contract-level exclusivity, no preemption. That is enough for HUD, ESP and chat modules, which don't fight over controls.
 2. **Modules that interrupt each other.** For example, auto-totem taking over in the middle of a walk. That is **automatic preemption**, which is a hard scope fence today ("no automatic preemption, no universal resource scheduler"). A PvP or anarchy client probably needs some form of it, so reopening this fence is your call. Recommendation: if you do, make it explicit, per-resource and evidence-driven, the same way release works now.
 3. **Rendering, packets, camera and input hooks.** These need privileged, version-specific hooks (mixins) inside each runtime adapter, which is allowed: "privileged access stays behind the runtime integration boundary". The catch is per-version cost. Every hook must be written and live-tested on every supported version, and the stop condition "the common surface across versions is too small to justify contract work" applies to each one.
-4. **Fabric API or not.** Conductor currently avoids it, because Ostinato doesn't need it. HUD rendering and keybinds are much simpler with it. That is a dependency decision.
+4. **Fabric API or not.** Conductor avoids it: its hooks are its own Mixins, which keeps it loader-neutral. HUD rendering and keybinds would be simpler with Fabric API, at the cost of a Fabric dependency.
 5. **GUI, hot reload/unload, marketplaces.** All explicitly deferred by the specification.
-6. **Not just Ostinato.** HUD, chat and ESP modules don't need a bot engine at all. A general host would need a runtime that works without Ostinato (`runtime-vanilla`, say), with Ostinato as one optional capability provider.
+6. **Not just Ostinato. (Done.)** HUD, chat and ESP modules don't need a bot engine at all. Conductor's runtime now needs only Minecraft; Ostinato is one optional capability provider (`EngineLayer`), found at start-up when installed.
 
 ## 4. A staged path that keeps the method
 

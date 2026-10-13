@@ -3,14 +3,17 @@
   "id": "conductor",
   "version": "${version}",
   "name": "Conductor",
-  "description": "Version-agnostic module host for Ostinato. This build is for Minecraft ${mc}.",
+  "description": "Version-agnostic module platform for Minecraft. Needs no other mod; uses Ostinato as a movement engine when installed. This build is for Minecraft ${mc}.",
   "environment": "client",
   "entrypoints": {
     "client": ["conductor.host.ConductorHostMod"]
   },
+  "mixins": ["conductor.mixins.json"],
   "depends": {
     "fabricloader": "*",
-    "minecraft": "${mc}",
+    "minecraft": "${mc}"
+  },
+  "suggests": {
     "baritone": "*"
   }
 }

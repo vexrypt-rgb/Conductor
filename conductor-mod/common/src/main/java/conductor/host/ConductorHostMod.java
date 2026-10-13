@@ -2,8 +2,9 @@ package conductor.host;
 
 import conductor.contract.FileSettingsStore;
 import conductor.contract.InMemoryDiagnosticSink;
-import conductor.runtime.ostinato.ConductorBootstrap;
-import conductor.runtime.ostinato.ModuleDiscovery;
+import conductor.runtime.ConductorBootstrap;
+import conductor.runtime.Hooks;
+import conductor.runtime.ModuleDiscovery;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
@@ -14,7 +15,9 @@ import java.nio.file.Path;
 
 /**
  * Fabric boot shim: the only Fabric-specific code in Conductor. It answers two questions Fabric knows the answer
- * to (where the game directory is, and when client code may start) and hands over to loader-free code.
+ * to (where the game directory is, and when client code may start) and hands over to loader-free code. Conductor's
+ * game hooks are Mixins (conductor.mixins.json), which Fabric, Quilt, NeoForge and Forge all load. Conductor needs no
+ * other mod; a movement engine (Ostinato) is used when installed.
  * <p>
  * Modules are not Fabric mods. They are plain jars with a {@code META-INF/services/conductor.contract.ConductorModule}
  * entry, put in {@code <game dir>/conductor/modules} (or the folder named by {@code -Dconductor.modulesDir}). See
@@ -25,31 +28,10 @@ public final class ConductorHostMod implements ClientModInitializer {
 
     private static final Logger LOG = LoggerFactory.getLogger("conductor");
 
-    /**
-     * Ostinato classes Conductor links against. Ostinato's obfuscated builds (standalone, api) rename the internal
-     * ones, so Conductor needs Ostinato's unoptimized build.
-     */
-    static final java.util.List<String> NEEDED = java.util.List.of(
-            "baritone.api.BaritoneAPI", "baritone.api.event.listener.IGameEventListener",
-            "baritone.Baritone", "baritone.movement.MovementBackends", "baritone.utils.IRenderer");
-
     @Override
     public void onInitializeClient() {
-        java.util.List<String> missing = NEEDED.stream().filter(name -> {
-            try {
-                Class.forName(name, false, ConductorHostMod.class.getClassLoader());
-                return false;
-            } catch (ClassNotFoundException | LinkageError e) {
-                return true;
-            }
-        }).toList();
-        if (!missing.isEmpty()) {
-            LOG.error("Conductor is NOT running: Ostinato's classes {} are not there. Conductor needs Ostinato's "
-                    + "unoptimized build (ostinato-mc<version>-unoptimized-fabric-*.jar); the standalone and api builds "
-                    + "rename them. The game continues without Conductor.", missing);
-            return;
-        }
         try {
+            Hooks.lineDrawer(new VersionLineDrawer()); // overlays, drawn by this version's render hook
             start();
         } catch (Throwable t) {
             // never take the game down: Conductor is an add-on

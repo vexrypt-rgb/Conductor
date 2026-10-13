@@ -1,0 +1,66 @@
+// The optional Ostinato engine layer for one Minecraft version. Applied by engine-ostinato/<mc>/build.gradle, which
+// sets ext.mc. Compiled against a local Ostinato checkout's classes (mcTargets[mc].ostinatoDir); Conductor loads it
+// only when Ostinato is installed.
+apply plugin: 'xyz.wagyourtail.unimined'
+
+def target = rootProject.mcTargets[mc]
+def ostinatoDir = file(target.ostinatoDir)
+def ostinatoClasses = files("${ostinatoDir}/build/classes/java/api", "${ostinatoDir}/build/classes/java/main")
+ext.ostinatoClasses = ostinatoClasses
+def runtime = project(":runtime-${mc}")
+evaluationDependsOn(runtime.path)
+
+repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
+    maven { url = 'https://maven.parchmentmc.net/' }
+    mavenCentral()
+}
+
+sourceSets {
+    main.java.srcDirs += rootProject.file('engine-ostinato/common/src/main/java')
+    main.resources.srcDirs += rootProject.file('engine-ostinato/common/src/main/resources')
+    test.java.srcDirs += rootProject.file('engine-ostinato/common/src/test/java')
+}
+
+unimined.minecraft {
+    version mc
+    mappings {
+        intermediary()
+        mojmap()
+        parchment(mc, target.parchment)
+    }
+    runs.off = true
+    defaultRemapJar = false
+}
+
+dependencies {
+    implementation project(':contract')
+    implementation runtime
+    compileOnly ostinatoClasses
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+
+    testImplementation ostinatoClasses
+    testImplementation runtime.sourceSets.test.output
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.mockito:mockito-core:5.14.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+sourceSets {
+    test {
+        compileClasspath += main.compileClasspath
+        runtimeClasspath += main.compileClasspath + main.runtimeClasspath
+    }
+}
+
+test {
+    useJUnitPlatform()
+    jvmArgs '-XX:+EnableDynamicAgentLoading'
+    doFirst {
+        if (!file("${ostinatoDir}/build/classes/java/main").isDirectory()) {
+            throw new GradleException("Ostinato classes not found under ${ostinatoDir}; build that branch first "
+                    + "(./gradlew compileJava compileApiJava) or set its ostinatoDir property")
+        }
+    }
+}

@@ -4,8 +4,10 @@
 apply plugin: 'xyz.wagyourtail.unimined'
 
 def target = rootProject.mcTargets[mc]
-def adapter = project(":runtime-ostinato-${mc}")
-evaluationDependsOn(adapter.path)
+def runtime = project(":runtime-${mc}")
+def engine = project(":engine-ostinato-${mc}")
+evaluationDependsOn(runtime.path)
+evaluationDependsOn(engine.path)
 
 repositories {
     maven { url = 'https://maven.fabricmc.net/' }
@@ -31,17 +33,18 @@ unimined.minecraft {
     runs.off = true
 }
 
-// bundleConductor = false: a module that runs inside an installed Conductor mod; contract and adapter come from it.
+// bundleConductor = false: a module that runs inside an installed Conductor mod; contract and runtime come from it.
 def bundle = !project.hasProperty('bundleConductor') || project.bundleConductor
 
 dependencies {
     if (bundle) {
         implementation project(':contract')
-        implementation adapter
+        implementation runtime
+        implementation engine
     } else {
         compileOnly project(':contract')
     }
-    compileOnly adapter.ostinatoClasses
+    compileOnly engine.ostinatoClasses // only the live harness uses Ostinato directly
 }
 
 processResources {
@@ -52,10 +55,12 @@ processResources {
     }
 }
 
-// Ship contract + adapter inside the mod so the remap to intermediary covers their Minecraft references too.
+// Ship contract, runtime and the optional engine layer inside the mod, so the remap to intermediary covers their
+// Minecraft references too. The engine layer is only loaded when Ostinato is installed.
 if (bundle) {
     jar {
         from project(':contract').sourceSets.main.output
-        from adapter.sourceSets.main.output
+        from runtime.sourceSets.main.output
+        from engine.sourceSets.main.output
     }
 }

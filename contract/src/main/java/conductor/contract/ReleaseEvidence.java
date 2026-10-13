@@ -31,6 +31,12 @@ record ReleaseEvidence(boolean pathingStopped, boolean quiet, Optional<String> c
 
     static ReleaseEvidence sample(RuntimeIntegration runtime, Set<ObservationKind<?>> supported) {
         StringBuilder why = new StringBuilder();
+        if (!hasEngine(runtime)) {
+            // No movement engine: no path, process, forced keys or secondary backend can exist. The use key is still
+            // held to account where it is reported (a person or a module may hold it).
+            boolean useClear = !supported.contains(USE_KEY_HELD) || isFalse(runtime, supported, USE_KEY_HELD, why);
+            return new ReleaseEvidence(true, useClear, Optional.empty(), why.toString());
+        }
         boolean segment = isFalse(runtime, supported, PATH_SEGMENT_PRESENT, why);
         boolean next = isFalse(runtime, supported, NEXT_SEGMENT_PRESENT, why);
         boolean calc = isFalse(runtime, supported, PATH_CALCULATION_PENDING, why);
@@ -66,6 +72,14 @@ record ReleaseEvidence(boolean pathingStopped, boolean quiet, Optional<String> c
 
         boolean quiet = pathingStopped && goal && noController && noInputs && secondaryClear && useClear;
         return new ReleaseEvidence(pathingStopped, quiet, controller, why.toString());
+    }
+
+    private static boolean hasEngine(RuntimeIntegration runtime) {
+        try {
+            return runtime.hasMovementEngine();
+        } catch (RuntimeException | LinkageError e) {
+            return true; // cannot tell: the strict rules
+        }
     }
 
     private static boolean offersCombat(RuntimeIntegration runtime) {

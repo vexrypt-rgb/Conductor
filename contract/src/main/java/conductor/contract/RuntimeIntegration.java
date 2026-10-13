@@ -38,6 +38,15 @@ public interface RuntimeIntegration {
         return new ContentResult(content, ContentResult.Presence.UNKNOWN, "runtime cannot check content");
     }
 
+    /**
+     * Whether a movement engine (a bot engine that paths, presses keys and runs processes) is installed. Without
+     * one there are no engine signals to wait for: release evidence treats them as quiet, because there is nothing
+     * that could be moving the bot. That is a known fact, not missing information. Default true, the strict case.
+     */
+    default boolean hasMovementEngine() {
+        return true;
+    }
+
     /** Read-only block access, if this runtime offers it. */
     default Optional<WorldPort> world() {
         return Optional.empty();
