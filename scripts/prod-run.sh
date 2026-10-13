@@ -68,7 +68,7 @@ cleanup() {
 }
 trap cleanup EXIT
 until grep -q "Done (" "$WORK/server.log" 2>/dev/null; do
-    if ! kill -0 "$SERVER_PID" 2>/dev/null || grep -qE 'Exception in thread "main"|---- Minecraft Crash Report ----|Failed to start the minecraft server' "$WORK/server.log" 2>/dev/null; then
+    if ! kill -0 "$SERVER_PID" 2>/dev/null || grep -qE 'Exception in thread "main"|---- Minecraft Crash Report ----|Failed to start the minecraft server|Incompatible mods found' "$WORK/server.log" 2>/dev/null; then
         echo "server failed before it was ready"; tail -30 "$WORK/server.log"; exit 1
     fi
     sleep 1

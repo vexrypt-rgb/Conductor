@@ -3,6 +3,7 @@ package conductor.runtime;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.sounds.SoundEvent;
 
 /** Minecraft 1.21.4's id class (ResourceLocation), behind two methods so the shared content code needs neither name. */
 public final class VersionIds {
@@ -18,5 +19,10 @@ public final class VersionIds {
 
     public static String id(ResourceKey<?> key) {
         return key.location().toString();
+    }
+
+    /** A sound event by id that need not be registered (a module's own sound from its {@code sounds.json}). */
+    public static SoundEvent soundEvent(String id) {
+        return SoundEvent.createVariableRangeEvent(ResourceLocation.parse(id));
     }
 }

@@ -44,6 +44,10 @@ class ConvertTest(unittest.TestCase):
             "com/example/gems/WandItem.java": "package com.example.gems; public class WandItem extends net.minecraft.class_1792 {}",
             "com/example/gems/MagicWandItem.java": "package com.example.gems; public class MagicWandItem extends WandItem {}",
             "com/example/gems/GemInit.java": "package com.example.gems; public class GemInit { static Object x = net.minecraft.class_2378.register(null, new net.minecraft.class_1792()); }",
+            # a block class that only sets what a MODEL declaration covers: its outline (method_9530) and mixed sounds
+            "com/example/gems/GemLampBlock.java": "package com.example.gems; public class GemLampBlock extends net.minecraft.class_2248 { "
+                                                  "static final String[] S = {\"block.lantern.break\", \"block.glass.step\", \"block.lantern.place\", "
+                                                  "\"block.lantern.hit\", \"block.glass.fall\"}; protected Object method_9530() { return null; } }",
             "org/spongepowered/asm/mixin/Mixin.java": "package org.spongepowered.asm.mixin; public @interface Mixin { Class<?>[] value() default {}; String[] targets() default {}; }",
             "com/example/gems/mixin/TitleMixin.java": "package com.example.gems.mixin; @org.spongepowered.asm.mixin.Mixin(value = net.minecraft.class_2248.class, targets = \"net.minecraft.class_1792\") public class TitleMixin { net.minecraft.class_2378 unrelated; }",
         }
@@ -78,6 +82,18 @@ class ConvertTest(unittest.TestCase):
                 {"when": {"up": "true"}, "apply": {}}, {"when": {"north": "low|tall"}, "apply": {}}]}))
             z.writestr("assets/gems/blockstates/iron_gem_door.json", json.dumps({"variants": {
                 "facing=east,half=lower,hinge=left,open=false": {}}}))
+            z.writestr("assets/gems/blockstates/gem_observer.json", json.dumps({"variants": {
+                f"facing={d}": {"model": "gems:block/gem_observer"} for d in ("down", "up", "north", "south", "west", "east")}}))
+            z.writestr("assets/gems/blockstates/gem_furnace.json", json.dumps({"variants": {
+                f"facing={d}": {"model": "gems:block/gem_furnace"} for d in ("north", "south", "west", "east")}}))
+            z.writestr("assets/gems/models/block/gem_furnace.json", json.dumps({"parent": "minecraft:block/orientable"}))
+            # the north variant is the model turned 90 degrees; one element is repeated, one reaches outside the block
+            z.writestr("assets/gems/blockstates/gem_lamp.json", json.dumps({"variants": {
+                "facing=north": {"model": "gems:block/gem_lamp", "y": 90}, "facing=east": {"model": "gems:block/gem_lamp", "y": 180},
+                "facing=south": {"model": "gems:block/gem_lamp", "y": 270}, "facing=west": {"model": "gems:block/gem_lamp"}}}))
+            z.writestr("assets/gems/models/block/gem_lamp.json", json.dumps({"parent": "gems:block/lamp_base"}))
+            z.writestr("assets/gems/models/block/lamp_base.json", json.dumps({"elements": [
+                {"from": [2, 0, 0], "to": [6, 4, 3]}, {"from": [2, 0, 0], "to": [6, 4, 3]}, {"from": [7, 4, 7], "to": [9, 20, 9]}]}))
             z.writestr("assets/gems/lang/en_us.json", json.dumps({"item.gems.ruby": "Ruby", "entity.gems.zombie_cat": "Zombie Cat"}))
             z.writestr("assets/gems/textures/item/ruby.png", b"\x89PNG")
             z.writestr("assets/gems/models/item/old_style.json", "{}")   # a pre-1.21.4 item: model only
@@ -107,15 +123,25 @@ class ConvertTest(unittest.TestCase):
 
     def test_content_from_assets_and_names(self):
         self.assertEqual(["gems:magic_wand", "gems:old_style", "gems:ruby", "gems:zombie_cat_spawn_egg"], self.r["items"])
-        self.assertEqual(["gems:gem_block", "gems:gem_block_stairs", "gems:gem_slab", "gems:gem_stairs", "gems:gem_wall",
-                          "gems:iron_gem_door"], self.r["blocks"])
+        self.assertEqual(["gems:gem_block", "gems:gem_block_stairs", "gems:gem_furnace", "gems:gem_lamp", "gems:gem_observer",
+                          "gems:gem_slab", "gems:gem_stairs", "gems:gem_wall", "gems:iron_gem_door"], self.r["blocks"])
         self.assertEqual(["gems:gem_stairs"], self.r["shaped_blocks"])
         self.assertEqual({"gems:gem_block": "CUBE", "gems:gem_block_stairs": "STAIRS", "gems:gem_slab": "SLAB",
-                          "gems:gem_wall": "WALL", "gems:iron_gem_door": "DOOR"}, self.r["block_shapes"])
+                          "gems:gem_wall": "WALL", "gems:iron_gem_door": "DOOR", "gems:gem_observer": "FACING",
+                          "gems:gem_furnace": "HORIZONTAL_FACING", "gems:gem_lamp": "MODEL"}, self.r["block_shapes"])
         self.assertEqual(["gems:gem_block"], self.r["block_items"])
         self.assertEqual(["gems:zombie_cat"], self.r["entities"])
         self.assertEqual(["gems:zombie_cat_spawn_egg"], self.r["spawn_eggs"])
         self.assertEqual({"loot_table": 1, "recipe": 3, "data_maps": 1, "worldgen/structure": 1, "tags": 2}, self.r["data_kinds"])
+
+    def test_model_blocks_take_their_outline_from_the_model_and_their_sounds_from_the_class(self):
+        # turned by the north variant's y=90, the repeat dropped, the tall element cut at the block's top
+        self.assertEqual({"gems:gem_lamp": [(13.0, 0.0, 2.0, 16.0, 4.0, 6.0), (7.0, 4.0, 7.0, 9.0, 16.0, 9.0)]}, self.r["block_boxes"])
+        self.assertEqual({"com.example.gems.GemLampBlock": "gems:gem_lamp"}, self.r["covered_classes"])
+        self.assertNotIn("block", self.r["behaviour"], "a covered class is not custom behaviour")
+        self.assertEqual({"gems:gem_lamp": ["minecraft:block.lantern.break", "minecraft:block.glass.step", "minecraft:block.lantern.place",
+                                            "minecraft:block.lantern.hit", "minecraft:block.glass.fall"]}, self.r["block_sounds"])
+        self.assertIn("Block classes a declaration covers (1): GemLampBlock", cc.report(self.r))
 
     def test_loader_only_data_is_found(self):
         self.assertEqual({"data/gems/recipe/conditional.json", "data/gems/data_maps/item/furnace_fuels.json"},
@@ -166,7 +192,12 @@ class ConvertTest(unittest.TestCase):
         self.assertIn('content.mob("zombie_cat").like(MobArchetype.ZOMBIE);', java)
         self.assertEqual("conductor.converted.gems.GemsContent\n",
                          read(os.path.join(res, "META-INF/services/conductor.contract.ContentModule")))
-        self.assertEqual(9, s["declared"])
+        self.assertIn('content.block("gem_observer").shape(BlockShape.FACING).noItem();', java)
+        self.assertIn('content.block("gem_furnace").shape(BlockShape.HORIZONTAL_FACING).noItem();', java)
+        self.assertIn('content.block("gem_lamp")\n                .box(13, 0, 2, 16, 4, 6)\n                .box(7, 4, 7, 9, 16, 9)\n'
+                      '                .sounds("minecraft:block.lantern.break", "minecraft:block.glass.step", "minecraft:block.lantern.place", '
+                      '"minecraft:block.lantern.hit", "minecraft:block.glass.fall").noItem(); // TODO: strength, light, requiresTool (outline', java)
+        self.assertEqual(12, s["declared"])
         # the 1.21.1 recipe moved to the 1.21.2+ format; the stairs recipe needs content not ported, so it is left out
         self.assertEqual({"type": "minecraft:crafting_shaped", "pattern": ["##", "##"], "key": {"#": "gems:ruby"},
                           "result": {"id": "gems:gem_block", "count": 1}},

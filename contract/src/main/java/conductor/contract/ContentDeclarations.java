@@ -22,6 +22,8 @@ public final class ContentDeclarations {
     public static final Set<String> RESERVED = Set.of("minecraft", "realms", "brigadier", "c", "fabric", "forge", "neoforge", "conductor");
     /** Tab ids are checked for syntax only; whether the tab exists is checked by the runtime. */
     static final Pattern TAB = Pattern.compile("[a-z0-9_.-]+:[a-z0-9_./-]+");
+    /** More boxes than this make outline checks slow; real models have far fewer. */
+    static final int MAX_BOXES = 256;
     static final Pattern TEXTURE = Pattern.compile("[a-z0-9_.-]+:textures/[a-z0-9_./-]+\\.png");
 
     private final String namespace;
@@ -111,6 +113,24 @@ public final class ContentDeclarations {
                     problems.add("block " + d.id() + ": base " + base + " must be declared before the stairs");
                 } else if (!base.startsWith(namespace + ":") && !base.startsWith("minecraft:")) {
                     problems.add("block " + d.id() + ": base " + base + " must be this module's or a vanilla block");
+                }
+            });
+            if (d.shape() == BlockShape.MODEL) {
+                if (d.boxes().isEmpty()) {
+                    problems.add("block " + d.id() + ": a MODEL block needs at least one box");
+                } else if (d.boxes().size() > MAX_BOXES) {
+                    problems.add("block " + d.id() + ": at most " + MAX_BOXES + " boxes");
+                }
+                d.boxes().stream().filter(x -> !x.valid()).findFirst().ifPresent(x -> problems.add("block " + d.id()
+                        + ": box " + x + " must lie within 0..16 with each start below its end"));
+            } else if (!d.boxes().isEmpty()) {
+                problems.add("block " + d.id() + ": only MODEL blocks have boxes");
+            }
+            d.sounds().ifPresent(s -> {
+                for (String sound : List.of(s.breakSound(), s.step(), s.place(), s.hit(), s.fall())) {
+                    if (sound == null || !TAB.matcher(sound).matches()) {
+                        problems.add("block " + d.id() + ": sound '" + sound + "' is not a namespace:path id");
+                    }
                 }
             });
             checkedBlocks.add(d);

@@ -116,7 +116,8 @@ public final class ContentInstaller {
         for (BlockDeclaration d : entry.blocks()) {
             ResourceKey<Block> key = VersionIds.key(Registries.BLOCK, d.id());
             BlockBehaviour.Properties props = BlockBehaviour.Properties.of().setId(key)
-                    .strength(d.hardness(), d.resistance()).sound(sound(d.sound()));
+                    .strength(d.hardness(), d.resistance())
+                    .sound(d.sounds().map(ContentInstaller::sounds).orElseGet(() -> sound(d.sound())));
             int light = d.light();
             if (light > 0) {
                 props.lightLevel(state -> light);
@@ -165,7 +166,8 @@ public final class ContentInstaller {
     /** The vanilla block class for the declared shape, so the block behaves like vanilla's of that kind. */
     private static Block create(BlockDeclaration d, BlockBehaviour.Properties props) {
         BlockShape shape = d.shape();
-        if (d.layer() != conductor.contract.RenderLayer.SOLID || shape == BlockShape.GLASS || shape == BlockShape.LEAVES) {
+        if (d.layer() != conductor.contract.RenderLayer.SOLID || shape == BlockShape.GLASS || shape == BlockShape.LEAVES
+                || shape == BlockShape.MODEL) {
             props.noOcclusion(); // see-through: neighbours' faces must still be drawn
         }
         return switch (shape) {
@@ -196,6 +198,10 @@ public final class ContentInstaller {
             case CARPET -> new CarpetBlock(props);
             case GLASS -> new TransparentBlock(props.isRedstoneConductor((s, l, p) -> false)
                     .isSuffocating((s, l, p) -> false).isViewBlocking((s, l, p) -> false)) {};
+            case FACING -> new ShapedBlocks.Facing(props);
+            case HORIZONTAL_FACING -> new ShapedBlocks.HorizontalFacing(props);
+            case MODEL -> new ShapedBlocks.Model(props.isRedstoneConductor((s, l, p) -> false)
+                    .isSuffocating((s, l, p) -> false).isViewBlocking((s, l, p) -> false), d.boxes());
         };
     }
 
@@ -243,6 +249,19 @@ public final class ContentInstaller {
     /** Client only: blocks declared with a see-through render layer. */
     public static Map<Block, conductor.contract.RenderLayer> renderLayers() {
         return java.util.Collections.unmodifiableMap(RENDER_LAYERS);
+    }
+
+    /** A block's mixed sounds: registered ones by id, others (a module's own) as unregistered events. */
+    private static SoundType sounds(conductor.contract.BlockSounds s) {
+        return new SoundType(s.volume(), s.pitch(), soundEvent(s.breakSound()), soundEvent(s.step()), soundEvent(s.place()),
+                soundEvent(s.hit()), soundEvent(s.fall()));
+    }
+
+    private static net.minecraft.sounds.SoundEvent soundEvent(String id) {
+        // a vanilla sound's holder can still be unbound this early (seen live on 1.21.11): reading it throws. A sound
+        // event made from the id plays the same sound, since the client finds sounds by id.
+        var known = BuiltInRegistries.SOUND_EVENT.get(VersionIds.key(Registries.SOUND_EVENT, id));
+        return known.isPresent() && known.get().isBound() ? known.get().value() : VersionIds.soundEvent(id);
     }
 
     private static SoundType sound(conductor.contract.BlockSound sound) {

@@ -27,5 +27,19 @@ public enum BlockShape {
     LEAVES,
     CARPET,
     /** A see-through full cube that doesn't hide its neighbours' faces, like glass. */
-    GLASS
+    GLASS,
+    /**
+     * A full cube that turns to face the player who places it, in all six directions
+     * ({@code facing=north|east|south|west|up|down}), like observers.
+     */
+    FACING,
+    /** A full cube that turns to face the player who places it ({@code facing=north|east|south|west}), like furnaces. */
+    HORIZONTAL_FACING,
+    /**
+     * A block smaller than a cube, shaped by boxes: furniture and decorations. Its outline and collision are the
+     * declared {@link BlockDeclaration.Builder#box boxes} (at least one), given as seen when it faces north; Conductor
+     * turns them with the block. It faces the player who places it ({@code facing=north|east|south|west}), can hold
+     * water ({@code waterlogged=true|false}) and lets light through.
+     */
+    MODEL
 }

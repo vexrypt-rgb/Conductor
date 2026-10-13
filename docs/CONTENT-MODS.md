@@ -130,5 +130,6 @@ Performance mods are a different category. **They are hosted next to Conductor, 
 5. **Done:** live test, a Fabric dedicated server plus a client on 1.21.11 and 1.21.4 with the same jar ([live-run-content.md](live-run-content.md)).
 6. **Done:** converter v1 (report plus skeleton), tried on real mods.
 7. **Done:** blocks with states. `BlockShape` maps to vanilla's block classes: pillar, stairs, slab, wall, fence, fence gate, door, trapdoor, button, pressure plate, pane, leaves, carpet, glass. It comes with materials and render layers. The converter recognises shapes from blockstate files: on Thaumon, 127 of 137 blocks are declarable (was 40).
+   - **Then:** facing cubes (FACING, HORIZONTAL_FACING) and blocks shaped by boxes (`box(...)`, turned with the block, waterloggable), plus mixed sounds by id. The converter takes the boxes from the block model's elements. It treats a block class as covered when it only overrides outline, facing, water, rotation, skylight and sounds. On Thaumon: **137 of 137** blocks declarable, and 7 of its 8 custom classes covered; live on 1.21.11 and 1.21.4 ([live-run-content.md](live-run-content.md) §3).
 8. **Done:** declared mobs on vanilla archetypes (zombie, spider, pig). The converter maps a mod's entity classes that extend those to `content.mob(...).like(...)`.
-9. **Next:** more archetypes, spawn eggs and natural spawning, the id handshake, rotatable cubes (`facing`).
+9. **Next:** more archetypes, spawn eggs and natural spawning, the id handshake.

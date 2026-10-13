@@ -29,7 +29,10 @@ Fabric mods are compiled against intermediary names. The few Minecraft classes t
   - recipes, loot tables and advancements that need content that isn't ported are left out and listed.
   On Thaumon this took the server from 382 data errors to 0 ([live-run-content.md](../../docs/live-run-content.md) §2).
 - The `assets/<ns>/items/<id>.json` item definitions that 1.21.4+ needs and older mods lack.
-- A `ContentModule` declaring the full-cube blocks and the items, with TODOs for properties the jar doesn't state plainly (strength, sound, stack size, food, ...). Blocks with states are listed as comments.
+- A `ContentModule` declaring the items and the blocks, with TODOs for properties the jar doesn't state plainly (strength, sound, stack size, food, ...). Blocks whose states match no Conductor shape are listed as comments.
+  - **Shapes** come from blockstate files: stairs, slabs, walls, doors, facing cubes and so on.
+  - **Blocks shaped by boxes** (facing blocks whose model isn't a full cube) get one `.box(...)` per model element, turned to face north and cut to the block.
+  - **Covered classes.** A block class that only overrides the outline, facing, water, rotation, skylight and sounds is listed as covered, not as custom behaviour; its mixed sounds become `.sounds(...)`.
 - `META-INF/services/conductor.contract.ContentModule`, `build.gradle` and `README.md` (the report).
 
 ## Verdicts

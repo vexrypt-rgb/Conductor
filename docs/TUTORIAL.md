@@ -809,14 +809,20 @@ List the class in `META-INF/services/conductor.contract.ContentModule`.
 
 | Items | Blocks |
 |---|---|
-| `maxStack`, `durability`, `food(nutrition, saturation)`, `rarity`, `fireResistant`, `tab` | `strength(hardness, resistance)`, `light`, `sound`, `requiresTool`, `noItem`, `tab`, `shape`, `stairsOf`, `material`, `layer` |
+| `maxStack`, `durability`, `food(nutrition, saturation)`, `rarity`, `fireResistant`, `tab` | `strength(hardness, resistance)`, `light`, `sound`, `sounds`, `requiresTool`, `noItem`, `tab`, `shape`, `stairsOf`, `material`, `layer`, `box` |
 
 **Block shapes.**
 - **Kinds.** `shape(BlockShape.X)` makes the block vanilla's block of that kind: CUBE (the default), PILLAR, STAIRS, SLAB, WALL, FENCE, FENCE_GATE, DOOR, TRAPDOOR, BUTTON, PRESSURE_PLATE, PANE, LEAVES, CARPET or GLASS.
+- **Facing cubes.** FACING turns to face the player who places it, in any of six directions, like an observer. HORIZONTAL_FACING turns only to north, east, south or west, like a furnace. Your blockstate file maps `facing=...` to models.
+- **Shaped by boxes.** `box(x1, y1, z1, x2, y2, z2)` makes a MODEL block, like a lantern or a candle. Give each box in pixels (0 to 16) with the block facing north; up to 256 boxes.
+  - The boxes are its outline and what you collide with; Conductor turns them with the block's `facing`.
+  - The block faces the player who places it, can hold water, and lets light through.
+  - Copy the boxes from your block model's `elements`; the converter does that for you.
+- **Mixed sounds.** `sounds("minecraft:block.lantern.break", step, place, hit, fall)` names each sound by id, for blocks whose sounds no `BlockSound` matches.
 - **Vanilla behaviour.** Walls connect, slabs stack, doors are two blocks tall, and so on. Your jar supplies the blockstate and model JSON, as a resource pack would.
 - **Stairs.** `stairsOf("ruby_block")` names the block the stairs copy. It must be declared before them, or be a `minecraft:` block.
 - **Material.** `material(BlockMaterial.IRON|STONE|WOOD|COPPER)` decides how doors, trapdoors, buttons, pressure plates and fence gates sound and who may use them; iron doors need redstone.
-- **Render layer.** See-through shapes (DOOR, TRAPDOOR, PANE, LEAVES, GLASS) default to the CUTOUT render layer. `layer(RenderLayer.TRANSLUCENT)` is for tinted glass.
+- **Render layer.** See-through shapes (DOOR, TRAPDOOR, PANE, LEAVES, GLASS, MODEL) default to the CUTOUT render layer. `layer(RenderLayer.TRANSLUCENT)` is for tinted glass.
 - **Easiest JSON.** Copy vanilla's own JSON for the same kind of block, for example `stone_brick_stairs`, and rename the ids. That is how `examples/ruby-content` got its stairs, slab, wall, pillar, glass and door.
 
 The rules:

@@ -113,6 +113,37 @@ The loot lines come from the first run of this test. In the rerun with the corre
 - Screenshot (not committed: third-party textures): a wall, a door with see-through windows, a bookshelf, bricks, a sideways log, stairs, a slab, and fences joined to each other.
 - Evidence: `converted-thaumon-shapes-{fabric-server,client}-1.21.11.log.gz`.
 
+**Thaumon, all 137 blocks: facing cubes and blocks shaped by boxes (2026-10-13, later):**
+- **What the last 10 were.**
+  - **3 stones** face up, down or sideways: now `BlockShape.FACING`.
+  - **7 blocks:** grimoire, grimoire stack, research notes, retort, vial rack, crystal lamp, crystal stand.
+    - They have small outlines, face the player, and can hold water.
+    - Their 7 classes override only outline, placement, water, rotation, mirroring, skylight and sounds. Their tooltip method has the pre-1.20.5 signature, so it is never called on 1.21.
+    - Now declared with `box(...)`, one box per model element, plus `sounds(...)` for their mixed lantern, glass and amethyst sounds.
+- **The converter:** 137 of 137 blocks declarable, 0 left as comments.
+  - The 7 block classes are reported as covered.
+  - The only custom code left is `MutagenItem`.
+  - The skeleton compiled and ran unchanged.
+- **Run on both versions** (Fabric dedicated server and client, production launch, the same module jar):
+
+| Check | 1.21.11 | 1.21.4 |
+|---|---|---|
+| Registered on both sides | 137 blocks, 138 items | same |
+| Drawn see-through (the 7 box-shaped blocks are new) | 25 blocks | 25 |
+| `grimoire[facing=east]` placed and read back | CHECK passed | passed |
+| `grimoire[waterlogged=true]` | CHECK passed; its water flows out as from a vanilla waterlogged block | passed |
+| `chiseled_ancient_stone[facing=up]` | CHECK passed | passed |
+| `loot … mine` a box-shaped block | `Dropped 1 [crystal_stand]` from Thaumon's loot table | dropped 1 |
+| Data and model errors | 0 (the only `ERROR` is the test server's `No key layers`) | 0 |
+
+- **Screenshot** (1.21.11; not committed: third-party textures):
+  - all 7 models render, the grimoires turned to their four facings;
+  - with the crosshair on the east-facing grimoire, the outline follows the book instead of a full block.
+- **Bug found and fixed by this run.**
+  - Looking up a vanilla sound while content registers threw `Trying to access unbound value` on 1.21.11, and the server stopped at startup.
+  - Conductor now uses the registered sound only when its holder is bound; otherwise it uses a sound event made from the id. The client finds sounds by id, so it plays the same sound.
+- Evidence: `converted-thaumon-models-{fabric-server,client}-{1.21.11,1.21.4}.log.gz`.
+
 ## 4. Next to performance mods: Sodium and Lithium
 
 The question (project owner): can Conductor handle performance mods like Sodium? They stay ordinary mods (CONTENT-MODS §6), so the question is whether Conductor and its modules work next to them.

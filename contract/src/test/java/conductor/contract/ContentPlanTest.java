@@ -174,4 +174,33 @@ class ContentPlanTest {
         })));
         assertEquals(3, bad.problems().size(), bad.problems().toString());
     }
+
+    @Test
+    void modelBlocksNeedValidBoxesAndTurnWithTheBlock() {
+        ContentPlan ok = ContentPlan.of(Map.of("m", module("m", c -> c.block("lamp").box(7, 0, 7, 9, 4, 9).box(6, 4, 6, 10, 8, 10)
+                .sounds("minecraft:block.lantern.break", "minecraft:block.glass.step", "minecraft:block.lantern.place",
+                        "minecraft:block.lantern.hit", "minecraft:block.glass.fall"))));
+        assertEquals(List.of(), ok.problems());
+        BlockDeclaration lamp = ok.entries().get(0).blocks().get(0);
+        assertEquals(BlockShape.MODEL, lamp.shape());
+        assertEquals(RenderLayer.CUTOUT, lamp.layer(), "models usually have see-through pixels");
+        assertEquals(2, lamp.boxes().size());
+        assertTrue(lamp.sounds().isPresent());
+
+        ContentPlan bad = ContentPlan.of(Map.of("m", module("m", c -> {
+            c.block("empty").shape(BlockShape.MODEL);
+            c.block("outside").box(0, 0, 0, 17, 1, 1);
+            c.block("flat").box(0, 0, 0, 16, 0, 16);
+            c.block("cube_with_box").box(0, 0, 0, 1, 1, 1).shape(BlockShape.CUBE);
+            c.block("noisy").sounds("glass", "minecraft:a", "minecraft:b", "minecraft:c", "minecraft:d");
+        })));
+        assertEquals(5, bad.problems().size(), bad.problems().toString());
+
+        // a box against the north side, turned with the block, ends up against that side
+        BlockBox north = new BlockBox(2, 0, 0, 6, 4, 3);
+        assertEquals(north, north.facing("north"));
+        assertEquals(new BlockBox(13, 0, 2, 16, 4, 6), north.facing("east"));
+        assertEquals(new BlockBox(10, 0, 13, 14, 4, 16), north.facing("south"));
+        assertEquals(new BlockBox(0, 0, 10, 3, 4, 14), north.facing("west"));
+    }
 }

@@ -99,7 +99,7 @@ API_HINTS = [
     ("net/fabricmc/fabric/api/datagen", "build-time only: run datagen once and ship the generated JSON"),
     ("net/fabricmc/fabric/api/biome", "biome modification: not yet (vanilla data can override whole biomes)"),
     ("net/fabricmc/fabric/api/client/rendering", "renderers/colour providers: native module, or overlays (showOverlay) for simple drawing"),
-    ("net/fabricmc/fabric/api/blockrenderlayer", "render layers: not yet"),
+    ("net/fabricmc/fabric/api/blockrenderlayer", "render layers: `.layer(RenderLayer.CUTOUT)` (or TRANSLUCENT) on the declaration"),
     ("net/fabricmc/fabric/api/client/keybinding", "keybinds: not yet (commands: ModuleContext.command)"),
     ("net/fabricmc/fabric/api/client/command", "client commands: ModuleContext.command (+prefix)"),
     ("net/fabricmc/fabric/api/command", "server commands: not yet"),
@@ -191,6 +191,76 @@ def shape_of(bs, block_id):
         return "PANE" if ("pane" in path or "bars" in path) else "FENCE"
     if keys <= {"distance", "persistent"} and "distance" in keys:
         return "LEAVES"
+    if keys == {"facing"}:
+        # MODEL instead, when its model turns out smaller than a cube (see model_boxes)
+        return "FACING" if {"up", "down"} & p["facing"] else "HORIZONTAL_FACING"
+    return None
+
+def north_model(bs):
+    """The model id a blockstate uses when facing north (or its first variant), and that variant's y rotation."""
+    variants = bs.get("variants")
+    if not isinstance(variants, dict) or not variants:
+        return None, 0
+    v = next((v for k, v in variants.items() if "facing=north" in k.split(",")), next(iter(variants.values())))
+    if isinstance(v, list):
+        v = v[0] if v else {}
+    if not isinstance(v, dict):
+        return None, 0
+    y = v.get("y", 0)
+    return v.get("model"), y if y in (0, 90, 180, 270) else 0
+
+def turn_box(box, y):
+    """A box turned clockwise (seen from above) by a blockstate y rotation, as the game turns the model."""
+    for _ in range(y // 90):
+        x1, y1, z1, x2, y2, z2 = box
+        box = (16 - z2, y1, x1, 16 - z1, y2, x2)
+    return box
+
+def model_boxes(z, model_id, depth=0):
+    """The from/to boxes of a block model's elements (following its parents inside the jar), or [] when it has none
+    there (a vanilla parent such as cube_all: a full cube)."""
+    if not model_id or depth > 8:
+        return []
+    ns, path = model_id.split(":", 1) if ":" in model_id else ("minecraft", model_id)
+    try:
+        m = json.loads(z.read(f"assets/{ns}/models/{path}.json").decode("utf-8", "replace"))
+    except (KeyError, ValueError):
+        return []
+    elements = m.get("elements")
+    if isinstance(elements, list):
+        boxes = []
+        for e in elements:
+            try:
+                f, t = [float(x) for x in e["from"]], [float(x) for x in e["to"]]
+            except (KeyError, TypeError, ValueError):
+                continue
+            # outlines can't be rotated or reach outside the block: keep the axis-aligned part inside it
+            lo = [max(0.0, min(a, b)) for a, b in zip(f, t)]
+            hi = [min(16.0, max(a, b)) for a, b in zip(f, t)]
+            if all(h > l for l, h in zip(lo, hi)):
+                boxes.append(tuple(lo + hi))
+        return boxes
+    return model_boxes(z, m.get("parent"), depth + 1)
+
+# Overrides of Block that a MODEL / facing declaration covers (intermediary names, 1.20.5+): outline, placement,
+# facing and water states, rotation, mirroring, skylight, light blocking and sounds.
+COVERED_BLOCK_METHODS = {
+    "<init>", "<clinit>", "method_9530", "method_9549", "method_9515", "method_9605", "method_9598", "method_9569",
+    "method_9545", "method_9559", "method_9579", "method_9505", "method_9573", "method_53969",
+    # a tooltip method with the pre-1.20.5 signature is never called on 1.21: dead code in the original
+    "appendHoverText",
+}
+SOUND_ROLES = ("break", "step", "place", "hit", "fall")
+
+def sounds_of(strings):
+    """A block class's mixed sounds, when its constant pool names exactly one sound for each role."""
+    found = {}
+    for st in strings:
+        m = re.fullmatch(r"(block\.[a-z0-9_.]+)\.(break|step|place|hit|fall)", st)
+        if m:
+            found.setdefault(m.group(2), set()).add(st)
+    if set(found) == set(SOUND_ROLES) and all(len(v) == 1 for v in found.values()):
+        return ["minecraft:" + next(iter(found[r])) for r in SOUND_ROLES]
     return None
 
 def material_guess(block_id):
@@ -243,7 +313,26 @@ def class_info(data):
     this = utf8[classes[this_i]]
     sup = utf8[classes[super_i]] if super_i else None
     class_info.last_mixin_targets = mixin_targets(data, pos + 8 + 2 * n_if, utf8)
+    class_info.last_methods = declared_methods(data, pos + 8 + 2 * n_if, utf8)
+    class_info.last_strings = list(utf8.values())
     return this, sup, ifaces, refs
+
+def declared_methods(data, pos, utf8):
+    """Names of the methods a class declares."""
+    u2 = lambda p: struct.unpack(">H", data[p:p + 2])[0]
+    u4 = lambda p: struct.unpack(">I", data[p:p + 4])[0]
+    names = []
+    for table in range(2):  # fields, then methods
+        n = u2(pos)
+        pos += 2
+        for _ in range(n):
+            if table == 1:
+                names.append(utf8.get(u2(pos + 2), ""))
+            ac = u2(pos + 6)
+            pos += 8
+            for _ in range(ac):
+                pos += 6 + u4(pos + 2)
+    return names
 
 def mixin_targets(data, pos, utf8):
     """Targets of a class's @Mixin annotation (value = classes, targets = names), or [] when it has none."""
@@ -368,7 +457,7 @@ def analyse(jar_path):
     assets = [n for n in names if n.startswith("assets/") and not n.endswith("/")]
     data = [n for n in names if n.startswith("data/") and not n.endswith("/")]
     namespaces = sorted({n.split("/")[1] for n in assets + data if n.count("/") >= 2} - {"minecraft", "c", "fabric", "forge", "neoforge"})
-    items, blocks, entities, lang, shaped, block_shapes = set(), set(), set(), {}, set(), {}
+    items, blocks, entities, lang, shaped, block_shapes, block_boxes = set(), set(), set(), {}, set(), {}, {}
     for n in assets:
         m = re.match(r"assets/([^/]+)/(items|models/item)/(.+)\.json$", n)
         if m:
@@ -385,6 +474,15 @@ def analyse(jar_path):
                 shaped.add(bid)
             else:
                 block_shapes[bid] = shape
+                if shape == "HORIZONTAL_FACING":
+                    try:
+                        model, y = north_model(json.loads(z.read(n).decode("utf-8", "replace")))
+                        boxes = list(dict.fromkeys(turn_box(b, y) for b in model_boxes(z, model)))
+                    except (ValueError, AttributeError, TypeError):
+                        boxes = []
+                    if boxes and boxes != [(0.0, 0.0, 0.0, 16.0, 16.0, 16.0)] and len(boxes) <= 256:
+                        block_shapes[bid] = "MODEL"
+                        block_boxes[bid] = boxes
         m = re.match(r"assets/([^/]+)/lang/en_us\.json$", n)
         if m:
             try:
@@ -420,16 +518,19 @@ def analyse(jar_path):
     shaped &= blocks
     r.update(namespaces=namespaces, items=sorted(items - block_items), blocks=sorted(blocks), block_items=sorted(block_items),
              shaped_blocks=sorted(shaped), block_shapes={b: block_shapes[b] for b in sorted(block_shapes) if b in blocks},
+             block_boxes={b: block_boxes[b] for b in sorted(block_boxes) if b in blocks},
              spawn_eggs=sorted(spawn_eggs), entities=sorted(entities), data_kinds=dict(sorted(data_kinds.items())),
              old_data_layout=old_layout, loader_only=loader_only, assets=len(assets), data=len(data))
 
     # classes
-    infos, problems, declared_targets = {}, [], {}
+    infos, problems, declared_targets, class_methods, class_strings = {}, [], {}, {}, {}
     for n in names:
         if n.endswith(".class") and not n.startswith("META-INF/versions/"):
             try:
                 this, sup, ifaces, refs = class_info(z.read(n))
                 infos[this] = (mojang(sup) if sup else None, [mojang(i) for i in ifaces], {mojang(x) for x in refs})
+                class_methods[this] = class_info.last_methods
+                class_strings[this] = class_info.last_strings
                 if class_info.last_mixin_targets:
                     declared_targets[this] = class_info.last_mixin_targets
             except Exception as e:  # noqa: BLE001 - report and carry on
@@ -449,11 +550,23 @@ def analyse(jar_path):
             sup = infos.get(sup, (None,))[0]
         return None
     archetypes = {cls.replace("/", "."): a for cls in infos for a in [archetype_of(cls)] if a}
-    behaviour = {}
+    behaviour, covered, block_sounds = {}, {}, {}
+    model_like = {b for b, sh in r["block_shapes"].items() if sh in ("MODEL", "FACING", "HORIZONTAL_FACING")}
     for cls in infos:
         kind = base_of(cls)
-        if kind:
-            behaviour.setdefault(kind, []).append(cls.replace("/", "."))
+        if not kind:
+            continue
+        # a block class whose overrides a MODEL/facing declaration covers, for the block named like it
+        simple = re.sub(r"(?<!^)(?=[A-Z])", "_", cls.rsplit("/", 1)[-1]).lower()
+        simple = simple[:-len("_block")] if simple.endswith("_block") else simple
+        block = next((b for b in model_like if b.split(":", 1)[1] == simple), None)
+        if kind == "block" and block and set(class_methods.get(cls, [])) <= COVERED_BLOCK_METHODS:
+            covered[cls.replace("/", ".")] = block
+            snd = sounds_of(class_strings.get(cls, []))
+            if snd:
+                block_sounds[block] = snd
+            continue
+        behaviour.setdefault(kind, []).append(cls.replace("/", "."))
     all_refs = set().union(*(v[2] for v in infos.values())) if infos else set()
     registration = sorted({label for cls, label in REGISTRATION_APIS.items() if cls in all_refs})
     loader_apis = {}
@@ -487,7 +600,8 @@ def analyse(jar_path):
         for t in declared_targets.get(m.replace(".", "/"), []):
             t = mojang(t)
             targets[t] = targets.get(t, 0) + 1
-    r.update(mob_archetypes=dict(sorted(archetypes.items())), classes=len(infos), behaviour={k: sorted(v) for k, v in sorted(behaviour.items())}, registration=registration,
+    r.update(covered_classes=dict(sorted(covered.items())), block_sounds=dict(sorted(block_sounds.items())),
+             mob_archetypes=dict(sorted(archetypes.items())), classes=len(infos), behaviour={k: sorted(v) for k, v in sorted(behaviour.items())}, registration=registration,
              loader_apis={k: sorted(v) for k, v in sorted(loader_apis.items())}, hints=hints, mixins=mixins,
              mixin_targets=dict(sorted(targets.items())),
              class_problems=problems)
@@ -567,6 +681,10 @@ def report(r):
     for kind, classes in r["behaviour"].items():
         listed = ", ".join(c.rsplit(".", 1)[-1] for c in classes[:8]) + (" ..." if len(classes) > 8 else "")
         out.append(f"- Custom {kind} classes ({len(classes)}): {listed}")
+    if r.get("covered_classes"):
+        listed = ", ".join(c.rsplit(".", 1)[-1] for c in list(r["covered_classes"])[:8]) + (" ..." if len(r["covered_classes"]) > 8 else "")
+        out.append(f"- Block classes a declaration covers ({len(r['covered_classes'])}): {listed}. They only set the outline, "
+                   "facing, water and sounds; the skeleton declares those (outline from the block's model)")
     if r["mixins"]:
         out.append(f"- Mixins ({len(r['mixins'])}): " + ", ".join(f"{m.rsplit('.', 1)[-1]} ({side})" for side, m in r["mixins"][:12])
                    + (" ..." if len(r["mixins"]) > 12 else ""))
@@ -713,8 +831,17 @@ def write_skeleton(r, jar_path, out_dir):
             call += f".shape(BlockShape.{shape})"
         if shape in ("DOOR", "TRAPDOOR", "BUTTON", "PRESSURE_PLATE", "FENCE_GATE"):
             call += f".material(BlockMaterial.{material_guess(b)})"
+        if shape == "MODEL":
+            call = call.replace(".shape(BlockShape.MODEL)", "")
+            for x in r.get("block_boxes", {}).get(b, []):
+                call += "\n                .box(" + ", ".join(f"{v:g}" for v in x) + ")"
+        snd = r.get("block_sounds", {}).get(b)
+        if snd:
+            call += "\n                .sounds(" + ", ".join(f'"{v}"' for v in snd) + ")"
         if b not in r["block_items"]:
             call += ".noItem()"
+        if b in r.get("covered_classes", {}).values():
+            return f"        {call}; // TODO: strength, light, requiresTool (outline from its model; facing, water and sounds as in the original's class)"
         note = "  // TODO: a class named like this has custom code in the original" if any(path.replace("_", "") in c for c in custom) else ""
         return f"        {call}; // TODO: strength, sound, light, requiresTool{note}"
     mine = [b for b in r["blocks"] if b.split(":")[0] == ns_main]
