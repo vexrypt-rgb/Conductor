@@ -45,6 +45,10 @@ What Conductor gives you today:
 | Read the player, inventory, effects and nearby entities | `observe(PLAYER_STATUS / PLAYER_MOTION / INVENTORY_SLOTS / ACTIVE_EFFECTS / NEARBY_ENTITIES ...)` (§5.10) |
 | Read blocks, or find blocks around the player | `blockAt(...)`, `findBlocks(...)` (§5.10) |
 | Switch hotbar slot, turn, attack, use an item, chat | `selectHotbar`, `look`, `attack`, `useItem`, `sendChat` (§5.10) |
+| Draw boxes, lines and tracers in the world | `showOverlay(...)` (§5.11) |
+| React to block changes, chunks, deaths and received chat | `subscribe(Topics.BLOCK_CHANGES / CHUNKS / DEATHS / CHAT, ...)` (§5.12) |
+| Give the player chat commands, and talk back | `command(...)`, `showMessage(...)` (§5.12) |
+| Have settings the player can change, saved between games | `settings()`, `get(...)`, `+set ...` (§5.13) |
 | Stop it, and know when it has *really* stopped | `cancel(...)`, `operationStatus(...)` |
 | Know whether the bot is free to use | `resourceStatus()` |
 | See why anything happened | the diagnostic sink |
@@ -412,6 +416,65 @@ The rules:
 
 Full worked example: [`examples/player-actions`](../examples/player-actions/src/main/java/conductor/example/actions/PlayerActions.java), verified live on both versions ([live-run-player-actions.md](live-run-player-actions.md)).
 
+### 5.11 Overlays: draw in the world
+
+```java
+List<OverlayShape> shapes = List.of(
+    OverlayShape.block(ore, 0xFF00FFFF).throughWalls(true),          // outline one block, seen through walls
+    OverlayShape.tracer(x + 0.5, y + 0.5, z + 0.5, 0xFF00FFFF),     // a line from the crosshair to a point
+    OverlayShape.line(x1, y1, z1, x2, y2, z2, 0x80FF0000),           // any line; colour is 0xAARRGGBB
+    OverlayShape.box(x1, y1, z1, x2, y2, z2, 0xFFFFFF00));           // any box
+conductor.showOverlay(shapes);        // replaces this module's overlay; drawn every frame until replaced
+conductor.showOverlay(List.of());     // clear it
+```
+
+Each module has its own overlay, so modules never erase each other's. It disappears when the module stops. There is no lease, because drawing doesn't change the game. Limit: 4096 shapes per module.
+
+### 5.12 Events, commands and messages
+
+**Events** arrive as topic messages on the game thread at the end of the tick (§11.2):
+
+| Topic | Message |
+|---|---|
+| `Topics.BLOCK_CHANGES` | `BlockChange(at, block)`: a block the server changed |
+| `Topics.CHUNKS` | `ChunkChange(chunkX, chunkZ, loaded)` |
+| `Topics.DEATHS` | `PlayerDeath()` |
+| `Topics.CHAT` | `ChatMessage(text, sender)`: received chat; sender only for player chat |
+| `Topics.SETTINGS` | `SettingChanged(module, name, value)` |
+
+**Chat commands.** The player types `+name args...`. The line never reaches the server, and your handler runs on the game thread:
+
+```java
+conductor.command("highlight", "rescan and report", call -> {        // call.args() = the words after the name
+    conductor.showMessage(found.size() + " found");                  // a line in the player's own chat, labelled with your module
+});
+```
+
+Conductor's own commands:
+- `+help`
+- `+modules`
+- `+enable <module>`, `+disable <module>`
+- `+settings <module>`
+- `+set <module> <setting> <value>`
+
+Command names are first come, first served. The prefix is `+` (change it with `-Dconductor.commandPrefix`).
+
+### 5.13 Settings
+
+```java
+static final Setting<Integer> RADIUS = Setting.integer("radius", "search radius", 8, 1, 16);   // also bool, decimal, text
+@Override public List<Setting<?>> settings() { return List.of(RADIUS); }
+...
+int r = conductor.get(RADIUS);
+```
+
+- **Saved between games**, in `<game dir>/conductor/config/<module>.properties` (plain text).
+- **The player changes them** with `+set <module> radius 12`; out-of-range values are refused.
+- **A settings-screen module** can list and change any module's settings through `ModuleManagement.settings(...)` and `setSetting(...)`.
+- **Every change is published** on `Topics.SETTINGS`.
+
+Worked example with all of §5.11-5.13: [`examples/block-highlighter`](../examples/block-highlighter/src/main/java/conductor/example/highlight/BlockHighlighter.java). It is a version-agnostic "block ESP".
+
 ---
 
 ## 6. When Conductor says no
@@ -516,6 +579,9 @@ Conductor is young. Here is everything it **cannot** do today, so you can plan a
 - **Modules in `conductor/modules/` are not transformed.** They get no Mixin and no remapping, which is exactly right for contract modules. Native modules that need Minecraft classes ship inside their own mod and are found on the game's classpath through the same service file.
 - **Minecraft 1.21.11 and 1.21.4 only.** Ostinato's 26.3 branch (Java 25) has no adapter yet. The 1.16.1 branch's API differs too much to reuse as is.
 - **No hot reload.** Modules load at game start. Disabling a module stops it logically; its code stays loaded.
+- **Block-change events cover what the server sends.** Section updates come through Ostinato's event, single-block updates through the packet. Changes the client makes itself (before the server confirms them) are not events.
+- **Overlays are outlines and lines only.** No filled boxes, text labels or 2D HUD yet.
+- **Commands are typed in chat.** No keybinds yet.
 - **`content()` covers built-in registries only.** Items, blocks, entity types and effects work. Data-driven things (enchantments, biomes, recipes, damage types) are UNKNOWN, so a feature that needs them stays off.
 - **Engine features mean "the code is in this build".** PRESENT for `ostinato:combat/spear` says the Ostinato build has spear code, not that a combat capability exists or is running.
 

@@ -51,8 +51,8 @@ Most used utilities:
 | Block / world reads (block states, scanning) | 55 | none | **`blockAt`, `findBlocks`** (loaded chunks only; "not loaded" is never reported as air) |
 | Inventory reads | 51 | item counts only | **`INVENTORY_SLOTS`** (slot, item, count, durability), **`SELECTED_SLOT`** |
 | Player state (health, food, effects, position) | 49 | block position only | **`PLAYER_STATUS`**, **`PLAYER_MOTION`**, **`ACTIVE_EFFECTS`** |
-| Packets (read, send, cancel) | 45 | none | none. Ostinato's event bus delivers packets loader-free; a contract would expose *semantic* events, not raw packets (§3). |
-| 3D world rendering (ESP, tracers, boxes) | 39 | none | none. Ostinato's render pass and line renderer exist on both versions (§3). |
+| Packets (read, send, cancel) | 45 | none | **semantic events** from packets: received chat, block changes, chunks, death (`Topics`). No raw packets, by design (§4). |
+| 3D world rendering (ESP, tracers, boxes) | 39 | none | **`showOverlay`**: boxes, lines, tracers |
 | Input (keys, mouse, keybinds) | 37 | none | none (needs a per-version hook) |
 | Inventory actions (select, swap, move) | 34 | none | **`selectHotbar`** (HOTBAR lease). Slot moves are next. |
 | Look / rotation | 33 | LOOK lease, no action | **`look(yaw, pitch)`** (LOOK lease) |
@@ -66,7 +66,8 @@ Most used utilities:
 | Connection (reconnect, leave) | 10 | context tracking | context tracking |
 | 2D HUD | 9 (+15 HUD elements) | none | none (needs a per-version hook) |
 | Entity actions (attack, interact) | 8 | combat (engine) | **`attack(entityId)`** (INTERACT lease) |
-| Chat send / receive | 7 | CHAT lease only | **`sendChat`** (CHAT lease, one per tick, rejects characters servers kick for) |
+| Chat send / receive | 7 | CHAT lease only | **`sendChat`** (CHAT lease, one per tick, rejects characters servers kick for), **`Topics.CHAT`** (received), **`showMessage`** (local) |
+| (platform) settings, commands | all modules have settings; Meteor has commands and a GUI | none | **`Setting`s** (saved, `+set`), **chat commands**, management through chat |
 
 Coverage (greedy, heuristic): the reads plus the five actions above cover the most common needs. Most Meteor modules also need **rendering or packets**, which is why those are the next items, not "later".
 
@@ -92,7 +93,9 @@ Ostinato's `IGameEventListener` delivers these on the game thread. Conductor can
 ## 5. Order of work (each step: contract, then adapter, then unit tests, then live on both versions)
 
 1. **Done:** player, world and action reads and actions (§2, bold). Verified live on both versions ([live-run-player-actions.md](live-run-player-actions.md)).
-2. **Events and commands:** chat commands with a prefix, local messages to the player, and topics for block changes, chunks, death and received chat.
-3. **3D overlays:** boxes, lines and tracers from modules, drawn in Ostinato's render pass. A per-version renderer, about 50 lines each.
-4. **Settings:** typed module settings, saved to `conductor/config/`, editable by chat command or by a GUI module through a service.
+2. **Done:** events and commands. Chat commands with a prefix, local messages to the player, and topics for block changes, chunks, death and received chat.
+3. **Done:** 3D overlays. Boxes, lines and tracers from modules, drawn in Ostinato's render pass by a per-version renderer (about 70 lines each).
+4. **Done:** settings. Typed module settings, saved to `conductor/config/`, editable by chat command or by a GUI module through `ModuleManagement`.
+
+Items 2-4 were verified live on both versions with one jar, with screenshots: [live-run-highlighter.md](live-run-highlighter.md).
 5. Inventory moves (swap, move, drop), block place/break (audit first), 2D HUD, keybinds.

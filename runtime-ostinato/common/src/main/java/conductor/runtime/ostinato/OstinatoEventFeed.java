@@ -12,6 +12,7 @@ import conductor.contract.EventPort;
 import conductor.contract.GameEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerChatPacket;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import net.minecraft.world.level.block.state.BlockState;
@@ -130,7 +131,13 @@ final class OstinatoEventFeed implements EventPort, AbstractGameEventListener {
             return;
         }
         Object packet = event.getPacket();
-        if (packet instanceof ClientboundSystemChatPacket system && !system.overlay()) {
+        if (packet instanceof ClientboundBlockUpdatePacket update) {
+            // Ostinato reports multi-block section updates as BlockChangeEvent but not single-block updates
+            // (its hook for those is commented out; live run 2026-10-13), so single updates come from the packet.
+            BlockPos pos = update.getPos();
+            offer(new GameEvent.BlockChange(new BlockPoint(pos.getX(), pos.getY(), pos.getZ()),
+                    String.valueOf(BuiltInRegistries.BLOCK.getKey(update.getBlockState().getBlock()))));
+        } else if (packet instanceof ClientboundSystemChatPacket system && !system.overlay()) {
             offer(new GameEvent.ChatMessage(system.content().getString(), Optional.empty()));
         } else if (packet instanceof ClientboundPlayerChatPacket chat) {
             offer(new PendingChat(chat.body().content(), chat.sender()));

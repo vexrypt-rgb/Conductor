@@ -67,8 +67,10 @@ if [ -n "${SCREENSHOT_AT:-}" ]; then
     (
         until grep -q "Dev joined the game" "$WORK/server.log" 2>/dev/null; do sleep 1; done
         sleep "$SCREENSHOT_AT"
-        DISPLAY_NUM=$(pgrep -a Xvfb | grep -o ' :[0-9]*' | head -1 | tr -d ' ')
-        import -window root -display "$DISPLAY_NUM" "$WORK/screenshot.png" && echo "screenshot saved: $WORK/screenshot.png"
+        XVFB=$(pgrep -a Xvfb | head -1)
+        DISPLAY_NUM=$(echo "$XVFB" | grep -o ' :[0-9]*' | head -1 | tr -d ' ')
+        AUTH=$(echo "$XVFB" | grep -o -- '-auth [^ ]*' | cut -d' ' -f2)
+        XAUTHORITY="$AUTH" import -window root -display "$DISPLAY_NUM" "$WORK/screenshot.png" && echo "screenshot saved: $WORK/screenshot.png"
     ) &
 fi
 
