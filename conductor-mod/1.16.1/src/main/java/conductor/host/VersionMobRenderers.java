@@ -21,7 +21,8 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 /**
- * Draws declared mobs with their archetype's renderer, the module's texture and scale (Minecraft 1.16.1). 1.16 builds
+ * Draws declared mobs with their archetype's renderer, the module's texture and scale, and custom mobs with
+ * {@link CustomMobRenderer} (Minecraft 1.16.1). 1.16 builds
  * renderers once, inside the dispatcher's constructor, so they are added from the hook there. Client only.
  */
 public final class VersionMobRenderers {
@@ -105,6 +106,8 @@ public final class VersionMobRenderers {
                         pose.scale(k, k, k);
                     }
                 };
+            case CUSTOM:
+                return new CustomMobRenderer(dispatcher, d);
             default:
                 throw new IllegalArgumentException("no Minecraft 1.16.1 renderer for mob archetype " + d.archetype());
         }

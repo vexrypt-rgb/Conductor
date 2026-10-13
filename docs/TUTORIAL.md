@@ -849,6 +849,14 @@ content.mob("ruby_pig").like(MobArchetype.PIG).speed(0.3);
   - its drops: the loot table `data/<namespace>/loot_table/entities/<path>.json`.
 - **Spawning.** Use `/summon <namespace>:<path>`, spawners, or your own data. There are no spawn eggs or natural spawning rules yet.
 - **Archetype quirks carry over.** Babies from breeding a pig-like mob are vanilla pigs, and a zombie-like mob that drowns becomes a vanilla drowned.
+- **Fully custom mobs and bosses.** Use `.model(name)` instead of `.like(...)`, and the mob is entirely yours: a model and animations made in Blockbench (Bedrock files), goals, a `MobBehaviour` for special attacks and phases, a boss bar and sounds. The same jar runs on 1.16.1, 1.21.4, 1.21.11 and 26.3:
+
+  ```java
+  content.mob("ruby_golem").model("ruby_golem").animations("ruby_golem").size(1.4f, 2.7f).health(200)
+          .boss(BossBar.Color.PINK, BossBar.Style.NOTCHED_10).behaviour(new RubyGolemBehaviour());
+  ```
+
+  The full guide is [CUSTOM-MOBS.md](CUSTOM-MOBS.md).
 
 ### 13.3 Everything else is data in the same jar
 
@@ -885,7 +893,7 @@ The Conductor mod now runs on dedicated servers too. There it only hosts content
 
 ### 13.5 Not yet
 
-- **Mobs with their own AI or model, block entities, custom item or block behaviour (right-click actions, GUIs).** These need code. Declared mobs (§13.2) cover mobs built on a vanilla archetype.
+- **Block entities, custom item or block behaviour (right-click actions, GUIs).** These need code. Mobs with their own model, AI and code are covered (§13.2, [CUSTOM-MOBS.md](CUSTOM-MOBS.md)).
 - **Spawn eggs and natural mob spawning.**
 - **Block kinds not in `BlockShape`.**
 - **An id handshake.** A client with different content modules from the server gets Minecraft's own errors, not a clear "module X is missing".

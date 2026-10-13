@@ -23,6 +23,7 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.Pig;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Spider;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.food.FoodProperties;
@@ -81,6 +82,8 @@ public final class ContentInstaller {
     private static final Logger LOG = LogManager.getLogger("conductor");
     /** The resource and data pack format of Minecraft 1.16.1 (1.16.2 moved data to 6). */
     static final int PACK_FORMAT = 5;
+    /** The Minecraft version, for files a module ships per version ({@code mc_1.16.1/...}). */
+    public static final String MINECRAFT = "1.16.1";
     private static boolean installed;
     private static final Map<Block, RenderLayer> RENDER_LAYERS = new LinkedHashMap<>();
     private static final Map<EntityType<?>, AttributeSupplier> MOB_ATTRIBUTES = new ConcurrentHashMap<>();
@@ -147,10 +150,6 @@ public final class ContentInstaller {
             }
         }
         for (MobDeclaration d : entry.mobs()) {
-            if (d.archetype() == conductor.contract.MobArchetype.CUSTOM) {
-                LOG.warn("Conductor content: custom mob {} is not supported on Minecraft 1.16.1 yet; it is left out", d.id());
-                continue;
-            }
             EntityType<? extends Mob> type = Registry.register(Registry.ENTITY_TYPE, new ResourceLocation(d.id()),
                     mobType(d));
             MOBS.put(type, d);
@@ -190,6 +189,14 @@ public final class ContentInstaller {
             case PIG:
                 return new EntityType<Pig>(Pig::new, MobCategory.CREATURE, true, true, d.fireImmune(), false, ImmutableSet.of(),
                         EntityDimensions.scalable(0.9f * k, 0.9f * k), 10, 3);
+            case CUSTOM:
+                MobDeclaration.Custom c = d.custom().orElseThrow();
+                EntityDimensions size = EntityDimensions.scalable(c.width() * k, c.height() * k);
+                return c.hostile()
+                        ? new EntityType<ConductorMob>(ConductorMob.Hostile::new, MobCategory.MONSTER, true, true, d.fireImmune(), false,
+                                ImmutableSet.of(), size, 10, 3)
+                        : new EntityType<ConductorMob>(ConductorMob::new, MobCategory.CREATURE, true, true, d.fireImmune(), false,
+                                ImmutableSet.of(), size, 10, 3);
             default:
                 throw new IllegalArgumentException("no Minecraft 1.16.1 class for mob archetype " + d.archetype());
         }
@@ -353,6 +360,11 @@ public final class ContentInstaller {
                 case SPIDER:
                     attributes = Spider.createAttributes();
                     break;
+                case CUSTOM:
+                    // a monster's set (it has attack damage, so melee always works), with a zombie's numbers
+                    attributes = Monster.createMonsterAttributes().add(Attributes.MAX_HEALTH, 20).add(Attributes.MOVEMENT_SPEED, 0.25)
+                            .add(Attributes.FOLLOW_RANGE, 32).add(Attributes.ATTACK_DAMAGE, 3);
+                    break;
                 default:
                     attributes = Pig.createAttributes();
                     break;
@@ -365,6 +377,11 @@ public final class ContentInstaller {
             d.followRange().ifPresent(v -> attributes.add(Attributes.FOLLOW_RANGE, v));
             return attributes.build();
         });
+    }
+
+    /** The declaration a mob type was registered from, or null. */
+    static MobDeclaration declaration(EntityType<?> type) {
+        return MOBS.get(type);
     }
 
     /** Whether {@code type} is a declared mob (cheap: builds nothing). */
@@ -387,7 +404,7 @@ public final class ContentInstaller {
                 soundEvent(s.hit()), soundEvent(s.fall()));
     }
 
-    private static SoundEvent soundEvent(String id) {
+    static SoundEvent soundEvent(String id) {
         ResourceLocation rl = new ResourceLocation(id);
         SoundEvent known = Registry.SOUND_EVENT.get(rl);
         return known != null ? known : new SoundEvent(rl); // the client finds sounds by id

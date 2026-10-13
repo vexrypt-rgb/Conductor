@@ -82,12 +82,14 @@ Custom mobs need more than declarations:
 - a spawn egg (constructor differs between versions);
 - on the client, a renderer and model layers. These are private registries, and the renderer API changed a lot between 1.21.4 and 1.21.11.
 
-**Status:** step 1 is built (ZOMBIE, SPIDER and PIG archetypes) and verified live on both versions ([live-run-content.md](live-run-content.md) §5).
+**Status:** steps 1 and 2 are built, and fully custom mobs too.
+- Step 1: ZOMBIE, SPIDER and PIG archetypes, verified live on both versions ([live-run-content.md](live-run-content.md) §5).
+- Step 2 and beyond: fully custom mobs and bosses. They have their own Bedrock model and animations, goals that map to vanilla goals, a `MobBehaviour` for special attacks and phases, and a boss bar. Verified live with the Ruby Golem on 1.16.1, 1.21.4, 1.21.11 and 26.3 ([CUSTOM-MOBS.md](CUSTOM-MOBS.md), [live-run-custom-mobs.md](live-run-custom-mobs.md)).
 
 **Plan:**
-1. **Declared mobs built on a vanilla archetype.** For example, "a zombie-like mob, 1.5× size, 40 health, this texture": `EntityType` plus attributes plus the archetype's AI and renderer with a module texture. Version-agnostic, since the module only declares.
-2. **Behaviour.** AI goals as contract building blocks (wander, attack nearest, flee, follow) that the runtime maps to vanilla goals per version.
-3. **Native modules** for anything beyond that. They are tied to one Minecraft version, but registered through the same pre-freeze window.
+1. **Done: declared mobs built on a vanilla archetype.** For example, "a zombie-like mob, 1.5× size, 40 health, this texture": `EntityType` plus attributes plus the archetype's AI and renderer with a module texture. Version-agnostic, since the module only declares.
+2. **Done: behaviour.** AI goals as contract building blocks (wander, attack nearest, flee, follow) that the runtime maps to vanilla goals per version. Also done beyond the plan: the module's own model, animations and code (`MobBehaviour`), and boss bars.
+3. **Native modules** for anything beyond that (for example new movement kinds, such as flying). They are tied to one Minecraft version, but registered through the same pre-freeze window.
 
 ## 5. Converting existing mods
 
@@ -136,4 +138,5 @@ Performance mods are a different category. **They are hosted next to Conductor, 
 7. **Done:** blocks with states. `BlockShape` maps to vanilla's block classes: pillar, stairs, slab, wall, fence, fence gate, door, trapdoor, button, pressure plate, pane, leaves, carpet, glass. It comes with materials and render layers. The converter recognises shapes from blockstate files: on Thaumon, 127 of 137 blocks are declarable (was 40).
    - **Then:** facing cubes (FACING, HORIZONTAL_FACING) and blocks shaped by boxes (`box(...)`, turned with the block, waterloggable), plus mixed sounds by id. The converter takes the boxes from the block model's elements. It treats a block class as covered when it only overrides outline, facing, water, rotation, skylight and sounds. On Thaumon: **137 of 137** blocks declarable, and 7 of its 8 custom classes covered; live on 1.21.11 and 1.21.4 ([live-run-content.md](live-run-content.md) §3).
 8. **Done:** declared mobs on vanilla archetypes (zombie, spider, pig). The converter maps a mod's entity classes that extend those to `content.mob(...).like(...)`.
-9. **Next:** more archetypes, spawn eggs and natural spawning, the id handshake.
+9. **Done:** fully custom mobs and bosses: model and animations from Blockbench's Bedrock files, goals, behaviour, boss bar; on all four versions ([CUSTOM-MOBS.md](CUSTOM-MOBS.md)).
+10. **Next:** more archetypes, spawn eggs and natural spawning, the id handshake; the converter mapping GeckoLib mobs to custom mobs (GeckoLib mods ship models and animations in the same Bedrock formats).

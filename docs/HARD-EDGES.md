@@ -16,6 +16,7 @@
 | **Overlays** (boxes, lines, tracers) | The world renderer itself. 1.21.4 draws in immediate mode (`Tesselator`, `BufferUploader`, `CoreShaders`). 1.21.11 uses `RenderPipeline` and `RenderType` built from private APIs. Conductor's two `VersionLineDrawer`s are about 70 lines each. | **Nothing.** The same `block-highlighter` jar drew on both versions ([live-run-highlighter.md](live-run-highlighter.md), [live-run-no-ostinato.md](live-run-no-ostinato.md)). |
 | **Block render layers** (see-through glass and doors) | The layer type: `RenderType` became `ChunkSectionLayer`. | Nothing: modules say `RenderLayer.CUTOUT` ([live-run-content.md](live-run-content.md) §3). |
 | **Mob renderers** | Renderer and model classes moved packages; renderers became render-state based. | Nothing: modules say `like(MobArchetype.ZOMBIE)` plus a texture (§5 there). |
+| **Fully custom mobs: 1.16.1, 1.21.4, 1.21.11, 26.3** | Five years of entity and model APIs: 1.16.1 builds `ModelPart` boxes by hand and draws per entity; 1.21.x builds a part tree from a `LayerDefinition` and draws from a render state; entity types, attributes, projectiles and registries changed constructors and packages. | **Nothing.** The same jar's Ruby Golem (Bedrock geometry and animations, goals, a behaviour with slams, fireballs and summons, a boss bar) fought the same fight on all four ([live-run-custom-mobs.md](live-run-custom-mobs.md)). Model, Molang and animation code are one shared copy; only the entity and model classes are per version. |
 | **Deep engine replacements next to Conductor** | Sodium replaces the chunk renderer; Lithium rewrites game logic. | Nothing: Conductor's hooks, content and overlays worked next to both (§4 there). |
 | **Shaders next to Conductor (1.21.4, 1.21.11, 26.3)** | Iris (with Sodium) replaces the world's shaders with a shader pack's, and the pack decides each block's material from its own list of block names. | Nothing: the same jars drew blocks, mobs and overlays under the same pack on all three versions. Conductor itself gained one optional Iris hook, so module glass, leaves and panes get the pack's materials ([live-run-shaders.md](live-run-shaders.md)). |
 | **A whole new renderer: 1.21.11 → 26.3** | 26.3 extracts the level into a frame before drawing it, and draws debug lines as gizmos. It picks block render layers from texture pixels; `RenderType` registration for blocks is gone. Conductor's 26.3 render hook moved to `LevelExtractor`, its `VersionLineDrawer` emits gizmos, and its render-layer class became a no-op. | **Nothing.** The same `block-highlighter` and `ruby-content` jars drew overlays, see-through glass, doors and mobs on 26.3 ([live-run-26.3.md](live-run-26.3.md)). |
@@ -27,12 +28,12 @@ The pattern: **a module states what it wants, and Conductor's per-version code d
 
 1. **Data first.** Block, item and entity models, textures, item model definitions, and core shaders and post-effects in resource packs are JSON and GLSL files that the game itself loads and migrates. A content module ships them as data. The `mc_<version>` overlay covers format changes.
 2. **Contract drawing primitives.** A module asks Conductor to draw; each Minecraft version has its own small drawer.
-   - **Today:** lines, boxes, tracers, render layers, archetype mob renderers.
+   - **Today:** lines, boxes, tracers, render layers, archetype mob renderers, and custom mob models with animations (Bedrock geometry and animation JSON, drawn by Conductor's per-version model class: [CUSTOM-MOBS.md](CUSTOM-MOBS.md)).
    - **Next, in order of how often client mods need them** (from the Meteor survey):
      - filled boxes and text labels in the world;
      - a 2D HUD (text, item icons, bars);
      - entity glow and outline;
-     - block and entity models given as JSON.
+     - block models beyond vanilla's JSON (entity models given as JSON are done, above).
 3. **Native render modules.** Shader packs and engine replacements (Iris, Sodium) stay version-specific mods that run *next to* Conductor ([CONTENT-MODS.md](CONTENT-MODS.md) §6). Conductor's duty there is compatibility, tested live: Sodium and Lithium on 1.21.x, Iris with a shader pack on 1.21.4, 1.21.11 and 26.3 ([live-run-shaders.md](live-run-shaders.md)).
 
 ## 3. Deep engine hooks: shrink, move, contain
