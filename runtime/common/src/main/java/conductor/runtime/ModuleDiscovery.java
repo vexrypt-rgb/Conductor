@@ -117,6 +117,14 @@ public final class ModuleDiscovery {
             case SERVER -> load(ServiceLoader.load(ServerModule.class, loader), loader, source, server, problems);
         };
         ids.forEach(id -> jarOf.put(id, jar));
+        if (ids.isEmpty()) {
+            // nothing of this kind came from the jar: do not keep it open (an open jar cannot be replaced on Windows)
+            try {
+                loader.close();
+            } catch (IOException e) {
+                problems.add(jar + ": " + e);
+            }
+        }
     }
 
     /** @param only when not null, keep only modules defined by this loader (not ones its parent also sees) */

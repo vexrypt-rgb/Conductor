@@ -1,6 +1,7 @@
 package conductor.runtime;
 
 import conductor.contract.ConductorModule;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -23,6 +24,27 @@ class ModuleDiscoveryTest {
 
     @TempDir
     Path tmp;
+
+    private final java.util.List<ModuleDiscovery.Found> opened = new java.util.ArrayList<>();
+
+    private ModuleDiscovery.Found opened(ModuleDiscovery.Found found) {
+        opened.add(found);
+        return found;
+    }
+
+    /** A loaded module keeps its jar open; close them so the temp folder can be deleted (Windows refuses otherwise). */
+    @AfterEach
+    void closeModuleJars() throws IOException {
+        for (ModuleDiscovery.Found found : opened) {
+            for (java.util.Collection<?> loaded : java.util.List.of(found.modules().values(), found.content().values(), found.server().values())) {
+                for (Object module : loaded) {
+                    if (module.getClass().getClassLoader() instanceof java.net.URLClassLoader loader) {
+                        loader.close();
+                    }
+                }
+            }
+        }
+    }
 
     /** Compiles a one-class module against the contract and packs it the way a module author would. */
     private Path moduleJar(String name, String pkg, String serviceLine) throws IOException {
@@ -67,7 +89,7 @@ class ModuleDiscoveryTest {
     void plainJarsInTheModulesFolderAreFoundWithoutALoader() throws IOException {
         moduleJar("Alpha", "test.a", "test.a.Alpha");
         moduleJar("Beta", "test.b", "test.b.Beta");
-        ModuleDiscovery.Found found = ModuleDiscovery.discover(tmp.resolve("modules"), getClass().getClassLoader());
+        ModuleDiscovery.Found found = opened(ModuleDiscovery.discover(tmp.resolve("modules"), getClass().getClassLoader()));
         assertEquals(java.util.List.of("alpha", "beta"), java.util.List.copyOf(found.modules().keySet()));
         assertEquals("test.a.Alpha", found.modules().get("alpha").getClass().getName());
         assertTrue(found.problems().isEmpty(), found.problems()::toString);
@@ -80,7 +102,7 @@ class ModuleDiscoveryTest {
     void aBrokenEntryIsReportedAndTheOthersStillLoad() throws IOException {
         moduleJar("Good", "test.g", "test.g.Good");
         moduleJar("Bad", "test.x", "test.x.DoesNotExist");
-        ModuleDiscovery.Found found = ModuleDiscovery.discover(tmp.resolve("modules"), getClass().getClassLoader());
+        ModuleDiscovery.Found found = opened(ModuleDiscovery.discover(tmp.resolve("modules"), getClass().getClassLoader()));
         assertEquals(java.util.Set.of("good"), found.modules().keySet());
         assertEquals(1, found.problems().size(), found.problems()::toString);
     }
@@ -96,14 +118,14 @@ class ModuleDiscoveryTest {
     void contentModulesAreFoundSeparatelyWithTheirJars() throws IOException {
         moduleJar("Alpha", "test.a", "test.a.Alpha");
         Path gems = contentJar("Gems", "test.c", "gems");
-        ModuleDiscovery.Found content = ModuleDiscovery.discoverContent(tmp.resolve("modules"), getClass().getClassLoader());
+        ModuleDiscovery.Found content = opened(ModuleDiscovery.discoverContent(tmp.resolve("modules"), getClass().getClassLoader()));
         assertEquals(java.util.Set.of("gems"), content.content().keySet());
         assertTrue(content.modules().isEmpty(), "no behaviour module is created before the game starts");
         assertEquals(gems, content.jars().get("gems"));
         conductor.contract.ContentPlan plan = conductor.contract.ContentPlan.of(content.content());
         assertEquals("gems:gem", plan.entries().get(0).items().get(0).id());
 
-        ModuleDiscovery.Found modules = ModuleDiscovery.discover(tmp.resolve("modules"), getClass().getClassLoader());
+        ModuleDiscovery.Found modules = opened(ModuleDiscovery.discover(tmp.resolve("modules"), getClass().getClassLoader()));
         assertEquals(java.util.Set.of("alpha"), modules.modules().keySet());
         assertTrue(modules.content().isEmpty());
     }
@@ -113,10 +135,10 @@ class ModuleDiscoveryTest {
         moduleJar("Alpha", "test.a", "test.a.Alpha");
         jar("Greeter", "test.s", ModuleDiscovery.SERVER_SERVICE_FILE, "test.s.Greeter",
                 "public final class Greeter implements conductor.contract.ServerModule {}\n");
-        ModuleDiscovery.Found server = ModuleDiscovery.discoverServer(tmp.resolve("modules"), getClass().getClassLoader());
+        ModuleDiscovery.Found server = opened(ModuleDiscovery.discoverServer(tmp.resolve("modules"), getClass().getClassLoader()));
         assertEquals(java.util.Set.of("greeter"), server.server().keySet());
         assertTrue(server.modules().isEmpty());
         assertTrue(server.problems().isEmpty(), server.problems()::toString);
-        assertTrue(ModuleDiscovery.discover(tmp.resolve("modules"), getClass().getClassLoader()).server().isEmpty());
+        assertTrue(opened(ModuleDiscovery.discover(tmp.resolve("modules"), getClass().getClassLoader())).server().isEmpty());
     }
 }
