@@ -8,7 +8,10 @@
     "CreativeModeTabMixin",
     "PackRepositoryMixin",
     "BuiltInPackSourceAccessor",
-    "DefaultAttributesMixin"
+    "DefaultAttributesMixin",
+    "MinecraftServerMixin",
+    "CommandsMixin",
+    "ServerChatMixin"
   ],
   "client": [
     "IrisBlockIdsMixin",

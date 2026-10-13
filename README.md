@@ -24,6 +24,7 @@ Conductor is a version-agnostic module platform for Minecraft. It needs nothing 
 | **Minecraft 26.3**: the same module jars on Mojang's newest, unobfuscated release (Java 25, new renderer) | Behaviour modules and the ruby content module (including its dimension) verified live in a production Fabric launch, client and dedicated server (same jars as 1.21.x and 1.16.1) | [docs/live-run-26.3.md](docs/live-run-26.3.md) |
 | **Shaders**: Iris (with Sodium) and a shader pack next to Conductor; module glass, leaves and panes get the pack's materials | Verified live on 1.21.4, 1.21.11 and 26.3 with the same pack and module jars (Iris has no 1.16.1 build) | [docs/live-run-shaders.md](docs/live-run-shaders.md) |
 | **Fully custom mobs and bosses**: own model and animations (Bedrock files from Blockbench), AI goals, a behaviour for special attacks and phases, boss bar, sounds, drops | Verified live with the Ruby Golem boss on 1.16.1, 1.21.4, 1.21.11 and 26.3, dedicated server plus client, same jar | [docs/CUSTOM-MOBS.md](docs/CUSTOM-MOBS.md), [docs/live-run-custom-mobs.md](docs/live-run-custom-mobs.md) |
+| **Server modules**: code on the server (dedicated or single-player): ticks, joins, leaves, deaths, chat, `/` commands, messages, console commands, block reads | Verified live with the `server-greeter` example on a Fabric dedicated server plus client on 1.16.1, 1.21.4, 1.21.11 and 26.3, same jar; single-player on 1.21.4, 1.21.11 and 26.3; a client without Conductor joining on 1.16.1 and 1.21.11 | [docs/SERVER-MODULES.md](docs/SERVER-MODULES.md), [docs/live-run-server-modules.md](docs/live-run-server-modules.md) |
 | **Ostinato as a module** (Ostinato branch `conductor-module`: its `#` commands take the movement lease; `EngineCommands` for every Ostinato feature) and the **1.21.11 release** | Released (Ostinato 1.21.0 + Conductor 0.5.0); verified in a production Fabric launch with the shipped jars | [docs/live-run-ostinato-module.md](docs/live-run-ostinato-module.md) |
 
 **New here? Start with the [tutorial](docs/TUTORIAL.md)**: what Conductor does, every capability, and how to build a module. Worked examples:
@@ -32,12 +33,14 @@ Conductor is a version-agnostic module platform for Minecraft. It needs nothing 
 - [`examples/player-actions`](examples/player-actions): reads and actions.
 - [`examples/block-highlighter`](examples/block-highlighter): a block ESP with overlays, commands and settings.
 - [`examples/ruby-content`](examples/ruby-content): a content module (items, blocks, recipes, loot, a dimension, mobs, and the Ruby Golem boss).
+- [`examples/server-greeter`](examples/server-greeter): a server module (welcome messages, `/` commands, chat and death events).
 
 **Limitations (today):**
 - Travel and combat need a movement engine (Ostinato). Without one, `discover()` lists no navigation or combat, and requests are rejected with `NO_NAVIGATION` / `NO_COMBAT`. Everything else works without it.
 - Travel and combat are the only engine actions. Mining, building and the rest are still deferred.
 - No 2D HUD, keybinds, raw packets, motion writes, inventory moves or block placing yet. Next steps are in [the Meteor survey](docs/survey-meteor-client.md) §5.
 - Custom mobs: box UV only, a subset of Molang, and no natural spawning or spawn eggs yet ([CUSTOM-MOBS.md §7](docs/CUSTOM-MOBS.md#7-limits-today)).
+- Server modules see ticks, joins, leaves, deaths, chat and their own commands; no block, item or entity events yet ([SERVER-MODULES.md §8](docs/SERVER-MODULES.md#8-limits-today)).
 - Modules are trusted code. Leases coordinate them but can't stop a module that bypasses Conductor.
 - Boots on Fabric only, on Minecraft 26.3, 1.21.11, 1.21.4 and 1.16.1 (26.3 and 1.16.1 with no movement engine yet; on 1.16.1, dimension files need 1.16.2+). Modules themselves don't depend on any loader. Conductor's hooks are plain Mixins, which every major loader runs.
 - Stops take as long as Ostinato's engine takes (up to about 17 s observed).

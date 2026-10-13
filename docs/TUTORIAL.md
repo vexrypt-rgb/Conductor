@@ -15,6 +15,8 @@ This guide explains what Conductor is, everything it can do today, and how to bu
 10. [Limits you should know about](#10-limits-you-should-know-about)
 11. [Many modules side by side: leases, topics, services, management](#11-many-modules-side-by-side)
 12. [One jar, every version: optional features (the spear example)](#12-one-jar-every-version-optional-features)
+13. [Adding content: items, blocks, dimensions, recipes](#13-adding-content-items-blocks-dimensions-recipes)
+14. [Server modules: code that runs on the server](#14-server-modules-code-that-runs-on-the-server)
 
 ---
 
@@ -889,7 +891,7 @@ Creative tabs map to 1.16's fixed tabs (`ingredients` → Miscellaneous, `food_a
 
 The same jar goes in `conductor/modules/` **on the server and on every client**. Items and blocks travel between them as numbers, so both sides must have the same content modules. A module that only has data (a dimension, recipes for vanilla items) should be needed on the server only, with vanilla clients able to join. That follows from how vanilla syncs data, but it has not been tested yet.
 
-The Conductor mod now runs on dedicated servers too. There it only hosts content.
+The Conductor mod runs on dedicated servers too. There it hosts content and runs server modules (§14).
 
 ### 13.5 Not yet
 
@@ -900,3 +902,42 @@ The Conductor mod now runs on dedicated servers too. There it only hosts content
 - **Creative tab placement is not checked live yet.** Items are added to the tab they name; a tab that doesn't exist on this version is logged.
 
 Worked example: [`examples/ruby-content`](../examples/ruby-content). Live run: [live-run-content.md](live-run-content.md).
+
+---
+
+## 14. Server modules: code that runs on the server
+
+Behaviour modules run on the client, for one player. A **server module** runs where the server runs: a dedicated server, or the world a single-player game hosts. It gets:
+- server ticks;
+- players joining, leaving and dying;
+- chat;
+- its own `/` commands.
+
+It can:
+- message players;
+- run console commands;
+- read blocks.
+
+Like every module, it is a plain jar against `conductor.contract`, and the same jar runs on 1.16.1, 1.21.4, 1.21.11 and 26.3.
+
+```java
+public final class Hello implements ServerModule {
+    @Override
+    public List<ServerCommand> commands() {
+        return List.of(ServerCommand.of("hello", "/hello: say hello", (server, call) -> "Hello, " + call.sender() + "!"));
+    }
+
+    @Override
+    public void joined(ServerControl server, OnlinePlayer player) {
+        server.tell(player.name(), "Welcome! This server runs Minecraft " + server.minecraftVersion());
+    }
+}
+```
+
+**Registering and installing.**
+- List the class in `META-INF/services/conductor.contract.ServerModule`.
+- Put the jar in the server's `conductor/modules/`. Clients do not need Conductor (SERVER-MODULES §6 says what was checked).
+
+**Safety.** A module that throws is turned off until the game restarts, and the server keeps running.
+
+The full guide is [SERVER-MODULES.md](SERVER-MODULES.md): every event and its order, commands, safety, and how each version runs it. Worked example: [`examples/server-greeter`](../examples/server-greeter). Live run on all four versions: [live-run-server-modules.md](live-run-server-modules.md).

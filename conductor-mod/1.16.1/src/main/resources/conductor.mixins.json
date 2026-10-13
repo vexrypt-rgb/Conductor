@@ -6,7 +6,10 @@
   "mixins": [
     "BootstrapMixin",
     "DefaultAttributesMixin",
-    "ServerPacksSourceMixin"
+    "ServerPacksSourceMixin",
+    "MinecraftServerMixin",
+    "CommandsMixin",
+    "ServerChatMixin"
   ],
   "client": [
     "MinecraftMixin",

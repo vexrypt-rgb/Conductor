@@ -25,6 +25,8 @@ include 'example-engine-commands'
 project(':example-engine-commands').projectDir = file('examples/engine-commands')
 include 'example-ruby-content'
 project(':example-ruby-content').projectDir = file('examples/ruby-content')
+include 'example-server-greeter'
+project(':example-server-greeter').projectDir = file('examples/server-greeter')
 
 // Per Minecraft version (see mcTargets in build.gradle): Conductor's runtime (no engine), the optional Ostinato engine
 // layer, the Conductor mod that hosts modules, and the live test harness. 1.16.1 and 26.3 have no engine layer (and

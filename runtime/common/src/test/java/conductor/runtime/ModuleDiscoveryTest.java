@@ -107,4 +107,16 @@ class ModuleDiscoveryTest {
         assertEquals(java.util.Set.of("alpha"), modules.modules().keySet());
         assertTrue(modules.content().isEmpty());
     }
+
+    @Test
+    void serverModulesAreFoundSeparately() throws IOException {
+        moduleJar("Alpha", "test.a", "test.a.Alpha");
+        jar("Greeter", "test.s", ModuleDiscovery.SERVER_SERVICE_FILE, "test.s.Greeter",
+                "public final class Greeter implements conductor.contract.ServerModule {}\n");
+        ModuleDiscovery.Found server = ModuleDiscovery.discoverServer(tmp.resolve("modules"), getClass().getClassLoader());
+        assertEquals(java.util.Set.of("greeter"), server.server().keySet());
+        assertTrue(server.modules().isEmpty());
+        assertTrue(server.problems().isEmpty(), server.problems()::toString);
+        assertTrue(ModuleDiscovery.discover(tmp.resolve("modules"), getClass().getClassLoader()).server().isEmpty());
+    }
 }

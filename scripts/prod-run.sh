@@ -15,7 +15,9 @@
 #      it needs <workdir>/server to have run once so the vanilla bundler unpacked versions/ and libraries/),
 #      SERVER_MODULES (modules folder for that server, as CONDUCTOR_MODULES is for the client),
 #      CLIENT_JVM_ARGS (extra JVM options for the client, e.g. -Dmixin.debug.export=true),
-#      GAME_FILES (a folder whose contents are copied into the client's game folder, e.g. config/ and shaderpacks/).
+#      GAME_FILES (a folder whose contents are copied into the client's game folder, e.g. config/ and shaderpacks/),
+#      SINGLEPLAYER (a world folder: no server is started; the client opens a copy of this world by quick play, 1.20 and
+#      later, and its own integrated server runs it. SERVER_ON_JOIN does not apply; <workdir>/server is not needed).
 # The game, assets and libraries come from the local Gradle caches (scripts/prod_classpath.py).
 # Minecraft 26.x opens its window through SDL3 and asks for an sRGB-capable OpenGL 3.3 core context. Xvfb's GLX
 # offers no sRGB visual, so the client cannot open its window ("Couldn't find matching GLX visual"). For 26.x this
@@ -49,6 +51,14 @@ soundCategory_master:0.0
 OPTS
 
 rm -f "$WORK/server.log" "$WORK/prod-client.log" "$WORK"/screenshot*.png
+# the log that shows the join: the server's, or for single-player the client's (its integrated server logs there)
+JOINLOG="$WORK/server.log"
+if [ -n "${SINGLEPLAYER:-}" ]; then
+    JOINLOG="$WORK/prod-client.log"
+    mkdir -p "$GAME/saves" && cp -r "$SINGLEPLAYER" "$GAME/saves/conductor-test"
+    cleanup() { kill $(jobs -p) 2>/dev/null || true; }
+    trap cleanup EXIT
+else
 rm -rf "$WORK/server/world" "$WORK/server/mods"
 mkfifo "$WORK/server.in" 2>/dev/null || true
 if [ -n "${SERVER_MODS:-}" ]; then
@@ -81,9 +91,10 @@ until grep -q "Done (" "$WORK/server.log" 2>/dev/null; do
     sleep 1
 done
 echo "server ready"
+fi
 
-(
-    until grep -q "Dev joined the game" "$WORK/server.log" 2>/dev/null; do sleep 1; done
+[ -z "${SINGLEPLAYER:-}" ] && (
+    until grep -q "Dev joined the game" "$JOINLOG" 2>/dev/null; do sleep 1; done
     echo "op Dev" > "$WORK/server.in"
     IFS=';' read -ra CMDS <<< "${SERVER_ON_JOIN:-}"
     for cmd in "${CMDS[@]}"; do
@@ -97,7 +108,7 @@ echo "server ready"
 ) &
 if [ -n "${SCREENSHOT_AT:-}" ]; then
     (
-        until grep -q "Dev joined the game" "$WORK/server.log" 2>/dev/null; do sleep 1; done
+        until grep -q "Dev joined the game" "$JOINLOG" 2>/dev/null; do sleep 1; done
         waited=0
         for at in $SCREENSHOT_AT; do
             sleep $((at - waited)); waited=$at
@@ -110,7 +121,7 @@ if [ -n "${SCREENSHOT_AT:-}" ]; then
     ) &
 fi
 # stop the client HOLD seconds after it joined
-( until grep -q "Dev joined the game" "$WORK/server.log" 2>/dev/null; do sleep 1; done; sleep "$HOLD"; pkill -f "KnotClient" || true ) &
+( until grep -q "Dev joined the game" "$JOINLOG" 2>/dev/null; do sleep 1; done; sleep "$HOLD"; pkill -f "KnotClient" || true ) &
 
 JVM_PROPS="${CONDUCTOR_MODULES:+-Dconductor.modulesDir=$CONDUCTOR_MODULES} ${CONDUCTOR_CONFIG:+-Dconductor.configDir=$CONDUCTOR_CONFIG} ${CLIENT_JVM_ARGS:-}"
 # quick play arrived in 1.20. Before it, --server connects during the first resource reload, and vanilla 1.16.1 then
@@ -127,6 +138,7 @@ case "$MC" in
         JVM_PROPS="$JVM_PROPS -Dconductor.testJoin=localhost:25565" ;;
     *) JOIN="--quickPlayMultiplayer localhost:25565" ;;
 esac
+[ -n "${SINGLEPLAYER:-}" ] && JOIN="--quickPlaySingleplayer conductor-test"
 case "$MC" in
     2[6-9].*) export SDL_VIDEO_FORCE_EGL=${SDL_VIDEO_FORCE_EGL-1} ;;
 esac
