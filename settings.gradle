@@ -34,7 +34,3 @@ project(':example-engine-commands').projectDir = file('examples/engine-commands'
     include "conductor-mod-${mc}"
     project(":conductor-mod-${mc}").projectDir = file("conductor-mod/${mc}")
 }
-
-// Ostinato as a Conductor module (native, 1.21.11 only: needs Ostinato's command execution guard).
-include 'ostinato-module-1.21.11'
-project(':ostinato-module-1.21.11').projectDir = file('modules/ostinato/1.21.11')

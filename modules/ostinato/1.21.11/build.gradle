@@ -1,7 +1,0 @@
-// Ostinato as a Conductor module, for Minecraft 1.21.11 (Ostinato main). A native module: it uses Ostinato's own
-// API, so it is built per version, and it is a small Fabric mod that Conductor finds on the classpath. It needs an
-// Ostinato with ICommandManager.setExecutionGuard (Ostinato branch ccr-b0151e6a-wtb5fn and later).
-ext.mc = '1.21.11'
-ext.commonDir = 'modules/ostinato/common'
-ext.bundleConductor = false
-apply from: rootProject.file('gradle/fabric-module.gradle')

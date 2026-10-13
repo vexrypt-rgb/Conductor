@@ -29,3 +29,18 @@ Release folder: `releases/ostinato-1.21.0-conductor-0.5.0-mc1.21.11/` (with its 
 **Ostinato checks:** the merge kept all 549 tests passing, and the guard adds 4 more (`CommandGuardTest`).
 
 **Evidence:** `docs/evidence/module-runs/production-*.log.gz` and `ostinato-module-dev-1.21.11.log.gz`.
+
+## Module edition: the module moved into Ostinato (branch `conductor-module`)
+
+At the owner's request, Ostinato has a separate branch for its module:
+- **`conductor-module`**: Ostinato plus `baritone.conductor.OstinatoModule`, one jar. Conductor's contract is a compile-only jar in `libs/`.
+- **`ccr-b0151e6a-wtb5fn`**: the plain Fabric line, without any Conductor code.
+
+Conductor's own copy (`modules/ostinato`) was removed so there is one source.
+
+| Production run (module edition 1.21.0-module + Conductor 0.5.0 only) | Result |
+|---|---|
+| **unoptimized** jar + `example-engine-commands` | full tour passed: lease for `#goto`, SAFETY takeover after a proven stop (26 ticks), the player's `#goto` refused, stop proven, `LEASE_REQUIRED` without the lease |
+| **standalone** (obfuscated) jar | **first try: Conductor's start-up threw `NoClassDefFoundError: baritone/api/event/listener/IGameEventListener` and the client crashed at start-up.** The obfuscated builds rename the classes Conductor uses. Fixed: Conductor now checks for them first, logs "Conductor is NOT running … needs Ostinato's unoptimized build" and stays off, and it never takes the game down. Re-run: the game started and joined, with the message logged. |
+
+So the module edition ships as the unoptimized jar only, and the release README says Conductor needs the unoptimized build. Ostinato's 553 tests pass on the branch.

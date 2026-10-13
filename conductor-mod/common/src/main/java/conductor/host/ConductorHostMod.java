@@ -25,8 +25,39 @@ public final class ConductorHostMod implements ClientModInitializer {
 
     private static final Logger LOG = LoggerFactory.getLogger("conductor");
 
+    /**
+     * Ostinato classes Conductor links against. Ostinato's obfuscated builds (standalone, api) rename the internal
+     * ones, so Conductor needs Ostinato's unoptimized build.
+     */
+    static final java.util.List<String> NEEDED = java.util.List.of(
+            "baritone.api.BaritoneAPI", "baritone.api.event.listener.IGameEventListener",
+            "baritone.Baritone", "baritone.movement.MovementBackends", "baritone.utils.IRenderer");
+
     @Override
     public void onInitializeClient() {
+        java.util.List<String> missing = NEEDED.stream().filter(name -> {
+            try {
+                Class.forName(name, false, ConductorHostMod.class.getClassLoader());
+                return false;
+            } catch (ClassNotFoundException | LinkageError e) {
+                return true;
+            }
+        }).toList();
+        if (!missing.isEmpty()) {
+            LOG.error("Conductor is NOT running: Ostinato's classes {} are not there. Conductor needs Ostinato's "
+                    + "unoptimized build (ostinato-mc<version>-unoptimized-fabric-*.jar); the standalone and api builds "
+                    + "rename them. The game continues without Conductor.", missing);
+            return;
+        }
+        try {
+            start();
+        } catch (Throwable t) {
+            // never take the game down: Conductor is an add-on
+            LOG.error("Conductor failed to start and is NOT running; the game continues without it", t);
+        }
+    }
+
+    private void start() {
         String override = System.getProperty("conductor.modulesDir");
         Path dir = override != null ? Path.of(override) : FabricLoader.getInstance().getGameDir().resolve("conductor/modules");
         try {

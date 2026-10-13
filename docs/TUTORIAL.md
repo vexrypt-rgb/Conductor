@@ -677,11 +677,11 @@ conductor.declareEngineProcesses(Set.of("baritone.process.MineProcess"));
 
 Conductor then counts that process's activity as yours, not as interference. See [MODULE-PLATFORM.md](MODULE-PLATFORM.md) for the full design.
 
-**Native modules ship as Fabric mods** with a `META-INF/services/conductor.contract.ConductorModule` entry. Conductor finds them on the game's classpath. The worked example is the Ostinato module (§11.5).
+**Native modules ship as Fabric mods** with a `META-INF/services/conductor.contract.ConductorModule` entry. Conductor finds them on the game's classpath. The worked example is Ostinato's module edition (§11.5).
 
 ### 11.5 Ostinato as a module, and using every Ostinato feature
 
-The Ostinato module (`modules/ostinato`, a Fabric mod for 1.21.11) makes Ostinato a Conductor module:
+**Ostinato's module edition** makes Ostinato a Conductor module. It is built from the Ostinato branch `conductor-module` as `ostinato-mc1.21.11-unoptimized-fabric-<v>-module.jar`: one jar that is Ostinato and its module (class `baritone.conductor.OstinatoModule`). Without Conductor installed, it behaves like the plain build.
 
 - **Your `#` commands share the controls.** Before a command that moves the bot (`#goto`, `#mine`, `#follow`, `#explore`, `#farm`, `#build`, `#elytra`, ...) runs from chat, the GUI or code, the module takes the MOVEMENT lease for it:
   - **a free bot:** the command runs at once;
@@ -709,7 +709,8 @@ While you hold MOVEMENT, Ostinato's processes count as yours, not interference. 
 **Limits:**
 - The command language is Ostinato's: `engine()` says which engine answers.
 - A command started by another mod straight through Ostinato's API (not its command manager) is not gated; it shows up as interference, as before.
-- The module needs Ostinato 1.21.0 or later (the command execution guard).
+- The module edition starts from Ostinato 1.21.0, which added the command execution guard.
+- Conductor needs Ostinato's **unoptimized** build. The obfuscated `standalone` and `api` builds rename the classes Conductor uses. With them, Conductor logs "Conductor is NOT running …" and stays off, but the game runs.
 
 ---
 
