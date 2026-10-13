@@ -9,7 +9,11 @@
 # Env: MC (default 1.21.11), LOADER (Fabric Loader version, default 0.19.5),
 #      MODS (colon-separated jars copied into the client's mods/ folder: Ostinato, Conductor, ...),
 #      CONDUCTOR_MODULES, CONDUCTOR_CONFIG (as in live-run.sh), SERVER_ON_JOIN (as in live-run.sh),
-#      SCREENSHOT_AT (seconds after joining), HOLD (seconds to stay in the world, default 60).
+#      SCREENSHOT_AT (seconds after joining; several, space-separated, give screenshot-<s>.png each),
+#      HOLD (seconds to stay in the world, default 60),
+#      SERVER_MODS (colon-separated jars: run the server as a Fabric dedicated server with these in its mods/ folder;
+#      it needs <workdir>/server to have run once so the vanilla bundler unpacked versions/ and libraries/),
+#      SERVER_MODULES (modules folder for that server, as CONDUCTOR_MODULES is for the client).
 # The game, assets and libraries come from the local Gradle caches (scripts/prod_classpath.py).
 # Output: <workdir>/prod-client.log, server.log, screenshot.png.
 set -euo pipefail
@@ -37,19 +41,38 @@ pauseOnLostFocus:false
 soundCategory_master:0.0
 OPTS
 
-rm -f "$WORK/server.log" "$WORK/prod-client.log" "$WORK/screenshot.png"
-rm -rf "$WORK/server/world"
+rm -f "$WORK/server.log" "$WORK/prod-client.log" "$WORK"/screenshot*.png
+rm -rf "$WORK/server/world" "$WORK/server/mods"
 mkfifo "$WORK/server.in" 2>/dev/null || true
-(cd "$WORK/server" && tail -f "$WORK/server.in" | java -Xmx2G -jar server.jar nogui > "$WORK/server.log" 2>&1) &
+if [ -n "${SERVER_MODS:-}" ]; then
+    python3 -I "$ROOT/scripts/prod_classpath.py" "$MC" "$LOADER" "$WORK/prod-server-classpath.txt" "$WORK/server" > /dev/null
+    SCP=$(paste -sd: "$WORK/prod-server-classpath.txt")
+    mkdir -p "$WORK/server/mods"
+    IFS=':' read -ra SJARS <<< "$SERVER_MODS"
+    for j in "${SJARS[@]}"; do [ -n "$j" ] && cp "$j" "$WORK/server/mods/"; done
+    SERVER_CMD=(java -Xmx2G ${SERVER_MODULES:+-Dconductor.modulesDir=$SERVER_MODULES} -cp "$SCP" net.fabricmc.loader.impl.launch.knot.KnotServer nogui)
+else
+    SERVER_CMD=(java -Xmx2G -jar server.jar nogui)
+fi
+(cd "$WORK/server" && tail -f "$WORK/server.in" | "${SERVER_CMD[@]}" > "$WORK/server.log" 2>&1) &
 SERVER_PID=$!
 cleanup() {
     echo "stop" > "$WORK/server.in" || true
     sleep 5
     pkill -f "^java -Xmx2G -jar server.jar nogui" || true
+    pkill -f "KnotServer nogui" || true
+    pkill -f "tail -f $WORK/server.in" || true
     kill "$SERVER_PID" 2>/dev/null || true
+    # helpers still waiting for a join that never came must not fire in the next run
+    kill $(jobs -p) 2>/dev/null || true
 }
 trap cleanup EXIT
-until grep -q "Done (" "$WORK/server.log" 2>/dev/null; do sleep 1; done
+until grep -q "Done (" "$WORK/server.log" 2>/dev/null; do
+    if ! kill -0 "$SERVER_PID" 2>/dev/null || grep -q 'Exception in thread "main"' "$WORK/server.log" 2>/dev/null; then
+        echo "server failed before it was ready"; tail -30 "$WORK/server.log"; exit 1
+    fi
+    sleep 1
+done
 echo "server ready"
 
 (
@@ -68,11 +91,15 @@ echo "server ready"
 if [ -n "${SCREENSHOT_AT:-}" ]; then
     (
         until grep -q "Dev joined the game" "$WORK/server.log" 2>/dev/null; do sleep 1; done
-        sleep "$SCREENSHOT_AT"
-        XVFB=$(pgrep -a Xvfb | head -1)
-        DISPLAY_NUM=$(echo "$XVFB" | grep -o ' :[0-9]*' | head -1 | tr -d ' ')
-        AUTH=$(echo "$XVFB" | grep -o -- '-auth [^ ]*' | cut -d' ' -f2)
-        XAUTHORITY="$AUTH" import -window root -display "$DISPLAY_NUM" "$WORK/screenshot.png" && echo "screenshot saved: $WORK/screenshot.png"
+        waited=0
+        for at in $SCREENSHOT_AT; do
+            sleep $((at - waited)); waited=$at
+            XVFB=$(pgrep -a Xvfb | head -1)
+            DISPLAY_NUM=$(echo "$XVFB" | grep -o ' :[0-9]*' | head -1 | tr -d ' ')
+            AUTH=$(echo "$XVFB" | grep -o -- '-auth [^ ]*' | cut -d' ' -f2)
+            XAUTHORITY="$AUTH" import -window root -display "$DISPLAY_NUM" "$WORK/screenshot-$at.png" && echo "screenshot saved: $WORK/screenshot-$at.png"
+            [ -f "$WORK/screenshot.png" ] || cp "$WORK/screenshot-$at.png" "$WORK/screenshot.png"
+        done
     ) &
 fi
 # stop the client HOLD seconds after it joined

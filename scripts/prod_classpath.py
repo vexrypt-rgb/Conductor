@@ -1,7 +1,10 @@
-"""Assemble a production Fabric client classpath for a Minecraft version from the local Gradle caches.
-Usage: prod_classpath.py <mc> <loader_version> <out_file>  -> writes the classpath (one path per line); prints missing."""
+"""Assemble a production Fabric classpath for a Minecraft version from the local Gradle caches.
+Usage: prod_classpath.py <mc> <loader_version> <out_file> [<server_dir>]
+  -> writes the classpath (one path per line); prints missing. With <server_dir> (a vanilla server that has run once,
+     so its bundler has unpacked versions/ and libraries/), it is a dedicated-server classpath instead of a client one."""
 import json, sys, glob, os, zipfile
 mc, loader_ver, out = sys.argv[1], sys.argv[2], sys.argv[3]
+server_dir = sys.argv[4] if len(sys.argv) > 4 else None
 G = '/root/.gradle/caches/modules-2/files-2.1'
 U = '/root/.gradle/caches/unimined'
 def find(group, artifact, version, classifier=None):
@@ -21,6 +24,16 @@ for lib in inst['libraries']['common'] + inst['libraries'].get('client', []):
 inter = glob.glob(f"{G}/net.fabricmc/intermediary/{mc}/*/intermediary-{mc}-v2.jar")
 (cp.append(inter[0]) if inter else missing.append('intermediary'))
 v = json.load(open(f"{U}/net/minecraft/minecraft/{mc}/version.json"))
+if server_dir:
+    # the bundler's own list: libraries/... and versions/<mc>/server-<mc>.jar, relative to the server folder
+    joined = zipfile.ZipFile(os.path.join(server_dir, 'server.jar')).read('META-INF/classpath-joined').decode().strip()
+    for rel in joined.split(';'):
+        parts = rel.split('/')
+        if parts[0] == 'libraries' and len(parts) >= 5 and ('.'.join(parts[1:-3]), parts[-3], None) in taken:
+            continue  # the loader's copy wins (the 1.21.4 server bundles asm 9.6)
+        p = os.path.join(server_dir, rel)
+        (cp.append(p) if os.path.isfile(p) else missing.append(rel))
+    v['libraries'] = []
 def allowed(lib):
     rules = lib.get('rules')
     if not rules: return True
@@ -39,7 +52,8 @@ for lib in v['libraries']:
     p = find(g, a, ver, cls)
     if p: cp.append(p)
     else: missing.append(lib['name'])
-cp.append(f"{U}/net/minecraft/minecraft/{mc}/minecraft-{mc}-client.jar")
+if not server_dir:
+    cp.append(f"{U}/net/minecraft/minecraft/{mc}/minecraft-{mc}-client.jar")
 seen=[]; [seen.append(x) for x in cp if x and x not in seen]
 open(out,'w').write('\n'.join(seen))
 print(len(seen), 'entries;', 'missing:', missing)

@@ -26,14 +26,25 @@ class ModuleDiscoveryTest {
 
     /** Compiles a one-class module against the contract and packs it the way a module author would. */
     private Path moduleJar(String name, String pkg, String serviceLine) throws IOException {
-        Path src = tmp.resolve("src-" + name).resolve(pkg.replace('.', '/'));
-        Files.createDirectories(src);
-        Path file = src.resolve(name + ".java");
-        Files.writeString(file, "package " + pkg + ";\n"
-                + "public final class " + name + " implements conductor.contract.ConductorModule {\n"
+        return jar(name, pkg, ModuleDiscovery.SERVICE_FILE, serviceLine, "public final class " + name + " implements conductor.contract.ConductorModule {\n"
                 + "  public conductor.contract.ReleasePolicy releasePolicy() { return conductor.contract.ReleasePolicy.none(); }\n"
                 + "  public void onReady(conductor.contract.ModuleContext c) {}\n"
                 + "}\n");
+    }
+
+    /** A content module: one item, plus a data file in the jar. */
+    private Path contentJar(String name, String pkg, String namespace) throws IOException {
+        return jar(name, pkg, ModuleDiscovery.CONTENT_SERVICE_FILE, pkg + "." + name, "public final class " + name + " implements conductor.contract.ContentModule {\n"
+                + "  public String namespace() { return \"" + namespace + "\"; }\n"
+                + "  public void declare(conductor.contract.ContentDeclarations c) { c.item(\"gem\"); }\n"
+                + "}\n");
+    }
+
+    private Path jar(String name, String pkg, String serviceFile, String serviceLine, String body) throws IOException {
+        Path src = tmp.resolve("src-" + name).resolve(pkg.replace('.', '/'));
+        Files.createDirectories(src);
+        Path file = src.resolve(name + ".java");
+        Files.writeString(file, "package " + pkg + ";\n" + body);
         Path classes = tmp.resolve("classes-" + name);
         Files.createDirectories(classes);
         JavaCompiler javac = ToolProvider.getSystemJavaCompiler();
@@ -46,7 +57,7 @@ class ModuleDiscoveryTest {
             String classFile = pkg.replace('.', '/') + "/" + name + ".class";
             out.putNextEntry(new JarEntry(classFile));
             Files.copy(classes.resolve(classFile), out);
-            out.putNextEntry(new JarEntry(ModuleDiscovery.SERVICE_FILE));
+            out.putNextEntry(new JarEntry(serviceFile));
             out.write((serviceLine + "\n").getBytes(StandardCharsets.UTF_8));
         }
         return jar;
@@ -79,5 +90,21 @@ class ModuleDiscoveryTest {
         ModuleDiscovery.Found found = ModuleDiscovery.discover(tmp.resolve("nope"), null);
         assertTrue(found.modules().isEmpty());
         assertTrue(found.problems().isEmpty());
+    }
+
+    @Test
+    void contentModulesAreFoundSeparatelyWithTheirJars() throws IOException {
+        moduleJar("Alpha", "test.a", "test.a.Alpha");
+        Path gems = contentJar("Gems", "test.c", "gems");
+        ModuleDiscovery.Found content = ModuleDiscovery.discoverContent(tmp.resolve("modules"), getClass().getClassLoader());
+        assertEquals(java.util.Set.of("gems"), content.content().keySet());
+        assertTrue(content.modules().isEmpty(), "no behaviour module is created before the game starts");
+        assertEquals(gems, content.jars().get("gems"));
+        conductor.contract.ContentPlan plan = conductor.contract.ContentPlan.of(content.content());
+        assertEquals("gems:gem", plan.entries().get(0).items().get(0).id());
+
+        ModuleDiscovery.Found modules = ModuleDiscovery.discover(tmp.resolve("modules"), getClass().getClassLoader());
+        assertEquals(java.util.Set.of("alpha"), modules.modules().keySet());
+        assertTrue(modules.content().isEmpty());
     }
 }

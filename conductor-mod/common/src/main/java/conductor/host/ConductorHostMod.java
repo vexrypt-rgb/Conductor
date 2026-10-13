@@ -10,11 +10,10 @@ import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Fabric boot shim: the only Fabric-specific code in Conductor. It answers two questions Fabric knows the answer
+ * Fabric boot shim, part 2 (client): with {@link ConductorPreLaunch}, the only Fabric-specific code in Conductor. It answers two questions Fabric knows the answer
  * to (where the game directory is, and when client code may start) and hands over to loader-free code. Conductor's
  * game hooks are Mixins (conductor.mixins.json), which Fabric, Quilt, NeoForge and Forge all load. Conductor needs no
  * other mod; a movement engine (Ostinato) is used when installed.
@@ -40,13 +39,7 @@ public final class ConductorHostMod implements ClientModInitializer {
     }
 
     private void start() {
-        String override = System.getProperty("conductor.modulesDir");
-        Path dir = override != null ? Path.of(override) : FabricLoader.getInstance().getGameDir().resolve("conductor/modules");
-        try {
-            Files.createDirectories(dir);
-        } catch (Exception e) {
-            LOG.warn("Conductor cannot create the modules folder {}: {}", dir, e.toString());
-        }
+        Path dir = ConductorPreLaunch.modulesDir();
         ModuleDiscovery.Found found = ModuleDiscovery.discover(dir, ConductorHostMod.class.getClassLoader());
         found.problems().forEach(p -> LOG.warn("Conductor module problem: {}", p));
         if (found.modules().isEmpty()) {

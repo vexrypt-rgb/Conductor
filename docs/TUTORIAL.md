@@ -783,3 +783,67 @@ A complete combat module: one jar for every version. Its spear, mace and wind pa
 
 Give your fake runtime a content table and run the same module twice. `contract/src/test/java/conductor/contract/VersionFeatureTest.java` does exactly this: a 1.21.11-like runtime turns on `[melee, spear, mace]`, and a 1.21.4-like runtime turns on `[melee]`.
 
+
+---
+
+## 13. Adding content: items, blocks, dimensions, recipes
+
+Modules so far *use* the game. A **content module** *adds to* it. Like every module it is one plain jar for every Minecraft version, and it needs no loader. The design and its reasoning are in [CONTENT-MODS.md](CONTENT-MODS.md).
+
+### 13.1 Declare items and blocks
+
+```java
+public final class RubyContent implements ContentModule {
+    public String namespace() { return "ruby"; }
+
+    public void declare(ContentDeclarations content) {
+        content.item("ruby").rarity(ItemRarity.UNCOMMON).tab("minecraft:ingredients");
+        content.item("ruby_apple").food(6, 1.2f).tab("minecraft:food_and_drinks");
+        content.block("ruby_block").strength(5, 6).sound(BlockSound.METAL).requiresTool().light(3)
+               .tab("minecraft:building_blocks");
+    }
+}
+```
+
+List the class in `META-INF/services/conductor.contract.ContentModule`.
+
+| Items | Blocks |
+|---|---|
+| `maxStack`, `durability`, `food(nutrition, saturation)`, `rarity`, `fireResistant`, `tab` | `strength(hardness, resistance)`, `light`, `sound`, `requiresTool`, `noItem`, `tab` |
+
+The rules:
+- Ids are `namespace:path`, using Minecraft's own characters. The `minecraft` namespace and loader namespaces are refused.
+- **Any problem skips the whole module**, with every reason logged. Registering half a module would leave client and server with different content.
+- Content is registered **once, while the game starts**, right before Minecraft locks its registries. Modules are taken in namespace order, so every machine numbers them the same way.
+
+### 13.2 Everything else is data in the same jar
+
+Put models, textures and names in `assets/<namespace>/`, and loot, recipes, tags and worldgen in `data/`, exactly as a resource pack or data pack would. Conductor loads the jar as a pack on the client and on the server. There is no `pack.mcmeta` to write: Conductor supplies the pack metadata for each version.
+
+```
+assets/ruby/items/ruby.json                 the item's model (1.21.4 and later)
+assets/ruby/models/item/ruby.json, textures/item/ruby.png
+assets/ruby/blockstates/ruby_block.json, models/block/ruby_block.json, textures/block/ruby_block.png
+assets/ruby/lang/en_us.json                 "item.ruby.ruby": "Ruby", "block.ruby.ruby_block": "Block of Ruby"
+data/ruby/loot_table/blocks/ruby_block.json what the block drops
+data/ruby/recipe/*.json                     crafting
+data/minecraft/tags/block/mineable/pickaxe.json, needs_iron_tool.json
+data/ruby/dimension/ruby_world.json         a whole new dimension (here: flat, ruby ground)
+mc_1.21.4/...                               a file here replaces its normal copy on 1.21.4 only
+```
+
+**Dimensions, structures, biomes, worldgen features, enchantments and mob variants are all data.** Anything vanilla reads from a data pack can ship in a content module, with no code at all.
+
+### 13.3 Install
+
+The same jar goes in `conductor/modules/` **on the server and on every client**. Items and blocks travel between them as numbers, so both sides must have the same content modules. A module that only has data (a dimension, recipes for vanilla items) should be needed on the server only, with vanilla clients able to join. That follows from how vanilla syncs data, but it has not been tested yet.
+
+The Conductor mod now runs on dedicated servers too. There it only hosts content.
+
+### 13.4 Not yet
+
+- **Mobs (entities), block entities, custom item or block behaviour (right-click actions, GUIs).** These need code. Declared mobs built on a vanilla archetype come next (CONTENT-MODS §4).
+- **An id handshake.** A client with different content modules from the server gets Minecraft's own errors, not a clear "module X is missing".
+- **Creative tab placement is not checked live yet.** Items are added to the tab they name; a tab that doesn't exist on this version is logged.
+
+Worked example: [`examples/ruby-content`](../examples/ruby-content). Live run: [live-run-content.md](live-run-content.md).

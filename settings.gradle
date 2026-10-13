@@ -23,6 +23,8 @@ include 'example-block-highlighter'
 project(':example-block-highlighter').projectDir = file('examples/block-highlighter')
 include 'example-engine-commands'
 project(':example-engine-commands').projectDir = file('examples/engine-commands')
+include 'example-ruby-content'
+project(':example-ruby-content').projectDir = file('examples/ruby-content')
 
 // Per Minecraft version (see mcTargets in build.gradle): Conductor's runtime (no engine), the optional Ostinato engine
 // layer, the Conductor mod that hosts modules, and the live test harness.

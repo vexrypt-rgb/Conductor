@@ -1,6 +1,7 @@
 package conductor.runtime;
 
 import conductor.contract.ConductorModule;
+import conductor.contract.ContentModule;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -32,13 +33,36 @@ public final class ModuleDiscovery {
 
     public static final String SERVICE_FILE = "META-INF/services/" + ConductorModule.class.getName();
 
-    /** Requested module id to module, plus problems that kept a jar or class from loading. */
-    public record Found(Map<String, ConductorModule> modules, List<String> problems) {}
+    /**
+     * Module id to module, content module id to content module, the jar each module id came from (modules found on
+     * the game's classpath have none), plus problems that kept a jar or class from loading.
+     */
+    public record Found(Map<String, ConductorModule> modules, Map<String, ContentModule> content, Map<String, Path> jars,
+                        List<String> problems) {
+
+        public Found(Map<String, ConductorModule> modules, List<String> problems) {
+            this(modules, Map.of(), Map.of(), problems);
+        }
+    }
+
+    public static final String CONTENT_SERVICE_FILE = "META-INF/services/" + ContentModule.class.getName();
 
     private ModuleDiscovery() {}
 
+    /** Behaviour modules ({@link ConductorModule}); call once the game exists. */
     public static Found discover(Path modulesDir, ClassLoader game) {
+        return discover(modulesDir, game, true, false);
+    }
+
+    /** Content modules ({@link ContentModule}) only; safe before the game starts (creates no behaviour module). */
+    public static Found discoverContent(Path modulesDir, ClassLoader game) {
+        return discover(modulesDir, game, false, true);
+    }
+
+    private static Found discover(Path modulesDir, ClassLoader game, boolean wantModules, boolean wantContent) {
         Map<String, ConductorModule> modules = new LinkedHashMap<>();
+        Map<String, ContentModule> content = new LinkedHashMap<>();
+        Map<String, Path> jarOf = new LinkedHashMap<>();
         List<String> problems = new ArrayList<>();
         if (modulesDir != null && Files.isDirectory(modulesDir)) {
             List<Path> jars;
@@ -49,16 +73,22 @@ public final class ModuleDiscovery {
                 problems.add("cannot list " + modulesDir + ": " + e);
             }
             for (Path jar : jars) {
-                loadJar(jar, game, modules, problems);
+                loadJar(jar, game, wantModules ? modules : null, wantContent ? content : null, jarOf, problems);
             }
         }
         if (game != null) {
-            load(ServiceLoader.load(ConductorModule.class, game), null, "classpath", modules, problems);
+            if (wantModules) {
+                load(ServiceLoader.load(ConductorModule.class, game), null, "classpath", modules, problems);
+            }
+            if (wantContent) {
+                load(ServiceLoader.load(ContentModule.class, game), null, "classpath", content, problems);
+            }
         }
-        return new Found(modules, problems);
+        return new Found(modules, content, jarOf, problems);
     }
 
-    private static void loadJar(Path jar, ClassLoader parent, Map<String, ConductorModule> modules, List<String> problems) {
+    private static void loadJar(Path jar, ClassLoader parent, Map<String, ConductorModule> modules,
+                                Map<String, ContentModule> content, Map<String, Path> jarOf, List<String> problems) {
         URLClassLoader loader;
         try {
             loader = new URLClassLoader(new URL[]{jar.toUri().toURL()}, parent);
@@ -67,18 +97,30 @@ public final class ModuleDiscovery {
             return;
         }
         String name = jar.getFileName().toString();
-        load(ServiceLoader.load(ConductorModule.class, loader), loader, name.substring(0, name.length() - 4), modules, problems);
+        String source = name.substring(0, name.length() - 4);
+        if (modules != null) {
+            for (String id : load(ServiceLoader.load(ConductorModule.class, loader), loader, source, modules, problems)) {
+                jarOf.put(id, jar);
+            }
+        }
+        if (content != null) {
+            for (String id : load(ServiceLoader.load(ContentModule.class, loader), loader, source, content, problems)) {
+                jarOf.put(id, jar);
+            }
+        }
     }
 
     /** @param only when not null, keep only modules defined by this loader (not ones its parent also sees) */
-    private static void load(ServiceLoader<ConductorModule> services, ClassLoader only, String source,
-                             Map<String, ConductorModule> modules, List<String> problems) {
-        java.util.Iterator<ServiceLoader.Provider<ConductorModule>> it = services.stream().iterator();
+    /** @return the ids of the modules added */
+    private static <M> List<String> load(ServiceLoader<M> services, ClassLoader only, String source,
+                                         Map<String, M> modules, List<String> problems) {
+        List<String> added = new ArrayList<>();
+        java.util.Iterator<ServiceLoader.Provider<M>> it = services.stream().iterator();
         while (true) {
-            ServiceLoader.Provider<ConductorModule> provider;
+            ServiceLoader.Provider<M> provider;
             try {
                 if (!it.hasNext()) {
-                    return;
+                    return added;
                 }
                 provider = it.next();
             } catch (java.util.ServiceConfigurationError | LinkageError e) {
@@ -87,7 +129,7 @@ public final class ModuleDiscovery {
                 continue;
             }
             try {
-                Class<? extends ConductorModule> type = provider.type();
+                Class<? extends M> type = provider.type();
                 if (only != null && type.getClassLoader() != only) {
                     continue;
                 }
@@ -95,7 +137,9 @@ public final class ModuleDiscovery {
                     continue;
                 }
                 String id = only != null ? source : type.getName();
-                modules.put(modules.containsKey(id) ? id + "/" + type.getSimpleName() : id, provider.get());
+                String key = modules.containsKey(id) ? id + "/" + type.getSimpleName() : id;
+                modules.put(key, provider.get());
+                added.add(key);
             } catch (java.util.ServiceConfigurationError | RuntimeException | LinkageError e) {
                 problems.add(source + ": module could not be created: " + e);
             }
