@@ -14,12 +14,14 @@ Conductor is the modularity and capability-contract layer for Ostinato. It evolv
 | Module platform: many modules, leases with priorities, topics, services, management | Implemented; unit-verified | [docs/MODULE-PLATFORM.md](docs/MODULE-PLATFORM.md) |
 | Version-agnostic features (content detection) | Implemented; verified live on both versions | [docs/TUTORIAL.md §12](docs/TUTORIAL.md#12-one-jar-every-version-optional-features) |
 | 5. Combat delegation (Ostinato PvP/PvE) | Implemented; verified live on both versions | [docs/live-run-combat.md](docs/live-run-combat.md) |
+| Player, world and actions (status, entities, inventory, blocks; hotbar, look, attack, use, chat) | Implemented; verified live on both versions | [docs/live-run-player-actions.md](docs/live-run-player-actions.md) |
+| Meteor Client survey: what a full client needs, and the roadmap | Survey done | [docs/survey-meteor-client.md](docs/survey-meteor-client.md) |
 
 **New here? Start with the [tutorial](docs/TUTORIAL.md)**: what Conductor does, every capability, and how to build a module. Worked examples: [`examples/walk-and-stop`](examples/walk-and-stop) (travel) and [`examples/agnostic-combat`](examples/agnostic-combat). The combat example is one jar whose spear part switches itself off on 1.21.4.
 
 **Limitations (today):**
 - Travel and combat are the only engine actions. Mining, building and the rest are still deferred.
-- No rendering/HUD, chat, keybinds, packets or GUI capabilities.
+- No rendering/HUD, keybinds, packets or GUI capabilities yet. Next steps are in [the Meteor survey](docs/survey-meteor-client.md) §5.
 - Modules are trusted code. Leases coordinate them but can't stop a module that bypasses Conductor.
 - Boots on Fabric only, on Minecraft 1.21.11 and 1.21.4. Modules themselves don't depend on any loader. Ostinato is a Fabric mod.
 - Stops take as long as Ostinato's engine takes (up to about 17 s observed).

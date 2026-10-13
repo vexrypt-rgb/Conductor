@@ -42,6 +42,9 @@ What Conductor gives you today:
 | Read what the bot engine is doing | `observe(...)`, `revalidate(...)` |
 | Send the bot somewhere | `requestTravel(...)` |
 | Make it fight players or mobs (Ostinato's own combat) | `requestCombat(...)` (§5.9) |
+| Read the player, inventory, effects and nearby entities | `observe(PLAYER_STATUS / PLAYER_MOTION / INVENTORY_SLOTS / ACTIVE_EFFECTS / NEARBY_ENTITIES ...)` (§5.10) |
+| Read blocks, or find blocks around the player | `blockAt(...)`, `findBlocks(...)` (§5.10) |
+| Switch hotbar slot, turn, attack, use an item, chat | `selectHotbar`, `look`, `attack`, `useItem`, `sendChat` (§5.10) |
 | Stop it, and know when it has *really* stopped | `cancel(...)`, `operationStatus(...)` |
 | Know whether the bot is free to use | `resourceStatus()` |
 | See why anything happened | the diagnostic sink |
@@ -364,6 +367,51 @@ What to know:
 - **A fight doesn't end on its own.** With no target, the engine waits for one. Cancel when you're done; the worked example stops after a while without a target.
 - **Inventory:** `ObservationKinds.INVENTORY_ITEMS` gives the inventory as item id → count, so you can check a kit without Minecraft classes.
 
+### 5.10 Player, world and one-shot actions
+
+These are the everyday tools of client mods (the [Meteor survey](survey-meteor-client.md) shows which are used most).
+
+**Reads** (observations, with a freshness policy as always):
+
+| Kind | Value |
+|---|---|
+| `PLAYER_STATUS` | health, absorption, food, saturation, air, onGround, sprinting, sneaking, inWater, fallFlying, game mode |
+| `PLAYER_MOTION` | exact x/y/z, velocity per tick, yaw, pitch |
+| `NEARBY_ENTITIES` | entities within 32 blocks, nearest first: id, type id, name, position, distance, health, player?, hostile? |
+| `INVENTORY_SLOTS` | non-empty slots: 0-8 hotbar, 9-35 main, 36-39 armour (feet to head), 40 offhand; item id, count, durability |
+| `SELECTED_SLOT` | 0-8 |
+| `ACTIVE_EFFECTS` | effect id, amplifier, ticks left |
+
+**Blocks:**
+
+```java
+Optional<String> below = conductor.blockAt(here.offset(0, -1, 0)).block();   // empty = chunk not loaded, never "air"
+List<BlockPoint> ores = conductor.findBlocks(Set.of("minecraft:diamond_ore"), 16, 10).found(); // nearest first
+```
+
+**Actions.** Each needs its lease, so two modules never fight over the same control:
+
+| Action | Lease |
+|---|---|
+| `selectHotbar(slot)` | HOTBAR |
+| `look(yaw, pitch)` | LOOK |
+| `attack(entityId)`, `useItem(offhand)` | INTERACT |
+| `sendChat(text)` (a `/command` too) | CHAT |
+
+```java
+conductor.acquire(Resources.HOTBAR);
+ActionResult r = conductor.selectHotbar(3);      // accepted = the game was told
+// next tick: observe(SELECTED_SLOT) == 3 confirms it
+```
+
+The rules:
+- **Accepted means "the game was told".** Confirm with the next observation, as the example does. The server can still refuse.
+- **Engine conflict:** while the bot is moving or fighting (`resourceStatus()` not `AVAILABLE`), the engine sets look, hotbar and clicks itself. Those actions are refused with `RESOURCE_NOT_RELEASED` instead of being silently overwritten. Chat is not affected.
+- **Chat:** one message per tick, at most 256 characters, and no characters servers kick for (control codes, `§`).
+- **Every action is recorded** in the diagnostic sink (`ACTION`).
+
+Full worked example: [`examples/player-actions`](../examples/player-actions/src/main/java/conductor/example/actions/PlayerActions.java), verified live on both versions ([live-run-player-actions.md](live-run-player-actions.md)).
+
 ---
 
 ## 6. When Conductor says no
@@ -387,6 +435,10 @@ Every refusal has a reason. Here is what each one means and what to do.
 | `NO_NAVIGATION` | The runtime has no travel support | Check `discover()` |
 | `INVALID_ARGUMENT` | null goal or id | Fix the call |
 | `NO_COMBAT` | The runtime has no combat support | Check `discover()` |
+| `NO_ACTIONS` | The runtime offers no actions or block access | Check `discover()` |
+| `LEASE_REQUIRED` | Your module doesn't hold the action's lease | `acquire(...)` the resource first (§5.10) |
+| `TARGET_UNAVAILABLE` | No such entity, it's dead, or it's out of reach (or no player position for a block search) | Read `NEARBY_ENTITIES` again |
+| `RATE_LIMITED` | A second chat message in one tick | Send it next tick |
 | `LEASE_HELD` | Another module holds MOVEMENT | Wait, or acquire MOVEMENT at a higher priority (§11.1) |
 
 ---

@@ -37,7 +37,8 @@ public final class ConductorOstinato {
             throw new IllegalStateException("ConductorOstinato.install must be called on the game thread");
         }
         return install(baritone, sink, policy, game, new TungstenBackendAccess(), MovementBackends.engine(baritone),
-                MovementBackends::preferTungstenTravel, new OstinatoCombatAccess(baritone));
+                MovementBackends::preferTungstenTravel, new OstinatoCombatAccess(baritone),
+                new MinecraftPlayerAccess(baritone.getPlayerContext(), game));
     }
 
     /** Without a release policy: discovery and observation work, but navigation is never granted. */
@@ -50,10 +51,19 @@ public final class ConductorOstinato {
         return install(baritone, sink, policy, game, secondary, engine, prefersSecondaryTravel, null);
     }
 
-    /** @param combat engine combat access; null to offer no combat */
     static ContractService install(IBaritone baritone, DiagnosticSink sink, ReleasePolicy policy, GameAccess game,
                              SecondaryBackendAccess secondary, IMovementEngine engine, BooleanSupplier prefersSecondaryTravel,
                              CombatAccess combat) {
+        return install(baritone, sink, policy, game, secondary, engine, prefersSecondaryTravel, combat, null);
+    }
+
+    /**
+     * @param combat engine combat access; null to offer no combat
+     * @param player player/world reads and actions; null to offer none
+     */
+    static ContractService install(IBaritone baritone, DiagnosticSink sink, ReleasePolicy policy, GameAccess game,
+                             SecondaryBackendAccess secondary, IMovementEngine engine, BooleanSupplier prefersSecondaryTravel,
+                             CombatAccess combat, PlayerAccess player) {
         Objects.requireNonNull(sink, "sink");
         Objects.requireNonNull(policy, "policy");
         synchronized (INSTALLED) {
@@ -66,6 +76,9 @@ public final class ConductorOstinato {
         OstinatoRuntimeIntegration runtime = new OstinatoRuntimeIntegration(game, lifecycle,
                 new OstinatoSignals(baritone, secondary), secondary,
                 new OstinatoNavigationPort(engine, prefersSecondaryTravel));
+        if (player != null) {
+            runtime.enablePlayer(player);
+        }
         if (combat != null) {
             runtime.enableCombat(new OstinatoCombatPort(combat, engine), combat);
         }

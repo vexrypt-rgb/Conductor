@@ -27,6 +27,14 @@ public enum RejectionReason {
     UNKNOWN_OPERATION,
     /** The runtime offers no combat delegation. */
     NO_COMBAT,
+    /** The runtime offers no actions (or no block access, for block queries). */
+    NO_ACTIONS,
+    /** A module must hold this action's resource lease ({@link ActionKind#resource()}). */
+    LEASE_REQUIRED,
+    /** The entity or other target does not exist, is not loaded, or is out of reach. */
+    TARGET_UNAVAILABLE,
+    /** Too many of this action this tick (chat: one message per tick). */
+    RATE_LIMITED,
     /** Another module holds the lease this needs (module platform). */
     LEASE_HELD,
     /** The operation's context is no longer current, so its authority is gone. */

@@ -17,6 +17,8 @@ include 'example-walk-and-stop'
 project(':example-walk-and-stop').projectDir = file('examples/walk-and-stop')
 include 'example-agnostic-combat'
 project(':example-agnostic-combat').projectDir = file('examples/agnostic-combat')
+include 'example-player-actions'
+project(':example-player-actions').projectDir = file('examples/player-actions')
 
 // Per Minecraft version (see mcTargets in build.gradle): the runtime adapter, the Conductor mod that hosts modules,
 // and the live test harness.

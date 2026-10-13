@@ -51,6 +51,21 @@ final class MinecraftGameAccess implements GameAccess {
     }
 
     @Override
+    public boolean canReach(net.minecraft.world.entity.Entity target) {
+        return ctx.player().canInteractWithEntity(target, 0);
+    }
+
+    @Override
+    public int selectedSlot() {
+        return ctx.player().getInventory().selected;
+    }
+
+    @Override
+    public void setSelectedSlot(int slot) {
+        ctx.player().getInventory().selected = slot;
+    }
+
+    @Override
     public java.util.Map<String, Integer> inventoryItems() {
         if (ctx.player() == null) {
             return null;

@@ -17,7 +17,13 @@ import java.util.Optional;
 import static conductor.contract.ObservationKinds.COMBAT_TARGET;
 import static conductor.contract.ObservationKinds.CONTROLLING_PROCESS;
 import static conductor.contract.ObservationKinds.FORCED_INPUTS;
+import static conductor.contract.ObservationKinds.ACTIVE_EFFECTS;
 import static conductor.contract.ObservationKinds.INVENTORY_ITEMS;
+import static conductor.contract.ObservationKinds.INVENTORY_SLOTS;
+import static conductor.contract.ObservationKinds.NEARBY_ENTITIES;
+import static conductor.contract.ObservationKinds.PLAYER_MOTION;
+import static conductor.contract.ObservationKinds.PLAYER_STATUS;
+import static conductor.contract.ObservationKinds.SELECTED_SLOT;
 import static conductor.contract.ObservationKinds.NEXT_SEGMENT_PRESENT;
 import static conductor.contract.ObservationKinds.PATH_CALCULATION_PENDING;
 import static conductor.contract.ObservationKinds.PATH_SEGMENT_PRESENT;
@@ -39,6 +45,11 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
     static final String PLAYER = "player";
     static final String CONTENT = "content";
     static final String COMBAT = "combat";
+    static final String WORLD = "world";
+    static final String ACTIONS = "actions";
+    static final List<String> ACTION_OPERATIONS = List.of("selectHotbar", "look", "attack", "useItem", "sendChat");
+    static final double ENTITY_RADIUS = 32;
+    static final int MAX_ENTITIES = 64;
     static final List<String> COMBAT_OPERATIONS = List.of("requestCombat", "cancel", "operationStatus");
 
     private final GameAccess game;
@@ -48,6 +59,7 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
     private final NavigationPort navigation;
     private final EngineFeatures engineFeatures;
     private CombatPort combatPort;
+    private PlayerAccess player;
     private CombatAccess combatAccess;
 
     OstinatoRuntimeIntegration(GameAccess game, LifecycleListener lifecycle, OstinatoSignals signals,
@@ -91,14 +103,39 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
                 List.of(PATH_SEGMENT_PRESENT, NEXT_SEGMENT_PRESENT, PATH_CALCULATION_PENDING, CONTROLLING_PROCESS,
                         TRAVEL_GOAL_ACTIVE, FORCED_INPUTS),
                 navigation != null ? NAVIGATION_OPERATIONS : List.of());
+        List<ObservationKind<?>> playerKinds = this.player == null ? List.of(PLAYER_POSITION, INVENTORY_ITEMS)
+                : List.of(PLAYER_POSITION, INVENTORY_ITEMS, PLAYER_STATUS, PLAYER_MOTION, NEARBY_ENTITIES, INVENTORY_SLOTS,
+                SELECTED_SLOT, ACTIVE_EFFECTS);
         CapabilityDescriptor player = new CapabilityDescriptor(PLAYER, CapabilityAvailability.AVAILABLE,
-                "read-only player state", List.of(PLAYER_POSITION, INVENTORY_ITEMS), List.of());
+                "read-only player state", playerKinds, List.of());
+        CapabilityDescriptor world = new CapabilityDescriptor(WORLD,
+                this.player != null ? CapabilityAvailability.AVAILABLE : CapabilityAvailability.UNAVAILABLE,
+                "read-only blocks from loaded chunks", List.of(), this.player != null ? List.of("blockAt", "findBlocks") : List.of());
+        CapabilityDescriptor actions = new CapabilityDescriptor(ACTIONS,
+                this.player != null ? CapabilityAvailability.AVAILABLE : CapabilityAvailability.UNAVAILABLE,
+                "one-shot player actions; each needs its resource lease", List.of(),
+                this.player != null ? ACTION_OPERATIONS : List.of());
         CapabilityDescriptor combat = new CapabilityDescriptor(COMBAT,
                 combatPort != null ? CapabilityAvailability.AVAILABLE : CapabilityAvailability.UNAVAILABLE,
                 "Ostinato PvpProcess (players) and PveProcess (mobs); exclusive with travel; stop needs release "
                         + "evidence including the use key (Stage 5)",
                 List.of(USE_KEY_HELD, COMBAT_TARGET), combatPort != null ? COMBAT_OPERATIONS : List.of());
-        return List.of(primary, secondaryDescriptor(), player, contentDescriptor(), combat);
+        return List.of(primary, secondaryDescriptor(), player, contentDescriptor(), combat, world, actions);
+    }
+
+    /** Offer player/world reads and one-shot actions. Called once by the installer. */
+    void enablePlayer(PlayerAccess player) {
+        this.player = player;
+    }
+
+    @Override
+    public Optional<conductor.contract.WorldPort> world() {
+        return Optional.ofNullable(player);
+    }
+
+    @Override
+    public Optional<conductor.contract.ActionPort> actions() {
+        return Optional.ofNullable(player);
     }
 
     /** Offer combat delegation (Stage 5). Called once by the installer. */
@@ -156,6 +193,28 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
         if (kind == PLAYER_POSITION) {
             BlockPoint at = game.playerBlock();
             return (Sample<T>) (at == null ? Sample.notObserved("no player") : Sample.observed(at));
+        }
+        if (player != null) {
+            Object value = null;
+            boolean handled = true;
+            if (kind == PLAYER_STATUS) {
+                value = player.status();
+            } else if (kind == PLAYER_MOTION) {
+                value = player.motion();
+            } else if (kind == NEARBY_ENTITIES) {
+                value = player.entities(ENTITY_RADIUS, MAX_ENTITIES);
+            } else if (kind == INVENTORY_SLOTS) {
+                value = player.slots();
+            } else if (kind == SELECTED_SLOT) {
+                value = player.selectedSlot();
+            } else if (kind == ACTIVE_EFFECTS) {
+                value = player.effects();
+            } else {
+                handled = false;
+            }
+            if (handled) {
+                return (Sample<T>) (value == null ? Sample.notObserved("no player or world") : Sample.observed(value));
+            }
         }
         if (kind == INVENTORY_ITEMS) {
             java.util.Map<String, Integer> items = game.inventoryItems();

@@ -37,6 +37,22 @@ final class FakeGameAccess implements GameAccess {
     }
 
     Boolean useKey = false;
+    int selected;
+
+    @Override
+    public boolean canReach(net.minecraft.world.entity.Entity target) {
+        return true;
+    }
+
+    @Override
+    public int selectedSlot() {
+        return selected;
+    }
+
+    @Override
+    public void setSelectedSlot(int slot) {
+        selected = slot;
+    }
     java.util.Map<String, Integer> inventory = new java.util.HashMap<>(java.util.Map.of("minecraft:iron_sword", 1));
 
     @Override

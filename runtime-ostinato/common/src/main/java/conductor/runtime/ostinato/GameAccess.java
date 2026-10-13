@@ -28,6 +28,15 @@ interface GameAccess {
      * built-in registry here or the id is malformed (the caller reports UNKNOWN). Built-in registries are frozen at
      * startup, so this is valid in and out of a world.
      */
+    /** Game thread only. Whether the player can reach {@code target} to attack it; only called with a player. */
+    boolean canReach(net.minecraft.world.entity.Entity target);
+
+    /** Game thread only. The selected hotbar slot (0-8); only called with a player. */
+    int selectedSlot();
+
+    /** Game thread only. Select hotbar slot 0-8; only called with a player. */
+    void setSelectedSlot(int slot);
+
     /** Game thread only. Item id to total count over the whole inventory, or null without a player. */
     java.util.Map<String, Integer> inventoryItems();
 

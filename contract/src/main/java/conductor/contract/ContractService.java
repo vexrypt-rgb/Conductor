@@ -259,4 +259,190 @@ public final class ContractService implements Conductor {
                 contexts.current().orElse(null), subject, reason + ": " + detail));
         return ObservationResult.rejected(reason, observation, freshness, detail);
     }
+
+    // ---- world queries ----
+
+    @Override
+    public BlockReading blockAt(BlockPoint at) {
+        if (!runtime.isGameThread()) {
+            sink.record(DiagnosticEvent.offThread("blockAt", "rejected before reading the world"));
+            return new BlockReading(RejectionReason.OFF_THREAD, at, Optional.empty(), -1, "call was not on the game thread");
+        }
+        long tick = runtime.currentTick();
+        if (at == null) {
+            return new BlockReading(RejectionReason.INVALID_ARGUMENT, null, Optional.empty(), tick, "position is null");
+        }
+        if (contexts.current().isEmpty()) {
+            return new BlockReading(RejectionReason.NO_CURRENT_CONTEXT, at, Optional.empty(), tick, "not in a world");
+        }
+        Optional<WorldPort> world = runtime.world();
+        if (world.isEmpty()) {
+            return new BlockReading(RejectionReason.NO_ACTIONS, at, Optional.empty(), tick, "runtime offers no block access");
+        }
+        try {
+            Optional<String> block = world.get().blockAt(at);
+            return new BlockReading(null, at, block, tick, block.isPresent() ? "" : "chunk not loaded");
+        } catch (RuntimeException | LinkageError e) {
+            sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.PROVIDER_FAULT, tick, contexts.current().orElse(null), "blockAt", e.toString()));
+            return new BlockReading(null, at, Optional.empty(), tick, "read failed: " + e);
+        }
+    }
+
+    static final int MAX_SEARCH_RADIUS = 16;
+    static final int MAX_SEARCH_RESULTS = 256;
+
+    @Override
+    public BlockSearch findBlocks(java.util.Set<String> blockIds, int radius, int limit) {
+        if (!runtime.isGameThread()) {
+            sink.record(DiagnosticEvent.offThread("findBlocks", "rejected before reading the world"));
+            return new BlockSearch(RejectionReason.OFF_THREAD, java.util.List.of(), -1, "call was not on the game thread");
+        }
+        long tick = runtime.currentTick();
+        if (blockIds == null || blockIds.isEmpty() || radius < 1 || radius > MAX_SEARCH_RADIUS || limit < 1 || limit > MAX_SEARCH_RESULTS) {
+            return new BlockSearch(RejectionReason.INVALID_ARGUMENT, java.util.List.of(), tick,
+                    "need block ids, radius 1-" + MAX_SEARCH_RADIUS + ", limit 1-" + MAX_SEARCH_RESULTS);
+        }
+        if (contexts.current().isEmpty()) {
+            return new BlockSearch(RejectionReason.NO_CURRENT_CONTEXT, java.util.List.of(), tick, "not in a world");
+        }
+        Optional<WorldPort> world = runtime.world();
+        if (world.isEmpty()) {
+            return new BlockSearch(RejectionReason.NO_ACTIONS, java.util.List.of(), tick, "runtime offers no block access");
+        }
+        Sample<BlockPoint> here;
+        try {
+            here = runtime.sample(ObservationKinds.PLAYER_POSITION);
+        } catch (RuntimeException | LinkageError e) {
+            here = Sample.unknown(e.toString());
+        }
+        if (here == null || here.availability() != Availability.OBSERVED) {
+            return new BlockSearch(RejectionReason.TARGET_UNAVAILABLE, java.util.List.of(), tick, "player position not observed");
+        }
+        try {
+            return new BlockSearch(null, world.get().findBlocks(java.util.Set.copyOf(blockIds), here.value(), radius, limit), tick, "");
+        } catch (RuntimeException | LinkageError e) {
+            sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.PROVIDER_FAULT, tick, contexts.current().orElse(null), "findBlocks", e.toString()));
+            return new BlockSearch(null, java.util.List.of(), tick, "search failed: " + e);
+        }
+    }
+
+    // ---- one-shot actions ----
+
+    private long lastChatTick = Long.MIN_VALUE;
+
+    @Override
+    public ActionResult selectHotbar(int slot) {
+        return selectHotbar(ModuleId.CORE, slot);
+    }
+
+    ActionResult selectHotbar(ModuleId module, int slot) {
+        return act(module, ActionKind.SELECT_HOTBAR, slot < 0 || slot > 8 ? "slot must be 0-8" : null,
+                p -> p.selectHotbar(slot), "slot " + slot);
+    }
+
+    @Override
+    public ActionResult look(double yaw, double pitch) {
+        return look(ModuleId.CORE, yaw, pitch);
+    }
+
+    ActionResult look(ModuleId module, double yaw, double pitch) {
+        String bad = !Double.isFinite(yaw) || !Double.isFinite(pitch) || pitch < -90 || pitch > 90
+                ? "yaw must be finite and pitch -90..90" : null;
+        return act(module, ActionKind.LOOK, bad, p -> p.look(yaw, pitch), String.format("yaw %.1f pitch %.1f", yaw, pitch));
+    }
+
+    @Override
+    public ActionResult attack(int entityId) {
+        return attack(ModuleId.CORE, entityId);
+    }
+
+    ActionResult attack(ModuleId module, int entityId) {
+        return act(module, ActionKind.ATTACK, null, p -> p.attack(entityId), "entity " + entityId);
+    }
+
+    @Override
+    public ActionResult useItem(boolean offhand) {
+        return useItem(ModuleId.CORE, offhand);
+    }
+
+    ActionResult useItem(ModuleId module, boolean offhand) {
+        return act(module, ActionKind.USE_ITEM, null, p -> p.useItem(offhand), offhand ? "offhand" : "main hand");
+    }
+
+    @Override
+    public ActionResult sendChat(String message) {
+        return sendChat(ModuleId.CORE, message);
+    }
+
+    ActionResult sendChat(ModuleId module, String message) {
+        return act(module, ActionKind.SEND_CHAT, chatProblem(message), p -> p.sendChat(message),
+                message == null ? "" : message.length() + " characters");
+    }
+
+    static String chatProblem(String message) {
+        if (message == null || message.isBlank()) {
+            return "message is empty";
+        }
+        if (message.length() > 256) {
+            return "message is longer than 256 characters";
+        }
+        for (int i = 0; i < message.length(); i++) {
+            char c = message.charAt(i);
+            if (c < 32 || c == 127 || c == '\u00a7') {
+                return "message contains a character servers reject (control code or section sign)";
+            }
+        }
+        return null;
+    }
+
+    /** Host API: the same action, attributed to {@code module} (its lease was checked by the host). */
+    ActionResult act(ModuleId module, ActionKind kind, String invalid,
+                     java.util.function.Function<ActionPort, Optional<String>> call, String what) {
+        if (!runtime.isGameThread()) {
+            sink.record(DiagnosticEvent.offThread(kind + " " + module, "rejected before any game call"));
+            return ActionResult.rejected(RejectionReason.OFF_THREAD, "call was not on the game thread");
+        }
+        long tick = runtime.currentTick();
+        ActionResult result = checkAndRun(kind, invalid, call, tick);
+        sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.ACTION, tick, contexts.current().orElse(null),
+                kind + " " + module, what + ": " + (result.isAccepted() ? "done" : result.rejection() + " " + result.detail())));
+        return result;
+    }
+
+    private ActionResult checkAndRun(ActionKind kind, String invalid,
+                                     java.util.function.Function<ActionPort, Optional<String>> call, long tick) {
+        if (invalid != null) {
+            return ActionResult.rejected(RejectionReason.INVALID_ARGUMENT, invalid);
+        }
+        if (contexts.current().isEmpty()) {
+            return ActionResult.rejected(RejectionReason.NO_CURRENT_CONTEXT, "not in a world");
+        }
+        Optional<ActionPort> port = runtime.actions();
+        if (port.isEmpty()) {
+            return ActionResult.rejected(RejectionReason.NO_ACTIONS, "runtime offers no actions");
+        }
+        if (kind.engineConflict() && navigation.resourceState() != ResourceState.AVAILABLE) {
+            return ActionResult.rejected(RejectionReason.RESOURCE_NOT_RELEASED,
+                    "the engine may be steering and would overwrite this; wait until resourceStatus() is AVAILABLE");
+        }
+        if (kind == ActionKind.SEND_CHAT) {
+            if (lastChatTick == tick) {
+                return ActionResult.rejected(RejectionReason.RATE_LIMITED, "one chat message per tick");
+            }
+        }
+        Optional<String> problem;
+        try {
+            problem = call.apply(port.get());
+        } catch (RuntimeException | LinkageError e) {
+            sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.PROVIDER_FAULT, tick, contexts.current().orElse(null), kind.name(), e.toString()));
+            return ActionResult.rejected(RejectionReason.ENGINE_DECLINED, "game call threw: " + e);
+        }
+        if (problem.isPresent()) {
+            return ActionResult.rejected(kind == ActionKind.ATTACK ? RejectionReason.TARGET_UNAVAILABLE : RejectionReason.ENGINE_DECLINED, problem.get());
+        }
+        if (kind == ActionKind.SEND_CHAT) {
+            lastChatTick = tick;
+        }
+        return ActionResult.done(kind.name());
+    }
 }

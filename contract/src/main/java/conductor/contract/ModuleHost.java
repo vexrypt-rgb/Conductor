@@ -629,6 +629,57 @@ public final class ModuleHost {
         }
 
         @Override
+        public BlockReading blockAt(BlockPoint at) {
+            return core.blockAt(at);
+        }
+
+        @Override
+        public BlockSearch findBlocks(Set<String> blockIds, int radius, int limit) {
+            return core.findBlocks(blockIds, radius, limit);
+        }
+
+        /** The module must be running and hold the action's lease; then the core's rules apply. */
+        private ActionResult leased(ActionKind kind, java.util.function.Supplier<ActionResult> action) {
+            if (!core.onGameThread()) {
+                return action.get(); // the core records and rejects OFF_THREAD
+            }
+            if (e.state != ModuleState.RUNNING) {
+                return ActionResult.rejected(RejectionReason.AUTHORITY_INVALIDATED, "module is " + e.state);
+            }
+            Lease held = slots.get(kind.resource()).holder;
+            if (held == null || !held.holder().equals(e.id)) {
+                return ActionResult.rejected(RejectionReason.LEASE_REQUIRED, kind + " needs the " + kind.resource().name()
+                        + " lease" + (held == null ? "" : "; held by " + held.holder()));
+            }
+            return action.get();
+        }
+
+        @Override
+        public ActionResult selectHotbar(int slot) {
+            return leased(ActionKind.SELECT_HOTBAR, () -> core.selectHotbar(e.id, slot));
+        }
+
+        @Override
+        public ActionResult look(double yaw, double pitch) {
+            return leased(ActionKind.LOOK, () -> core.look(e.id, yaw, pitch));
+        }
+
+        @Override
+        public ActionResult attack(int entityId) {
+            return leased(ActionKind.ATTACK, () -> core.attack(e.id, entityId));
+        }
+
+        @Override
+        public ActionResult useItem(boolean offhand) {
+            return leased(ActionKind.USE_ITEM, () -> core.useItem(e.id, offhand));
+        }
+
+        @Override
+        public ActionResult sendChat(String message) {
+            return leased(ActionKind.SEND_CHAT, () -> core.sendChat(e.id, message));
+        }
+
+        @Override
         public OperationResult operationStatus(OperationId operation) {
             return core.operationStatus(e.id, operation);
         }

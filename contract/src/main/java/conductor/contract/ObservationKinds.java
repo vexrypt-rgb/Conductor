@@ -72,8 +72,33 @@ public final class ObservationKinds {
             "The player's inventory (hotbar, main, armour, offhand) as item id to total count, e.g. "
                     + "minecraft:shield -> 1. Ids are registry ids, so the same module works on every version.");
 
+    public static final ObservationKind<PlayerStatus> PLAYER_STATUS = new ObservationKind<>(
+            "PLAYER_STATUS",
+            "Health, absorption, food, air and movement flags of the local player.");
+
+    public static final ObservationKind<PlayerMotion> PLAYER_MOTION = new ObservationKind<>(
+            "PLAYER_MOTION",
+            "Exact position, velocity (blocks/tick), yaw and pitch of the local player.");
+
+    public static final ObservationKind<List<EntityInfo>> NEARBY_ENTITIES = new ObservationKind<>(
+            "NEARBY_ENTITIES",
+            "Entities within 32 blocks of the player (not the player itself), nearest first, at most 64.");
+
+    public static final ObservationKind<List<SlotInfo>> INVENTORY_SLOTS = new ObservationKind<>(
+            "INVENTORY_SLOTS",
+            "Every non-empty inventory slot with item id, count and durability (slot numbers: see SlotInfo).");
+
+    public static final ObservationKind<Integer> SELECTED_SLOT = new ObservationKind<>(
+            "SELECTED_SLOT",
+            "The selected hotbar slot, 0-8.");
+
+    public static final ObservationKind<List<EffectInfo>> ACTIVE_EFFECTS = new ObservationKind<>(
+            "ACTIVE_EFFECTS",
+            "The local player's active status effects.");
+
     public static final List<ObservationKind<?>> ALL = List.of(
             PATH_SEGMENT_PRESENT, NEXT_SEGMENT_PRESENT, PATH_CALCULATION_PENDING, CONTROLLING_PROCESS,
             TRAVEL_GOAL_ACTIVE, FORCED_INPUTS, SECONDARY_BACKEND_BOUND, SECONDARY_BACKEND_PATHING,
-            SECONDARY_BACKEND_STOPPING, PLAYER_POSITION, USE_KEY_HELD, COMBAT_TARGET, INVENTORY_ITEMS);
+            SECONDARY_BACKEND_STOPPING, PLAYER_POSITION, USE_KEY_HELD, COMBAT_TARGET, INVENTORY_ITEMS,
+            PLAYER_STATUS, PLAYER_MOTION, NEARBY_ENTITIES, INVENTORY_SLOTS, SELECTED_SLOT, ACTIVE_EFFECTS);
 }

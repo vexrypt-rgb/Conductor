@@ -38,6 +38,16 @@ public interface RuntimeIntegration {
         return new ContentResult(content, ContentResult.Presence.UNKNOWN, "runtime cannot check content");
     }
 
+    /** Read-only block access, if this runtime offers it. */
+    default Optional<WorldPort> world() {
+        return Optional.empty();
+    }
+
+    /** One-shot player actions, if this runtime offers them. */
+    default Optional<ActionPort> actions() {
+        return Optional.empty();
+    }
+
     /** Combat delegation, if this runtime offers it (Stage 5). */
     default Optional<CombatPort> combat() {
         return Optional.empty();

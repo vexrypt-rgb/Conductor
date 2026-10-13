@@ -16,6 +16,8 @@ class FakeRuntime implements RuntimeIntegration {
     RuntimeException failure;
     NavigationPort port;
     CombatPort combatPort;
+    WorldPort worldPort;
+    ActionPort actionPort;
     /** Whether the runtime lists USE_KEY_HELD among its observations. */
     boolean reportsUseKey;
     final Map<ContentId, ContentResult.Presence> content = new HashMap<>();
@@ -68,6 +70,16 @@ class FakeRuntime implements RuntimeIntegration {
         return p == null
                 ? new ContentResult(id, ContentResult.Presence.UNKNOWN, "fake: not configured")
                 : new ContentResult(id, p, "fake");
+    }
+
+    @Override
+    public Optional<WorldPort> world() {
+        return Optional.ofNullable(worldPort);
+    }
+
+    @Override
+    public Optional<ActionPort> actions() {
+        return Optional.ofNullable(actionPort);
     }
 
     @Override
