@@ -1,11 +1,17 @@
 name: Release
 
 # Builds the Conductor mod for every Minecraft version it supports, the example modules and the module contract, and
-# publishes them as one GitHub release. Runs on a `v*` tag push; a tag with a `-` in it (v0.6.0-beta.1) is published
-# as a pre-release. Release text: RELEASE_NOTES.md; install steps: docs/INSTALL.md.
+# publishes them as one GitHub release. Runs on a `v*` tag push, or by hand (Actions > Release > Run workflow) with a
+# tag name: the release and its tag are then created on the commit the run was started from. A tag with a `-` in it
+# (v0.6.0-beta.1) is published as a pre-release. Release text: RELEASE_NOTES.md; install steps: docs/INSTALL.md.
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to create, e.g. v0.6.0-beta.1'
+        required: true
 
 permissions:
   contents: write
@@ -53,9 +59,11 @@ jobs:
             -Porg.gradle.java.installations.auto-download=false
       - name: Collect release files
         working-directory: conductor
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME}"
+          tag="$TAG"
           v="${tag#v}"
           version=$(sed -n "s/^ *version = '\(.*\)'/\1/p" build.gradle | head -1)
           mkdir -p ../out
@@ -75,8 +83,9 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Conductor ${{ github.ref_name }}
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          name: Conductor ${{ github.event.inputs.tag || github.ref_name }}
           body_path: conductor/RELEASE_NOTES.md
           prerelease: ${{ env.PRERELEASE }}
           files: |
