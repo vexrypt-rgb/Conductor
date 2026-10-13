@@ -129,4 +129,4 @@ As on 1.16.1, the death and chunk hooks are woven in, but no example module subs
 ## Not done yet on 26.3
 
 - **No Ostinato engine layer,** so no travel or combat. Ostinato has a 26.x branch; building the engine layer against it is the next step.
-- **Other mods:** the Sodium and Lithium compatibility runs were done only on 1.21.x (see `CONTENT-MODS.md`).
+- **Other mods:** Sodium 0.9.2 with Iris 1.11.7 and a shader pack ran on 26.3 ([live-run-shaders.md](live-run-shaders.md)). Lithium was run only on 1.21.x (see `CONTENT-MODS.md`).

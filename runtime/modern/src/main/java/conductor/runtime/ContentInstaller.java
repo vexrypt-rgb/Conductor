@@ -72,6 +72,8 @@ public final class ContentInstaller {
     /** Creative tab id to the items listed in it, in declaration order. */
     private static final Map<String, List<Item>> TAB_ITEMS = new HashMap<>();
     private static final Map<Block, conductor.contract.RenderLayer> RENDER_LAYERS = new java.util.LinkedHashMap<>();
+    /** Content blocks whose shape has a vanilla counterpart that shader packs treat specially (glass, leaves, panes). */
+    private static final Map<Block, Block> SHADER_LOOKALIKES = new java.util.LinkedHashMap<>();
     private static final Map<EntityType<?>, AttributeSupplier> MOB_ATTRIBUTES = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<EntityType<?>, MobDeclaration> MOBS = new java.util.LinkedHashMap<>();
 
@@ -133,6 +135,15 @@ public final class ContentInstaller {
             }
             if (d.layer() != conductor.contract.RenderLayer.SOLID) {
                 RENDER_LAYERS.put(block, d.layer());
+            }
+            Block lookalike = switch (d.shape()) {
+                case GLASS -> net.minecraft.world.level.block.Blocks.GLASS;
+                case LEAVES -> net.minecraft.world.level.block.Blocks.OAK_LEAVES;
+                case PANE -> net.minecraft.world.level.block.Blocks.GLASS_PANE;
+                default -> null;
+            };
+            if (lookalike != null) {
+                SHADER_LOOKALIKES.put(block, lookalike);
             }
             if (d.withItem()) {
                 Item item = VersionBlocks.blockItem(key, block, d.shape() == BlockShape.DOOR);
@@ -243,6 +254,14 @@ public final class ContentInstaller {
     /** Client only: blocks declared with a see-through render layer. */
     public static Map<Block, conductor.contract.RenderLayer> renderLayers() {
         return java.util.Collections.unmodifiableMap(RENDER_LAYERS);
+    }
+
+    /**
+     * Client only: content blocks a shader pack should treat like a vanilla block (glass like glass, leaves like oak
+     * leaves, panes like glass panes). Packs list blocks by name, so they know nothing of module blocks.
+     */
+    public static Map<Block, Block> shaderLookalikes() {
+        return java.util.Collections.unmodifiableMap(SHADER_LOOKALIKES);
     }
 
     /** A block's mixed sounds: registered ones by id, others (a module's own) as unregistered events. */

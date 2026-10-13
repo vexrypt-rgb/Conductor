@@ -14,7 +14,8 @@
 #      SERVER_MODS (colon-separated jars: run the server as a Fabric dedicated server with these in its mods/ folder;
 #      it needs <workdir>/server to have run once so the vanilla bundler unpacked versions/ and libraries/),
 #      SERVER_MODULES (modules folder for that server, as CONDUCTOR_MODULES is for the client),
-#      CLIENT_JVM_ARGS (extra JVM options for the client, e.g. -Dmixin.debug.export=true).
+#      CLIENT_JVM_ARGS (extra JVM options for the client, e.g. -Dmixin.debug.export=true),
+#      GAME_FILES (a folder whose contents are copied into the client's game folder, e.g. config/ and shaderpacks/).
 # The game, assets and libraries come from the local Gradle caches (scripts/prod_classpath.py).
 # Minecraft 26.x opens its window through SDL3 and asks for an sRGB-capable OpenGL 3.3 core context. Xvfb's GLX
 # offers no sRGB visual, so the client cannot open its window ("Couldn't find matching GLX visual"). For 26.x this
@@ -37,6 +38,7 @@ CP=$(paste -sd: "$WORK/prod-classpath.txt")
 rm -rf "$GAME" && mkdir -p "$GAME/mods"
 IFS=':' read -ra JARS <<< "${MODS:-}"
 for j in "${JARS[@]}"; do [ -n "$j" ] && cp "$j" "$GAME/mods/"; done
+[ -n "${GAME_FILES:-}" ] && cp -r "$GAME_FILES"/. "$GAME/"
 cat > "$GAME/options.txt" <<OPTS
 onboardAccessibility:false
 skipMultiplayerWarning:true

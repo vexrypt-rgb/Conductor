@@ -17,6 +17,7 @@
 | **Block render layers** (see-through glass and doors) | The layer type: `RenderType` became `ChunkSectionLayer`. | Nothing: modules say `RenderLayer.CUTOUT` ([live-run-content.md](live-run-content.md) §3). |
 | **Mob renderers** | Renderer and model classes moved packages; renderers became render-state based. | Nothing: modules say `like(MobArchetype.ZOMBIE)` plus a texture (§5 there). |
 | **Deep engine replacements next to Conductor** | Sodium replaces the chunk renderer; Lithium rewrites game logic. | Nothing: Conductor's hooks, content and overlays worked next to both (§4 there). |
+| **Shaders next to Conductor (1.21.4, 1.21.11, 26.3)** | Iris (with Sodium) replaces the world's shaders with a shader pack's, and the pack decides each block's material from its own list of block names. | Nothing: the same jars drew blocks, mobs and overlays under the same pack on all three versions. Conductor itself gained one optional Iris hook, so module glass, leaves and panes get the pack's materials ([live-run-shaders.md](live-run-shaders.md)). |
 | **A whole new renderer: 1.21.11 → 26.3** | 26.3 extracts the level into a frame before drawing it, and draws debug lines as gizmos. It picks block render layers from texture pixels; `RenderType` registration for blocks is gone. Conductor's 26.3 render hook moved to `LevelExtractor`, its `VersionLineDrawer` emits gizmos, and its render-layer class became a no-op. | **Nothing.** The same `block-highlighter` and `ruby-content` jars drew overlays, see-through glass, doors and mobs on 26.3 ([live-run-26.3.md](live-run-26.3.md)). |
 | **A failing hook** | `Hooks.renderWorld` catches a renderer failure and switches overlays off; all Conductor Mixins are `required: false`. | The game keeps running. This is the platform rule "Conductor never crashes the game". |
 
@@ -32,7 +33,7 @@ The pattern: **a module states what it wants, and Conductor's per-version code d
      - a 2D HUD (text, item icons, bars);
      - entity glow and outline;
      - block and entity models given as JSON.
-3. **Native render modules.** Shader packs and engine replacements (Iris, Sodium) stay version-specific mods that run *next to* Conductor ([CONTENT-MODS.md](CONTENT-MODS.md) §6). Conductor's duty there is compatibility, tested live.
+3. **Native render modules.** Shader packs and engine replacements (Iris, Sodium) stay version-specific mods that run *next to* Conductor ([CONTENT-MODS.md](CONTENT-MODS.md) §6). Conductor's duty there is compatibility, tested live: Sodium and Lithium on 1.21.x, Iris with a shader pack on 1.21.4, 1.21.11 and 26.3 ([live-run-shaders.md](live-run-shaders.md)).
 
 ## 3. Deep engine hooks: shrink, move, contain
 

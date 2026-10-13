@@ -120,6 +120,10 @@ Performance mods are a different category. **They are hosted next to Conductor, 
   - The render hook (overlays) is the one most likely to meet Sodium; the live run below found no conflict. Fixes, if any, go into Conductor's hooks, never into the other mod.
 - **Joining the platform.** A performance mod that wants Conductor's settings, commands or module management joins as a **native module**, tied to its Minecraft version, as it is today.
 - **Done:** compatibility live runs with Sodium and Lithium on 1.21.11 and 1.21.4: Conductor's overlays, content and render layers worked next to both ([live-run-content.md](live-run-content.md) §4).
+- **Done: Iris and shader packs** on 1.21.4, 1.21.11 and 26.3 ([live-run-shaders.md](live-run-shaders.md)).
+  - Iris is per-version like Sodium; its authors publish a build for each of these versions, and none for 1.16.1.
+  - The same shader pack zip ran on all three, next to Conductor's overlays, content blocks and mobs, with no change to them.
+  - Packs list blocks by name, so they know nothing of module blocks. Conductor now gives module blocks of shape `GLASS`, `LEAVES` and `PANE` the pack's material for vanilla glass, oak leaves and glass panes, through an optional hook into Iris that does nothing without it.
 
 ## 7. Order of work
 
