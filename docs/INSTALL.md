@@ -90,7 +90,7 @@ Ornithe's profile uses the same pieces as the 1.0.0 test runs: Fabric Loader 0.1
 2. Put `conductor-<v>-mc1.0.0.jar` in `<server folder>/mods/`, and server modules in `<server folder>/conductor/modules/`.
 3. Start it with Java 21 or newer: `java -Xmx1G -jar fabric-server-launch.jar nogui`.
 
-**Verified** with exactly these steps on Linux, using this release's 1.0.0 jar and the `server-greeter` module:
+**Verified** with exactly these steps on Linux, using the 1.0.0 jar built from this release's code and the `server-greeter` module:
 - the log showed `Conductor server modules started on a dedicated server: [example-server-greeter-0.6.0]`;
 - the module's console command `greet` answered `Hello, CONSOLE!`.
 
