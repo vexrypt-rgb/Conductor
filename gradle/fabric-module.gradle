@@ -31,9 +31,16 @@ unimined.minecraft {
     runs.off = true
 }
 
+// bundleConductor = false: a module that runs inside an installed Conductor mod; contract and adapter come from it.
+def bundle = !project.hasProperty('bundleConductor') || project.bundleConductor
+
 dependencies {
-    implementation project(':contract')
-    implementation adapter
+    if (bundle) {
+        implementation project(':contract')
+        implementation adapter
+    } else {
+        compileOnly project(':contract')
+    }
     compileOnly adapter.ostinatoClasses
 }
 
@@ -46,7 +53,9 @@ processResources {
 }
 
 // Ship contract + adapter inside the mod so the remap to intermediary covers their Minecraft references too.
-jar {
-    from project(':contract').sourceSets.main.output
-    from adapter.sourceSets.main.output
+if (bundle) {
+    jar {
+        from project(':contract').sourceSets.main.output
+        from adapter.sourceSets.main.output
+    }
 }

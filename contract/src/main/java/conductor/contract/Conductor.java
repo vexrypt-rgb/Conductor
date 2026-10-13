@@ -11,7 +11,7 @@ package conductor.contract;
  */
 public interface Conductor {
 
-    String CONTRACT_VERSION = "conductor-contract/0.4 (stage 4: evidence-based release, interference classification)";
+    String CONTRACT_VERSION = "conductor-contract/0.5 (modules and leases, combat, player/world/actions, events, overlays, settings, engine commands)";
 
     DiscoveryResult discover();
 

@@ -21,6 +21,8 @@ include 'example-player-actions'
 project(':example-player-actions').projectDir = file('examples/player-actions')
 include 'example-block-highlighter'
 project(':example-block-highlighter').projectDir = file('examples/block-highlighter')
+include 'example-engine-commands'
+project(':example-engine-commands').projectDir = file('examples/engine-commands')
 
 // Per Minecraft version (see mcTargets in build.gradle): the runtime adapter, the Conductor mod that hosts modules,
 // and the live test harness.
@@ -32,3 +34,7 @@ project(':example-block-highlighter').projectDir = file('examples/block-highligh
     include "conductor-mod-${mc}"
     project(":conductor-mod-${mc}").projectDir = file("conductor-mod/${mc}")
 }
+
+// Ostinato as a Conductor module (native, 1.21.11 only: needs Ostinato's command execution guard).
+include 'ostinato-module-1.21.11'
+project(':ostinato-module-1.21.11').projectDir = file('modules/ostinato/1.21.11')

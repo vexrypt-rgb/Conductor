@@ -677,6 +677,40 @@ conductor.declareEngineProcesses(Set.of("baritone.process.MineProcess"));
 
 Conductor then counts that process's activity as yours, not as interference. See [MODULE-PLATFORM.md](MODULE-PLATFORM.md) for the full design.
 
+**Native modules ship as Fabric mods** with a `META-INF/services/conductor.contract.ConductorModule` entry. Conductor finds them on the game's classpath. The worked example is the Ostinato module (§11.5).
+
+### 11.5 Ostinato as a module, and using every Ostinato feature
+
+The Ostinato module (`modules/ostinato`, a Fabric mod for 1.21.11) makes Ostinato a Conductor module:
+
+- **Your `#` commands share the controls.** Before a command that moves the bot (`#goto`, `#mine`, `#follow`, `#explore`, `#farm`, `#build`, `#elytra`, ...) runs from chat, the GUI or code, the module takes the MOVEMENT lease for it:
+  - **a free bot:** the command runs at once;
+  - **held by a lower-priority module:** that module is stopped, the stop is proven, and then your command runs (it is queued);
+  - **held by an equal or higher module** (a fight, an escape): the command is refused, with the reason in chat ("Not run: movement is held by …").
+
+  Your commands count as HIGH by default (setting `player-first`).
+- **A higher-priority module can take over** an Ostinato task. Ostinato is stopped, and the hand-over waits for proof.
+- **`+ostinato`** says what Ostinato is doing and who holds MOVEMENT.
+- **Every Ostinato feature is usable from any module** through the `EngineCommands` service, with no Minecraft or Ostinato classes needed:
+
+```java
+@Override public Set<ServiceKey<?>> requires() { return Set.of(EngineCommands.KEY); }   // start after Ostinato's module
+...
+EngineCommands engine = conductor.service(EngineCommands.KEY).orElseThrow();
+conductor.acquire(Resources.MOVEMENT);                 // task commands need it
+engine.run(conductor, "mine diamond_ore 8");           // Ostinato's own command language, without the #
+...
+engine.stop(conductor);                                 // then wait for resourceStatus() == AVAILABLE: proof of stop
+conductor.release(lease);
+```
+
+While you hold MOVEMENT, Ostinato's processes count as yours, not interference. Without MOVEMENT, a task command is refused with `LEASE_REQUIRED`. Worked example: [`examples/engine-commands`](../examples/engine-commands/src/main/java/conductor/example/engine/EngineCommandsDemo.java).
+
+**Limits:**
+- The command language is Ostinato's: `engine()` says which engine answers.
+- A command started by another mod straight through Ostinato's API (not its command manager) is not gated; it shows up as interference, as before.
+- The module needs Ostinato 1.21.0 or later (the command execution guard).
+
 ---
 
 ## 12. One jar, every version: optional features

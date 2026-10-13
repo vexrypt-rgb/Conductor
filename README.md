@@ -17,6 +17,7 @@ Conductor is the modularity and capability-contract layer for Ostinato. It evolv
 | Player, world and actions (status, entities, inventory, blocks; hotbar, look, attack, use, chat) | Implemented; verified live on both versions | [docs/live-run-player-actions.md](docs/live-run-player-actions.md) |
 | Overlays, game events, chat commands, local messages, saved settings | Implemented; verified live on both versions, with screenshots | [docs/live-run-highlighter.md](docs/live-run-highlighter.md) |
 | Meteor Client survey: what a full client needs, and the roadmap | Survey done | [docs/survey-meteor-client.md](docs/survey-meteor-client.md) |
+| **Ostinato as a module** (its `#` commands take the movement lease; `EngineCommands` for every Ostinato feature) and the **1.21.11 release** | Released (Ostinato 1.21.0 + Conductor 0.5.0); verified in a production Fabric launch with the shipped jars | [docs/live-run-ostinato-module.md](docs/live-run-ostinato-module.md) |
 
 **New here? Start with the [tutorial](docs/TUTORIAL.md)**: what Conductor does, every capability, and how to build a module. Worked examples:
 - [`examples/walk-and-stop`](examples/walk-and-stop): travel.
@@ -41,6 +42,7 @@ Deferred capability candidates (combat and others): [docs/deferred-candidates.md
 
 - `contract/`: the normative contract, the Java binding (`Conductor`) and the module interface (`ConductorModule`). Pure Java 21, no Minecraft dependency.
 - `runtime-ostinato/`: the runtime adapter for Ostinato. Shared code is in `common/`; `1.21.11/` (Ostinato `main`) and `1.21.4/` (Ostinato `1.21.4`) differ only in `MinecraftGameAccess`. Includes `ConductorBootstrap`, which starts a module.
+- `modules/ostinato/`: the Ostinato module (native, 1.21.11), a small Fabric mod next to Ostinato and Conductor.
 - `conductor-mod/`: the Conductor mod (one per Minecraft version) that hosts every module. Its only loader-specific part is a 40-line Fabric boot shim ([docs/LOADER-INDEPENDENCE.md](docs/LOADER-INDEPENDENCE.md)).
 - `examples/walk-and-stop/`, `examples/agnostic-combat/`: example modules. Each is a plain jar (not a Fabric mod) for every version, and goes in `<game dir>/conductor/modules/`.
 - `live-harness/`: test-only mod for live runs, built for both versions.
