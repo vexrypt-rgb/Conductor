@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "conductor_harness",
+  "version": "${version}",
+  "name": "Conductor live harness",
+  "description": "Test-only: exercises Conductor against a running Ostinato client and records per-tick evidence.",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["conductor.harness.HarnessClient"]
+  },
+  "depends": {
+    "fabricloader": "*",
+    "minecraft": "${mc}",
+    "baritone": "*"
+  }
+}

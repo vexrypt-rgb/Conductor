@@ -1,0 +1,6 @@
+// A version-agnostic content module: items and a block declared through the contract, plus assets and data in the
+// jar. Plain Java against the contract only; the same jar runs on every Minecraft version Conductor supports.
+// Declared in META-INF/services/conductor.contract.ContentModule.
+dependencies {
+    compileOnly project(':contract')
+}

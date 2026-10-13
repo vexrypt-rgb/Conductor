@@ -1,0 +1,2 @@
+ext.mc = '26.3'
+apply from: rootProject.file('gradle/runtime.gradle')

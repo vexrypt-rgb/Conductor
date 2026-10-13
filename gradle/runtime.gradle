@@ -1,0 +1,61 @@
+// Conductor's runtime for one Minecraft version. Applied by runtime/<mc>/build.gradle, which sets ext.mc. Sources
+// and tests every version shares live in runtime/common; runtime/modern adds the ones only 1.21.x shares. No engine (Ostinato or otherwise) is on the classpath: the compiler
+// itself keeps the runtime independent of it.
+apply plugin: 'xyz.wagyourtail.unimined'
+
+def target = rootProject.mcTargets[mc]
+if (target.java) {
+    java.toolchain.languageVersion = JavaLanguageVersion.of(target.java)
+    tasks.withType(JavaCompile).configureEach { options.release = target.java }
+}
+
+repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
+    maven { url = 'https://maven.parchmentmc.net/' }
+    mavenCentral()
+}
+
+sourceSets {
+    main.java.srcDirs += rootProject.file('runtime/common/src/main/java')
+    if (!target.legacy) {
+        main.java.srcDirs += rootProject.file('runtime/modern/src/main/java')
+    }
+    test.java.srcDirs += rootProject.file('runtime/common/src/test/java')
+}
+
+unimined.minecraft {
+    version mc
+    mappings {
+        if (!target.unobfuscated) {
+            intermediary()
+        }
+        mojmap()
+        if (target.parchment) {
+            parchment(mc, target.parchment)
+        }
+    }
+    runs.off = true
+    defaultRemapJar = false
+}
+
+dependencies {
+    implementation project(':contract')
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.mockito:mockito-core:5.14.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+sourceSets {
+    test {
+        compileClasspath += main.compileClasspath
+        runtimeClasspath += main.compileClasspath + main.runtimeClasspath
+    }
+}
+
+test {
+    useJUnitPlatform()
+    jvmArgs '-XX:+EnableDynamicAgentLoading'
+}

@@ -1,0 +1,6 @@
+// A version-agnostic server module: greets players, adds / commands, and reacts to chat and deaths. Plain Java
+// against the contract only; the same jar runs on a dedicated server or a single-player world on every Minecraft
+// version Conductor supports. Declared in META-INF/services/conductor.contract.ServerModule.
+dependencies {
+    compileOnly project(':contract')
+}

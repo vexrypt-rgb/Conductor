@@ -1,0 +1,87 @@
+// A client Fabric mod built on Conductor, for one Minecraft version. Applied by <module>/<mc>/build.gradle, which
+// sets ext.mc (a key of mcTargets) and ext.commonDir (the module's shared source folder, e.g. 'examples/walk-and-stop/common').
+// Used by the live harness and by modules; see docs/TUTORIAL.md.
+apply plugin: 'xyz.wagyourtail.unimined'
+
+def target = rootProject.mcTargets[mc]
+if (target.java) {
+    java.toolchain.languageVersion = JavaLanguageVersion.of(target.java)
+    tasks.withType(JavaCompile).configureEach { options.release = target.java }
+}
+def runtime = project(":runtime-${mc}")
+def engine = target.legacy || target.noEngine ? null : project(":engine-ostinato-${mc}") // no engine layer for these yet
+evaluationDependsOn(runtime.path)
+if (engine) {
+    evaluationDependsOn(engine.path)
+}
+
+repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
+    maven { url = 'https://maven.parchmentmc.net/' }
+    mavenCentral()
+}
+
+sourceSets {
+    main.java.srcDirs += rootProject.file("${commonDir}/src/main/java")
+    main.resources.srcDirs += rootProject.file("${commonDir}/src/main/resources")
+    // a module's code that only 1.21.x shares, if it has any (the Conductor mod's content mixins)
+    def modern = rootProject.file("${commonDir}/../modern/src/main/java")
+    if (!target.legacy && modern.isDirectory()) {
+        main.java.srcDirs += modern
+    }
+}
+
+unimined.minecraft {
+    version mc
+    mappings {
+        if (!target.unobfuscated) {
+            intermediary()
+        }
+        mojmap()
+        if (target.parchment) {
+            parchment(mc, target.parchment)
+        }
+    }
+    fabric {
+        loader target.loader
+    }
+    runs.off = true
+}
+
+// bundleConductor = false: a module that runs inside an installed Conductor mod; contract and runtime come from it.
+def bundle = !project.hasProperty('bundleConductor') || project.bundleConductor
+
+dependencies {
+    if (bundle) {
+        implementation project(':contract')
+        implementation runtime
+        if (engine) {
+            implementation engine
+        }
+    } else {
+        compileOnly project(':contract')
+    }
+    if (engine) {
+        compileOnly engine.ostinatoClasses // only the live harness uses Ostinato directly
+    }
+}
+
+processResources {
+    inputs.property 'mc', mc
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') {
+        expand mc: mc, version: project.version
+    }
+}
+
+// Ship contract, runtime and the optional engine layer inside the mod, so the remap to intermediary covers their
+// Minecraft references too. The engine layer is only loaded when Ostinato is installed.
+if (bundle) {
+    jar {
+        from project(':contract').sourceSets.main.output
+        from runtime.sourceSets.main.output
+        if (engine) {
+            from engine.sourceSets.main.output
+        }
+    }
+}

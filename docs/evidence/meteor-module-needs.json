@@ -1,0 +1,1383 @@
+{
+ "Modules": {
+  "category": ".",
+  "needs": [
+   "RENDER_TWEAK (change vanilla rendering via mixin flags)",
+   "INPUT (keys, mouse, keybind)",
+   "SCREENS / CONTAINERS",
+   "CAMERA (freecam, zoom, perspective)",
+   "TIMER / GAME SPEED",
+   "CONNECTION (reconnect, disconnect, server data)"
+  ]
+ },
+ "Burrow": {
+  "category": "combat",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "LOOK (rotation)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "INPUT (keys, mouse, keybind)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "AutoArmor": {
+  "category": "combat",
+  "needs": [
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)"
+  ]
+ },
+ "BowSpam": {
+  "category": "combat",
+  "needs": [
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "USE ITEM",
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "ArrowDodge": {
+  "category": "combat",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)",
+   "MOTION WRITE (velocity / physics changes)"
+  ]
+ },
+ "Surround": {
+  "category": "combat",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "PACKETS (read/send/cancel network packets)",
+   "LOOK (rotation)",
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)"
+  ]
+ },
+ "AntiAnchor": {
+  "category": "combat",
+  "needs": [
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "Hitboxes": {
+  "category": "combat",
+  "needs": [
+   "INVENTORY READ (find items)"
+  ]
+ },
+ "AnchorAura": {
+  "category": "combat",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "LOOK (rotation)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "AntiBed": {
+  "category": "combat",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "LOOK (rotation)",
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "AutoLog": {
+  "category": "combat",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "PLAYER STATE (health, food, effects, position)",
+   "CONNECTION (reconnect, disconnect, server data)"
+  ]
+ },
+ "AutoEXP": {
+  "category": "combat",
+  "needs": [
+   "LOOK (rotation)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "USE ITEM",
+   "PLAYER STATE (health, food, effects, position)"
+  ]
+ },
+ "AutoWeapon": {
+  "category": "combat",
+  "needs": [
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "ENTITY ACTIONS (attack, interact)"
+  ]
+ },
+ "BedAura": {
+  "category": "combat",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "LOOK (rotation)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)"
+  ]
+ },
+ "SelfAnvil": {
+  "category": "combat",
+  "needs": [
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "SCREENS / CONTAINERS"
+  ]
+ },
+ "KillAura": {
+  "category": "combat",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "LOOK (rotation)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "ENTITY ACTIONS (attack, interact)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "INPUT (keys, mouse, keybind)",
+   "PATHING ENGINE (Baritone)",
+   "CAMERA (freecam, zoom, perspective)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "Offhand": {
+  "category": "combat",
+  "needs": [
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "PLAYER STATE (health, food, effects, position)",
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "AutoAnvil": {
+  "category": "combat",
+  "needs": [
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "SCREENS / CONTAINERS"
+  ]
+ },
+ "CrystalAura": {
+  "category": "combat",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "RENDER_HUD (2D overlay, text)",
+   "PACKETS (read/send/cancel network packets)",
+   "LOOK (rotation)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "USE ITEM",
+   "ENTITY OBSERVATION (nearby entities)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)",
+   "INPUT (keys, mouse, keybind)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "SelfWeb": {
+  "category": "combat",
+  "needs": [
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "ENTITY OBSERVATION (nearby entities)"
+  ]
+ },
+ "BowAimbot": {
+  "category": "combat",
+  "needs": [
+   "LOOK (rotation)",
+   "INVENTORY READ (find items)",
+   "USE ITEM",
+   "ENTITY OBSERVATION (nearby entities)",
+   "PLAYER STATE (health, food, effects, position)",
+   "INPUT (keys, mouse, keybind)",
+   "PATHING ENGINE (Baritone)",
+   "CAMERA (freecam, zoom, perspective)"
+  ]
+ },
+ "AutoCity": {
+  "category": "combat",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "PACKETS (read/send/cancel network packets)",
+   "LOOK (rotation)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "AttributeSwap": {
+  "category": "combat",
+  "needs": [
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "ENTITY ACTIONS (attack, interact)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "PLAYER STATE (health, food, effects, position)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "HoleFiller": {
+  "category": "combat",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)"
+  ]
+ },
+ "SelfTrap": {
+  "category": "combat",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "AutoTrap": {
+  "category": "combat",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "ENTITY OBSERVATION (nearby entities)"
+  ]
+ },
+ "AutoWeb": {
+  "category": "combat",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)"
+  ]
+ },
+ "Criticals": {
+  "category": "combat",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "PLAYER STATE (health, food, effects, position)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "AutoTotem": {
+  "category": "combat",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "PLAYER STATE (health, food, effects, position)"
+  ]
+ },
+ "Quiver": {
+  "category": "combat",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "USE ITEM",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)",
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "AntiAnvil": {
+  "category": "combat",
+  "needs": [
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "AntiVoid": {
+  "category": "movement",
+  "needs": []
+ },
+ "AirJump": {
+  "category": "movement",
+  "needs": [
+   "PLAYER STATE (health, food, effects, position)",
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "HighJump": {
+  "category": "movement",
+  "needs": [
+   "MOTION WRITE (velocity / physics changes)"
+  ]
+ },
+ "NoFall": {
+  "category": "movement",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "LOOK (rotation)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "USE ITEM",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)",
+   "MOTION WRITE (velocity / physics changes)",
+   "PATHING ENGINE (Baritone)"
+  ]
+ },
+ "Flight": {
+  "category": "movement",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "LOOK (rotation)",
+   "MOTION WRITE (velocity / physics changes)",
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "Slippy": {
+  "category": "movement",
+  "needs": []
+ },
+ "SafeWalk": {
+  "category": "movement",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)",
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "NoSlow": {
+  "category": "movement",
+  "needs": [
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "Sneak": {
+  "category": "movement",
+  "needs": []
+ },
+ "AutoWalk": {
+  "category": "movement",
+  "needs": [
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "MOTION WRITE (velocity / physics changes)",
+   "INPUT (keys, mouse, keybind)",
+   "PATHING ENGINE (Baritone)"
+  ]
+ },
+ "AutoJump": {
+  "category": "movement",
+  "needs": [
+   "PLAYER STATE (health, food, effects, position)"
+  ]
+ },
+ "Blink": {
+  "category": "movement",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "PLAYER STATE (health, food, effects, position)",
+   "MOTION WRITE (velocity / physics changes)",
+   "CAMERA (freecam, zoom, perspective)",
+   "CONNECTION (reconnect, disconnect, server data)"
+  ]
+ },
+ "Parkour": {
+  "category": "movement",
+  "needs": [
+   "PLAYER STATE (health, food, effects, position)",
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "Anchor": {
+  "category": "movement",
+  "needs": [
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "TridentBoost": {
+  "category": "movement",
+  "needs": []
+ },
+ "FastClimb": {
+  "category": "movement",
+  "needs": [
+   "MOTION WRITE (velocity / physics changes)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "AutoWasp": {
+  "category": "movement",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)",
+   "MOTION WRITE (velocity / physics changes)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "ReverseStep": {
+  "category": "movement",
+  "needs": [
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)",
+   "MOTION WRITE (velocity / physics changes)",
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "Jesus": {
+  "category": "movement",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)",
+   "MOTION WRITE (velocity / physics changes)",
+   "INPUT (keys, mouse, keybind)",
+   "PATHING ENGINE (Baritone)"
+  ]
+ },
+ "LongJump": {
+  "category": "movement",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "PLAYER STATE (health, food, effects, position)",
+   "MOTION WRITE (velocity / physics changes)",
+   "INPUT (keys, mouse, keybind)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "Spider": {
+  "category": "movement",
+  "needs": [
+   "MOTION WRITE (velocity / physics changes)"
+  ]
+ },
+ "Sprint": {
+  "category": "movement",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "PLAYER STATE (health, food, effects, position)"
+  ]
+ },
+ "ElytraBoost": {
+  "category": "movement",
+  "needs": [
+   "SOUND"
+  ]
+ },
+ "Scaffold": {
+  "category": "movement",
+  "needs": [
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "USE ITEM",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)",
+   "MOTION WRITE (velocity / physics changes)",
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "GUIMove": {
+  "category": "movement",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "LOOK (rotation)",
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "EntityControl": {
+  "category": "movement",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "LOOK (rotation)",
+   "PLAYER STATE (health, food, effects, position)",
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "Step": {
+  "category": "movement",
+  "needs": [
+   "ENTITY OBSERVATION (nearby entities)",
+   "PLAYER STATE (health, food, effects, position)",
+   "PATHING ENGINE (Baritone)"
+  ]
+ },
+ "Velocity": {
+  "category": "movement",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "ClickTP": {
+  "category": "movement",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "INVENTORY READ (find items)",
+   "USE ITEM",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)",
+   "INPUT (keys, mouse, keybind)",
+   "CAMERA (freecam, zoom, perspective)"
+  ]
+ },
+ "ElytraFly": {
+  "category": "movement",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "LOOK (rotation)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)",
+   "MOTION WRITE (velocity / physics changes)",
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "Speed": {
+  "category": "movement",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "PLAYER STATE (health, food, effects, position)",
+   "MOTION WRITE (velocity / physics changes)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "Timer": {
+  "category": "world",
+  "needs": [
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "AutoMount": {
+  "category": "world",
+  "needs": [
+   "LOOK (rotation)",
+   "ENTITY ACTIONS (attack, interact)",
+   "ENTITY OBSERVATION (nearby entities)"
+  ]
+ },
+ "EndermanLook": {
+  "category": "world",
+  "needs": [
+   "LOOK (rotation)",
+   "ENTITY OBSERVATION (nearby entities)"
+  ]
+ },
+ "AutoBreed": {
+  "category": "world",
+  "needs": [
+   "LOOK (rotation)",
+   "ENTITY ACTIONS (attack, interact)",
+   "ENTITY OBSERVATION (nearby entities)"
+  ]
+ },
+ "SpawnProofer": {
+  "category": "world",
+  "needs": [
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "StashFinder": {
+  "category": "world",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "CHAT (send / receive)",
+   "SCREENS / CONTAINERS",
+   "PATHING ENGINE (Baritone)"
+  ]
+ },
+ "NoGhostBlocks": {
+  "category": "world",
+  "needs": [
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "AutoShearer": {
+  "category": "world",
+  "needs": [
+   "LOOK (rotation)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "ENTITY ACTIONS (attack, interact)",
+   "ENTITY OBSERVATION (nearby entities)"
+  ]
+ },
+ "AutoBrewer": {
+  "category": "world",
+  "needs": [
+   "HOTBAR/INVENTORY (select, swap, move slots)"
+  ]
+ },
+ "LiquidFiller": {
+  "category": "world",
+  "needs": [
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "AutoSign": {
+  "category": "world",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "SCREENS / CONTAINERS"
+  ]
+ },
+ "Nuker": {
+  "category": "world",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "PACKETS (read/send/cancel network packets)",
+   "LOOK (rotation)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "INPUT (keys, mouse, keybind)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "Flamethrower": {
+  "category": "world",
+  "needs": [
+   "LOOK (rotation)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)"
+  ]
+ },
+ "Excavator": {
+  "category": "world",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "VeinMiner": {
+  "category": "world",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "LOOK (rotation)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "Collisions": {
+  "category": "world",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)",
+   "MOTION WRITE (velocity / physics changes)"
+  ]
+ },
+ "HighwayBuilder": {
+  "category": "world",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "RENDER_HUD (2D overlay, text)",
+   "PACKETS (read/send/cancel network packets)",
+   "LOOK (rotation)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "USE ITEM",
+   "ENTITY OBSERVATION (nearby entities)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)",
+   "MOTION WRITE (velocity / physics changes)",
+   "INPUT (keys, mouse, keybind)",
+   "SCREENS / CONTAINERS",
+   "TIMER / GAME SPEED",
+   "CONNECTION (reconnect, disconnect, server data)"
+  ]
+ },
+ "AutoSmelter": {
+  "category": "world",
+  "needs": [
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "SCREENS / CONTAINERS"
+  ]
+ },
+ "Ambience": {
+  "category": "world",
+  "needs": [
+   "PLAYER STATE (health, food, effects, position)"
+  ]
+ },
+ "AutoNametag": {
+  "category": "world",
+  "needs": [
+   "LOOK (rotation)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "ENTITY ACTIONS (attack, interact)",
+   "ENTITY OBSERVATION (nearby entities)"
+  ]
+ },
+ "PacketMine": {
+  "category": "world",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "PACKETS (read/send/cancel network packets)",
+   "LOOK (rotation)",
+   "INVENTORY READ (find items)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "EChestFarmer": {
+  "category": "world",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "InfinityMiner": {
+  "category": "world",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)"
+  ]
+ },
+ "BuildHeight": {
+  "category": "world",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)"
+  ]
+ },
+ "InventoryTweaks": {
+  "category": "misc",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "LOOK (rotation)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "INPUT (keys, mouse, keybind)",
+   "SCREENS / CONTAINERS"
+  ]
+ },
+ "AutoReconnect": {
+  "category": "misc",
+  "needs": [
+   "CONNECTION (reconnect, disconnect, server data)"
+  ]
+ },
+ "BookBot": {
+  "category": "misc",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "AntiPacketKick": {
+  "category": "misc",
+  "needs": []
+ },
+ "ServerSpoof": {
+  "category": "misc",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)"
+  ]
+ },
+ "BetterChat": {
+  "category": "misc",
+  "needs": [
+   "CHAT (send / receive)"
+  ]
+ },
+ "Spam": {
+  "category": "misc",
+  "needs": [
+   "CHAT (send / receive)",
+   "SCREENS / CONTAINERS",
+   "CONNECTION (reconnect, disconnect, server data)"
+  ]
+ },
+ "BetterBeacons": {
+  "category": "misc",
+  "needs": []
+ },
+ "PacketLogger": {
+  "category": "misc",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)"
+  ]
+ },
+ "PacketCanceller": {
+  "category": "misc",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)"
+  ]
+ },
+ "Notifier": {
+  "category": "misc",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "PLAYER STATE (health, food, effects, position)",
+   "SOUND",
+   "CONNECTION (reconnect, disconnect, server data)"
+  ]
+ },
+ "SoundBlocker": {
+  "category": "misc",
+  "needs": [
+   "SOUND"
+  ]
+ },
+ "DiscordPresence": {
+  "category": "misc",
+  "needs": [
+   "SCREENS / CONTAINERS",
+   "CONNECTION (reconnect, disconnect, server data)"
+  ]
+ },
+ "MessageAura": {
+  "category": "misc",
+  "needs": [
+   "ENTITY OBSERVATION (nearby entities)",
+   "CHAT (send / receive)"
+  ]
+ },
+ "Notebot": {
+  "category": "misc",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "RENDER_HUD (2D overlay, text)",
+   "LOOK (rotation)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "SCREENS / CONTAINERS",
+   "SOUND"
+  ]
+ },
+ "Swarm": {
+  "category": "misc",
+  "needs": [
+   "CONNECTION (reconnect, disconnect, server data)"
+  ]
+ },
+ "Fullbright": {
+  "category": "render",
+  "needs": [
+   "PLAYER STATE (health, food, effects, position)"
+  ]
+ },
+ "HoleESP": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "BetterTooltips": {
+  "category": "render",
+  "needs": [
+   "SCREENS / CONTAINERS",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "Freecam": {
+  "category": "render",
+  "needs": [
+   "RENDER_TWEAK (change vanilla rendering via mixin flags)",
+   "PACKETS (read/send/cancel network packets)",
+   "LOOK (rotation)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "PLAYER STATE (health, food, effects, position)",
+   "MOTION WRITE (velocity / physics changes)",
+   "INPUT (keys, mouse, keybind)",
+   "SCREENS / CONTAINERS",
+   "PATHING ENGINE (Baritone)",
+   "CAMERA (freecam, zoom, perspective)",
+   "CONNECTION (reconnect, disconnect, server data)"
+  ]
+ },
+ "TunnelESP": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "PopChams": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "PACKETS (read/send/cancel network packets)",
+   "PLAYER STATE (health, food, effects, position)"
+  ]
+ },
+ "ItemHighlight": {
+  "category": "render",
+  "needs": []
+ },
+ "StorageESP": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "Trajectories": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "MOTION WRITE (velocity / physics changes)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "Chams": {
+  "category": "render",
+  "needs": []
+ },
+ "EntityOwner": {
+  "category": "render",
+  "needs": [
+   "RENDER_HUD (2D overlay, text)",
+   "ENTITY OBSERVATION (nearby entities)"
+  ]
+ },
+ "BossStack": {
+  "category": "render",
+  "needs": [
+   "RENDER_TWEAK (change vanilla rendering via mixin flags)"
+  ]
+ },
+ "Trail": {
+  "category": "render",
+  "needs": []
+ },
+ "CameraTweaks": {
+  "category": "render",
+  "needs": [
+   "INPUT (keys, mouse, keybind)",
+   "CAMERA (freecam, zoom, perspective)"
+  ]
+ },
+ "WeatherChanger": {
+  "category": "render",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)"
+  ]
+ },
+ "BlockSelection": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "LogoutSpots": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "RENDER_HUD (2D overlay, text)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "PLAYER STATE (health, food, effects, position)",
+   "CAMERA (freecam, zoom, perspective)"
+  ]
+ },
+ "WaypointsModule": {
+  "category": "render",
+  "needs": [
+   "RENDER_HUD (2D overlay, text)",
+   "PLAYER STATE (health, food, effects, position)",
+   "CHAT (send / receive)",
+   "SCREENS / CONTAINERS",
+   "PATHING ENGINE (Baritone)",
+   "CAMERA (freecam, zoom, perspective)"
+  ]
+ },
+ "VoidESP": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "CityESP": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "ENTITY OBSERVATION (nearby entities)"
+  ]
+ },
+ "Tracers": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "RENDER_HUD (2D overlay, text)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "NoRender": {
+  "category": "render",
+  "needs": [
+   "RENDER_TWEAK (change vanilla rendering via mixin flags)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "BetterTab": {
+  "category": "render",
+  "needs": []
+ },
+ "FreeLook": {
+  "category": "render",
+  "needs": [
+   "LOOK (rotation)",
+   "CAMERA (freecam, zoom, perspective)"
+  ]
+ },
+ "Breadcrumbs": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)"
+  ]
+ },
+ "LightOverlay": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "Blur": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)"
+  ]
+ },
+ "WallHack": {
+  "category": "render",
+  "needs": [
+   "RENDER_TWEAK (change vanilla rendering via mixin flags)"
+  ]
+ },
+ "ESP": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "RENDER_HUD (2D overlay, text)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "CAMERA (freecam, zoom, perspective)"
+  ]
+ },
+ "Xray": {
+  "category": "render",
+  "needs": [
+   "RENDER_TWEAK (change vanilla rendering via mixin flags)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "Zoom": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "RENDER_TWEAK (change vanilla rendering via mixin flags)",
+   "INPUT (keys, mouse, keybind)",
+   "CAMERA (freecam, zoom, perspective)"
+  ]
+ },
+ "HandView": {
+  "category": "render",
+  "needs": []
+ },
+ "ItemPhysics": {
+  "category": "render",
+  "needs": [
+   "RENDER_TWEAK (change vanilla rendering via mixin flags)"
+  ]
+ },
+ "TimeChanger": {
+  "category": "render",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)"
+  ]
+ },
+ "BreakIndicators": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "Nametags": {
+  "category": "render",
+  "needs": [
+   "RENDER_HUD (2D overlay, text)",
+   "ENTITY OBSERVATION (nearby entities)",
+   "PLAYER STATE (health, food, effects, position)",
+   "CAMERA (freecam, zoom, perspective)"
+  ]
+ },
+ "BlockESP": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "Marker": {
+  "category": "render",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "SCREENS / CONTAINERS"
+  ]
+ },
+ "AutoReplenish": {
+  "category": "player",
+  "needs": [
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "SCREENS / CONTAINERS"
+  ]
+ },
+ "Rotation": {
+  "category": "player",
+  "needs": [
+   "LOOK (rotation)"
+  ]
+ },
+ "EXPThrower": {
+  "category": "player",
+  "needs": [
+   "LOOK (rotation)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "USE ITEM"
+  ]
+ },
+ "AutoRespawn": {
+  "category": "player",
+  "needs": [
+   "PLAYER STATE (health, food, effects, position)",
+   "SCREENS / CONTAINERS"
+  ]
+ },
+ "NoMiningTrace": {
+  "category": "player",
+  "needs": []
+ },
+ "NoInteract": {
+  "category": "player",
+  "needs": [
+   "ENTITY ACTIONS (attack, interact)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "AntiHunger": {
+  "category": "player",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "PLAYER STATE (health, food, effects, position)",
+   "MOTION WRITE (velocity / physics changes)"
+  ]
+ },
+ "AirPlace": {
+  "category": "player",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "INVENTORY READ (find items)",
+   "BLOCK ACTIONS (place, break, interact)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "CAMERA (freecam, zoom, perspective)"
+  ]
+ },
+ "NameProtect": {
+  "category": "player",
+  "needs": []
+ },
+ "NoStatusEffects": {
+  "category": "player",
+  "needs": []
+ },
+ "PotionSaver": {
+  "category": "player",
+  "needs": [
+   "PLAYER STATE (health, food, effects, position)"
+  ]
+ },
+ "BreakDelay": {
+  "category": "player",
+  "needs": [
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "FakePlayer": {
+  "category": "player",
+  "needs": []
+ },
+ "AutoTool": {
+  "category": "player",
+  "needs": [
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "GhostHand": {
+  "category": "player",
+  "needs": [
+   "BLOCK ACTIONS (place, break, interact)",
+   "USE ITEM",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)",
+   "INPUT (keys, mouse, keybind)"
+  ]
+ },
+ "AutoEat": {
+  "category": "player",
+  "needs": [
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "USE ITEM",
+   "PLAYER STATE (health, food, effects, position)",
+   "INPUT (keys, mouse, keybind)",
+   "PATHING ENGINE (Baritone)"
+  ]
+ },
+ "MiddleClickExtra": {
+  "category": "player",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "USE ITEM",
+   "INPUT (keys, mouse, keybind)",
+   "CHAT (send / receive)"
+  ]
+ },
+ "NoRotate": {
+  "category": "player",
+  "needs": []
+ },
+ "AntiAFK": {
+  "category": "player",
+  "needs": [
+   "LOOK (rotation)",
+   "INPUT (keys, mouse, keybind)",
+   "CHAT (send / receive)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "FastUse": {
+  "category": "player",
+  "needs": []
+ },
+ "AutoGap": {
+  "category": "player",
+  "needs": [
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "USE ITEM",
+   "PLAYER STATE (health, food, effects, position)",
+   "INPUT (keys, mouse, keybind)",
+   "PATHING ENGINE (Baritone)"
+  ]
+ },
+ "ChestSwap": {
+  "category": "player",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)"
+  ]
+ },
+ "AutoFish": {
+  "category": "player",
+  "needs": [
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)",
+   "USE ITEM"
+  ]
+ },
+ "Multitask": {
+  "category": "player",
+  "needs": []
+ },
+ "Reach": {
+  "category": "player",
+  "needs": []
+ },
+ "SpeedMine": {
+  "category": "player",
+  "needs": [
+   "PACKETS (read/send/cancel network packets)",
+   "BLOCK/WORLD OBSERVATION (block states, scanning)"
+  ]
+ },
+ "LiquidInteract": {
+  "category": "player",
+  "needs": []
+ },
+ "AutoClicker": {
+  "category": "player",
+  "needs": [
+   "USE ITEM",
+   "INPUT (keys, mouse, keybind)",
+   "TIMER / GAME SPEED"
+  ]
+ },
+ "AutoMend": {
+  "category": "player",
+  "needs": [
+   "HOTBAR/INVENTORY (select, swap, move slots)",
+   "INVENTORY READ (find items)"
+  ]
+ },
+ "Portals": {
+  "category": "player",
+  "needs": []
+ },
+ "InstantRebreak": {
+  "category": "player",
+  "needs": [
+   "RENDER_WORLD (3D overlays: boxes, lines, tracers)",
+   "PACKETS (read/send/cancel network packets)",
+   "LOOK (rotation)"
+  ]
+ }
+}
