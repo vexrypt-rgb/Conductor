@@ -127,4 +127,5 @@ Performance mods are a different category. **They are hosted next to Conductor, 
 4. **Done:** example `examples/ruby-content`.
 5. **Done:** live test, a Fabric dedicated server plus a client on 1.21.11 and 1.21.4 with the same jar ([live-run-content.md](live-run-content.md)).
 6. **Done:** converter v1 (report plus skeleton), tried on real mods.
-7. **Next:** blocks with states (stairs, slabs, pillars, rotation): 97 of Thaumon's 137 blocks are such blocks. Then mobs (phase 2), and the id handshake.
+7. **Done:** blocks with states. `BlockShape` maps to vanilla's block classes: pillar, stairs, slab, wall, fence, fence gate, door, trapdoor, button, pressure plate, pane, leaves, carpet, glass. It comes with materials and render layers. The converter recognises shapes from blockstate files: on Thaumon, 127 of 137 blocks are declarable (was 40).
+8. **Next:** mobs (phase 2), the id handshake, rotatable cubes (`facing`).

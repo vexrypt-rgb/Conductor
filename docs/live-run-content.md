@@ -82,3 +82,33 @@ Thaumon's files were only used locally for this test. Nothing of it is in this r
 - All blocks use default strength and sound until the TODOs in the generated module are filled in.
 
 Evidence: `docs/evidence/module-runs/converted-thaumon-{fabric-server,client}-1.21.11.log.gz`.
+
+## 3. Blocks with states (2026-10-13, later)
+
+**Module:** the ruby jar now also declares `ruby_stairs` (`stairsOf("ruby_block")`), `ruby_slab`, `ruby_wall`, `ruby_pillar`, `ruby_glass` and `ruby_door` (WOOD). Their blockstate, model and loot JSON were made from vanilla's own files for stone brick stairs/slab/wall, quartz pillar, glass and oak door, with the ids renamed. The JSON derived from 1.21.4 and 1.21.11 is byte-identical, so no version overlay was needed.
+
+The setup is the same as §1: a Fabric dedicated server plus client, both versions, the same jar. Evidence: `content-shapes-{fabric-server,client}-<version>.log.gz` and `screenshots/content-shapes-<version>.png`.
+
+| Check | 1.21.11 | 1.21.4 |
+|---|---|---|
+| Registered | 7 blocks, 9 items | same |
+| A wall placed next to `ruby_block` connects (`ruby_wall[west=low]`) | CHECK passed | passed |
+| The door has both halves (`half=upper` above `half=lower`) | passed | passed |
+| `ruby_slab[type=double]` and `ruby_pillar[axis=x]` | passed | passed |
+| Loot: double slab, stairs, glass without silk touch, door | `Dropped 2 [ruby_slab]`, 1 stairs, **0** glass, 1 door | same |
+| Client: `2 block(s) drawn with a see-through render layer` (glass, door) | yes | yes |
+| Screenshot | the door's window and the glass are see-through; slabs, stairs and the sideways pillar look as in vanilla | same |
+| Model or texture errors in the client log | 0 | 0 |
+
+The loot lines come from the first run of this test. In the rerun with the corrected state checks, the player had moved before the `loot … mine` commands, which then hit air.
+
+**Thaumon again, with shapes:**
+- The converter recognised the shapes from Thaumon's blockstate files: **127 of 137 blocks** declared (40 before). That is 15 stairs, 15 slabs, 19 pillars, 10 walls, 5 fences, 2 fence gates, 4 doors, 3 trapdoors, 4 buttons, 4 pressure plates, 6 panes, 5 glass-like blocks and 35 cubes.
+- The remaining 10 are its 7 custom-code blocks and 3 rotatable stones.
+- Run on 1.21.11:
+  - 127 blocks and 128 items registered on both sides;
+  - 18 blocks drawn see-through;
+  - **0 data errors** (the only `ERROR` is the test server's `No key layers`);
+  - 0 model errors.
+- Screenshot (not committed: third-party textures): a wall, a door with see-through windows, a bookshelf, bricks, a sideways log, stairs, a slab, and fences joined to each other.
+- Evidence: `converted-thaumon-shapes-{fabric-server,client}-1.21.11.log.gz`.

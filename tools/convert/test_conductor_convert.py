@@ -66,7 +66,14 @@ class ConvertTest(unittest.TestCase):
             z.writestr("assets/gems/items/gem_block.json", "{}")
             z.writestr("assets/gems/items/zombie_cat_spawn_egg.json", "{}")
             z.writestr("assets/gems/blockstates/gem_block.json", json.dumps({"variants": {"": {"model": "gems:block/gem_block"}}}))
-            z.writestr("assets/gems/blockstates/gem_stairs.json", json.dumps({"variants": {"facing=east,half=bottom": {}}}))
+            z.writestr("assets/gems/blockstates/gem_stairs.json", json.dumps({"variants": {"facing=east,half=bottom": {}}}))  # unknown states
+            z.writestr("assets/gems/blockstates/gem_block_stairs.json", json.dumps({"variants": {
+                "facing=east,half=bottom,shape=straight": {}, "facing=west,half=top,shape=inner_left": {}}}))
+            z.writestr("assets/gems/blockstates/gem_slab.json", json.dumps({"variants": {"type=bottom": {}, "type=double": {}, "type=top": {}}}))
+            z.writestr("assets/gems/blockstates/gem_wall.json", json.dumps({"multipart": [
+                {"when": {"up": "true"}, "apply": {}}, {"when": {"north": "low|tall"}, "apply": {}}]}))
+            z.writestr("assets/gems/blockstates/iron_gem_door.json", json.dumps({"variants": {
+                "facing=east,half=lower,hinge=left,open=false": {}}}))
             z.writestr("assets/gems/lang/en_us.json", json.dumps({"item.gems.ruby": "Ruby", "entity.gems.zombie_cat": "Zombie Cat"}))
             z.writestr("assets/gems/textures/item/ruby.png", b"\x89PNG")
             z.writestr("assets/gems/models/item/old_style.json", "{}")   # a pre-1.21.4 item: model only
@@ -96,8 +103,11 @@ class ConvertTest(unittest.TestCase):
 
     def test_content_from_assets_and_names(self):
         self.assertEqual(["gems:magic_wand", "gems:old_style", "gems:ruby", "gems:zombie_cat_spawn_egg"], self.r["items"])
-        self.assertEqual(["gems:gem_block", "gems:gem_stairs"], self.r["blocks"])
+        self.assertEqual(["gems:gem_block", "gems:gem_block_stairs", "gems:gem_slab", "gems:gem_stairs", "gems:gem_wall",
+                          "gems:iron_gem_door"], self.r["blocks"])
         self.assertEqual(["gems:gem_stairs"], self.r["shaped_blocks"])
+        self.assertEqual({"gems:gem_block": "CUBE", "gems:gem_block_stairs": "STAIRS", "gems:gem_slab": "SLAB",
+                          "gems:gem_wall": "WALL", "gems:iron_gem_door": "DOOR"}, self.r["block_shapes"])
         self.assertEqual(["gems:gem_block"], self.r["block_items"])
         self.assertEqual(["gems:zombie_cat"], self.r["entities"])
         self.assertEqual(["gems:zombie_cat_spawn_egg"], self.r["spawn_eggs"])
@@ -118,7 +128,7 @@ class ConvertTest(unittest.TestCase):
         v = self.r["verdict"]
         self.assertTrue(v["level"].startswith("NATIVE"), v)
         text = " ".join(v["reasons"])
-        for word in ("Mixin", "item behaviour", "phase 2", "block-state"):
+        for word in ("Mixin", "item behaviour", "phase 2", "match no Conductor block shape"):
             self.assertIn(word, text)
         self.assertIn("Verdict: NATIVE", cc.report(self.r))
 
@@ -133,12 +143,16 @@ class ConvertTest(unittest.TestCase):
         java = read(os.path.join(out, "src/main/java/conductor/converted/gems/GemsContent.java"))
         self.assertIn('content.block("gem_block");', java)
         self.assertIn('content.item("ruby");', java)
-        self.assertIn("gem_stairs: has block-state properties", java)
+        self.assertIn("gem_stairs: its states match no Conductor block shape", java)
+        self.assertIn('content.block("gem_block_stairs").stairsOf("gem_block").noItem();', java)
+        self.assertIn('content.block("gem_slab").shape(BlockShape.SLAB).noItem();', java)
+        self.assertIn('content.block("iron_gem_door").shape(BlockShape.DOOR).material(BlockMaterial.IRON).noItem();', java)
+        self.assertLess(java.index('content.block("gem_block")'), java.index('content.block("gem_block_stairs")'), "base first")
         self.assertIn('content.item("magic_wand"); // TODO: maxStack, durability, food, rarity, tab  // TODO: custom code', java)
         self.assertNotIn("spawn_egg\")", java)
         self.assertEqual("conductor.converted.gems.GemsContent\n",
                          read(os.path.join(res, "META-INF/services/conductor.contract.ContentModule")))
-        self.assertEqual(4, s["declared"])
+        self.assertEqual(8, s["declared"])
         # the 1.21.1 recipe moved to the 1.21.2+ format; the stairs recipe needs content not ported, so it is left out
         self.assertEqual({"type": "minecraft:crafting_shaped", "pattern": ["##", "##"], "key": {"#": "gems:ruby"},
                           "result": {"id": "gems:gem_block", "count": 1}},

@@ -809,7 +809,15 @@ List the class in `META-INF/services/conductor.contract.ContentModule`.
 
 | Items | Blocks |
 |---|---|
-| `maxStack`, `durability`, `food(nutrition, saturation)`, `rarity`, `fireResistant`, `tab` | `strength(hardness, resistance)`, `light`, `sound`, `requiresTool`, `noItem`, `tab` |
+| `maxStack`, `durability`, `food(nutrition, saturation)`, `rarity`, `fireResistant`, `tab` | `strength(hardness, resistance)`, `light`, `sound`, `requiresTool`, `noItem`, `tab`, `shape`, `stairsOf`, `material`, `layer` |
+
+**Block shapes.**
+- **Kinds.** `shape(BlockShape.X)` makes the block vanilla's block of that kind: CUBE (the default), PILLAR, STAIRS, SLAB, WALL, FENCE, FENCE_GATE, DOOR, TRAPDOOR, BUTTON, PRESSURE_PLATE, PANE, LEAVES, CARPET or GLASS.
+- **Vanilla behaviour.** Walls connect, slabs stack, doors are two blocks tall, and so on. Your jar supplies the blockstate and model JSON, as a resource pack would.
+- **Stairs.** `stairsOf("ruby_block")` names the block the stairs copy. It must be declared before them, or be a `minecraft:` block.
+- **Material.** `material(BlockMaterial.IRON|STONE|WOOD|COPPER)` decides how doors, trapdoors, buttons, pressure plates and fence gates sound and who may use them; iron doors need redstone.
+- **Render layer.** See-through shapes (DOOR, TRAPDOOR, PANE, LEAVES, GLASS) default to the CUTOUT render layer. `layer(RenderLayer.TRANSLUCENT)` is for tinted glass.
+- **Easiest JSON.** Copy vanilla's own JSON for the same kind of block, for example `stone_brick_stairs`, and rename the ids. That is how `examples/ruby-content` got its stairs, slab, wall, pillar, glass and door.
 
 The rules:
 - Ids are `namespace:path`, using Minecraft's own characters. The `minecraft` namespace and loader namespaces are refused.
@@ -843,6 +851,7 @@ The Conductor mod now runs on dedicated servers too. There it only hosts content
 ### 13.4 Not yet
 
 - **Mobs (entities), block entities, custom item or block behaviour (right-click actions, GUIs).** These need code. Declared mobs built on a vanilla archetype come next (CONTENT-MODS §4).
+- **Rotatable cubes** (a `facing` property, like glazed terracotta or furnaces) and other block kinds not in `BlockShape`.
 - **An id handshake.** A client with different content modules from the server gets Minecraft's own errors, not a clear "module X is missing".
 - **Creative tab placement is not checked live yet.** Items are added to the tab they name; a tab that doesn't exist on this version is logged.
 

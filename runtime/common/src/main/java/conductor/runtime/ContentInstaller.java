@@ -1,6 +1,8 @@
 package conductor.runtime;
 
 import conductor.contract.BlockDeclaration;
+import conductor.contract.BlockMaterial;
+import conductor.contract.BlockShape;
 import conductor.contract.ContentPlan;
 import conductor.contract.ItemDeclaration;
 import net.minecraft.core.Registry;
@@ -19,11 +21,28 @@ import net.minecraft.server.packs.repository.RepositorySource;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.DoubleHighBlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.ButtonBlock;
+import net.minecraft.world.level.block.CarpetBlock;
+import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.FenceBlock;
+import net.minecraft.world.level.block.FenceGateBlock;
+import net.minecraft.world.level.block.IronBarsBlock;
+import net.minecraft.world.level.block.PressurePlateBlock;
+import net.minecraft.world.level.block.RotatedPillarBlock;
+import net.minecraft.world.level.block.SlabBlock;
+import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.TransparentBlock;
+import net.minecraft.world.level.block.TrapDoorBlock;
+import net.minecraft.world.level.block.WallBlock;
+import net.minecraft.world.level.block.state.properties.BlockSetType;
+import net.minecraft.world.level.block.state.properties.WoodType;
+import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
@@ -50,6 +69,7 @@ public final class ContentInstaller {
     private static boolean installed;
     /** Creative tab id to the items listed in it, in declaration order. */
     private static final Map<String, List<Item>> TAB_ITEMS = new HashMap<>();
+    private static final Map<Block, conductor.contract.RenderLayer> RENDER_LAYERS = new java.util.LinkedHashMap<>();
 
     private ContentInstaller() {}
 
@@ -97,7 +117,7 @@ public final class ContentInstaller {
             if (d.requiresTool()) {
                 props.requiresCorrectToolForDrops();
             }
-            Block block = Registry.register(BuiltInRegistries.BLOCK, key, new Block(props));
+            Block block = Registry.register(BuiltInRegistries.BLOCK, key, create(d, props));
             for (BlockState state : block.getStateDefinition().getPossibleStates()) {
                 // vanilla does this in Blocks' static initialiser, before this block existed; a loader may have done
                 // it already when the block was registered
@@ -106,8 +126,11 @@ public final class ContentInstaller {
                 }
                 state.initCache();
             }
+            if (d.layer() != conductor.contract.RenderLayer.SOLID) {
+                RENDER_LAYERS.put(block, d.layer());
+            }
             if (d.withItem()) {
-                Item item = Items.registerBlock(block);
+                Item item = d.shape() == BlockShape.DOOR ? Items.registerBlock(block, DoubleHighBlockItem::new) : Items.registerBlock(block);
                 d.tab().ifPresent(t -> TAB_ITEMS.computeIfAbsent(t, k -> new ArrayList<>()).add(item));
             }
         }
@@ -123,6 +146,61 @@ public final class ContentInstaller {
             Item item = Items.registerItem(VersionIds.key(Registries.ITEM, d.id()), Item::new, props);
             d.tab().ifPresent(t -> TAB_ITEMS.computeIfAbsent(t, k -> new ArrayList<>()).add(item));
         }
+    }
+
+    /** The vanilla block class for the declared shape, so the block behaves like vanilla's of that kind. */
+    private static Block create(BlockDeclaration d, BlockBehaviour.Properties props) {
+        BlockShape shape = d.shape();
+        if (d.layer() != conductor.contract.RenderLayer.SOLID || shape == BlockShape.GLASS || shape == BlockShape.LEAVES) {
+            props.noOcclusion(); // see-through: neighbours' faces must still be drawn
+        }
+        return switch (shape) {
+            case CUBE -> new Block(props);
+            case PILLAR -> new RotatedPillarBlock(props);
+            case STAIRS -> {
+                String baseId = d.base().orElse("minecraft:stone");
+                Block base = BuiltInRegistries.BLOCK.getValue(VersionIds.key(Registries.BLOCK, baseId));
+                if (base == net.minecraft.world.level.block.Blocks.AIR) {
+                    LOG.warn("Conductor content: stairs {} copy {}, which does not exist here; using stone", d.id(), baseId);
+                    base = net.minecraft.world.level.block.Blocks.STONE;
+                }
+                yield new StairBlock(base.defaultBlockState(), props) {};
+            }
+            case SLAB -> new SlabBlock(props);
+            case WALL -> new WallBlock(props.forceSolidOn());
+            case FENCE -> new FenceBlock(props);
+            case FENCE_GATE -> new FenceGateBlock(woodType(d.material()), props);
+            case DOOR -> new DoorBlock(blockSet(d.material()), props.noOcclusion().pushReaction(PushReaction.DESTROY)) {};
+            case TRAPDOOR -> new TrapDoorBlock(blockSet(d.material()), props.noOcclusion()) {};
+            case BUTTON -> new ButtonBlock(blockSet(d.material()), d.material() == BlockMaterial.WOOD ? 30 : 20,
+                    VersionBlocks.noCollision(props).pushReaction(PushReaction.DESTROY)) {};
+            case PRESSURE_PLATE -> new PressurePlateBlock(blockSet(d.material()),
+                    VersionBlocks.noCollision(props).pushReaction(PushReaction.DESTROY)) {};
+            case PANE -> new IronBarsBlock(props) {};
+            case LEAVES -> VersionBlocks.leaves(props.randomTicks().isSuffocating((s, l, p) -> false).isViewBlocking((s, l, p) -> false)
+                    .pushReaction(PushReaction.DESTROY));
+            case CARPET -> new CarpetBlock(props);
+            case GLASS -> new TransparentBlock(props.isRedstoneConductor((s, l, p) -> false)
+                    .isSuffocating((s, l, p) -> false).isViewBlocking((s, l, p) -> false)) {};
+        };
+    }
+
+    private static BlockSetType blockSet(BlockMaterial m) {
+        return switch (m) {
+            case WOOD -> BlockSetType.OAK;
+            case STONE -> BlockSetType.STONE;
+            case IRON -> BlockSetType.IRON;
+            case COPPER -> BlockSetType.COPPER;
+        };
+    }
+
+    private static WoodType woodType(BlockMaterial m) {
+        return WoodType.OAK; // fence gates are wooden in vanilla; the material only picks sounds for other shapes
+    }
+
+    /** Client only: blocks declared with a see-through render layer. */
+    public static Map<Block, conductor.contract.RenderLayer> renderLayers() {
+        return java.util.Collections.unmodifiableMap(RENDER_LAYERS);
     }
 
     private static SoundType sound(conductor.contract.BlockSound sound) {

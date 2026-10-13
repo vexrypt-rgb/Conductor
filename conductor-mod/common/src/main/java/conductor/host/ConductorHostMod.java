@@ -31,10 +31,23 @@ public final class ConductorHostMod implements ClientModInitializer {
     public void onInitializeClient() {
         try {
             Hooks.lineDrawer(new VersionLineDrawer()); // overlays, drawn by this version's render hook
+            renderLayers();
             start();
         } catch (Throwable t) {
             // never take the game down: Conductor is an add-on
             LOG.error("Conductor failed to start and is NOT running; the game continues without it", t);
+        }
+    }
+
+    /** Content blocks are registered by now (before the registries froze); give see-through ones their layer. */
+    private static void renderLayers() {
+        try {
+            int n = VersionRenderLayers.apply(conductor.runtime.ContentInstaller.renderLayers());
+            if (n > 0) {
+                LOG.info("Conductor content: {} block(s) drawn with a see-through render layer", n);
+            }
+        } catch (Throwable t) {
+            LOG.warn("Conductor could not set render layers; see-through module blocks will look solid", t);
         }
     }
 

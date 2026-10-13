@@ -65,7 +65,7 @@ public final class ContentDeclarations {
         Set<String> blockIds = new HashSet<>();
         List<BlockDeclaration> checkedBlocks = new ArrayList<>();
         for (BlockDeclaration.Builder b : blocks) {
-            BlockDeclaration d = b.build();
+            BlockDeclaration d = b.build(namespace);
             path(d.id(), problems);
             if (!blockIds.add(d.id())) {
                 problems.add("block " + d.id() + " declared twice");
@@ -89,6 +89,20 @@ public final class ContentDeclarations {
             if (d.tab().isPresent() && !d.withItem()) {
                 problems.add("block " + d.id() + ": a creative tab needs the block item");
             }
+            if (d.shape() == null || d.material() == null || d.layer() == null) {
+                problems.add("block " + d.id() + ": shape, material and layer must not be null");
+            }
+            d.base().ifPresent(base -> {
+                if (d.shape() != BlockShape.STAIRS) {
+                    problems.add("block " + d.id() + ": only stairs have a base block");
+                } else if (!TAB.matcher(base).matches()) {
+                    problems.add("block " + d.id() + ": base '" + base + "' is not a namespace:path id");
+                } else if (base.equals(d.id()) || base.startsWith(namespace + ":") && !blockIds.contains(base)) {
+                    problems.add("block " + d.id() + ": base " + base + " must be declared before the stairs");
+                } else if (!base.startsWith(namespace + ":") && !base.startsWith("minecraft:")) {
+                    problems.add("block " + d.id() + ": base " + base + " must be this module's or a vanilla block");
+                }
+            });
             checkedBlocks.add(d);
         }
         List<ItemDeclaration> checkedItems = new ArrayList<>();

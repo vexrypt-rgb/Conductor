@@ -12,7 +12,8 @@
   "client": [
     "MinecraftMixin",
     "ClientPacketListenerMixin",
-    "LevelRendererMixin"
+    "LevelRendererMixin",
+    "ItemBlockRenderTypesAccessor"
   ],
   "injectors": {
     "defaultRequire": 0

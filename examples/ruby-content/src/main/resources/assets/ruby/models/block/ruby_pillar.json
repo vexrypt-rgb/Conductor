@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "ruby:block/ruby_pillar_top",
+    "side": "ruby:block/ruby_pillar"
+  }
+}

@@ -124,6 +124,75 @@ LOADER_ONLY_KEYS = ("fabric:load_conditions", "neoforge:conditions", "forge:cond
 LOADER_ONLY_TYPE = re.compile(r'"type"\s*:\s*"(neoforge|forge|fabric):')
 LOADER_ONLY_DIRS = re.compile(r"^data/[^/]+/(data_maps|neoforge|forge|fabric)/")
 
+# ---------------------------------------------------------------- block shapes
+
+def state_properties(bs):
+    """Property names and values a blockstate JSON uses: {"facing": {"east", ...}, ...}."""
+    props = {}
+    def add(k, v):
+        props.setdefault(k, set()).update(str(v).split("|"))
+    variants = bs.get("variants")
+    if isinstance(variants, dict):
+        for key in variants:
+            for part in filter(None, key.split(",")):
+                if "=" in part:
+                    k, v = part.split("=", 1)
+                    add(k, v)
+    def walk(when):
+        if isinstance(when, dict):
+            for k, v in when.items():
+                if k in ("OR", "AND") and isinstance(v, list):
+                    for w in v:
+                        walk(w)
+                else:
+                    add(k, v)
+    for part in bs.get("multipart") or []:
+        walk(part.get("when"))
+    return props
+
+def shape_of(bs, block_id):
+    """The Conductor BlockShape a blockstate JSON describes, or None when it isn't one Conductor can declare."""
+    p = state_properties(bs)
+    keys = set(p) - {"waterlogged"}
+    if not keys:
+        path = block_id.split(":")[1]
+        return "GLASS" if any(w in path for w in ("glass", "window")) else "CUBE"  # see-through cubes, by name
+    if keys == {"axis"}:
+        return "PILLAR"
+    if keys == {"type"} and "double" in p["type"]:
+        return "SLAB"
+    if keys == {"facing", "half", "shape"}:
+        return "STAIRS"
+    if keys == {"facing", "half", "hinge", "open", "powered"} or keys == {"facing", "half", "hinge", "open"}:
+        return "DOOR"
+    if keys <= {"facing", "half", "open", "powered"} and {"facing", "half", "open"} <= keys:
+        return "TRAPDOOR"
+    if keys <= {"facing", "in_wall", "open", "powered"} and {"facing", "in_wall", "open"} <= keys:
+        return "FENCE_GATE"
+    if keys == {"face", "facing", "powered"}:
+        return "BUTTON"
+    if keys == {"powered"}:
+        return "PRESSURE_PLATE"
+    sides = {"north", "east", "south", "west"}
+    if "multipart" in bs and keys <= sides | {"up"}:
+        if "up" in keys:
+            return "WALL"
+        path = block_id.split(":")[1]
+        return "PANE" if ("pane" in path or "bars" in path) else "FENCE"
+    if keys <= {"distance", "persistent"} and "distance" in keys:
+        return "LEAVES"
+    return None
+
+def material_guess(block_id):
+    path = block_id.split(":")[1]
+    if "iron" in path:
+        return "IRON"
+    if "copper" in path:
+        return "COPPER"
+    if any(w in path for w in ("stone", "brick", "blackstone", "deepslate", "tile", "polished")):
+        return "STONE"
+    return "WOOD"
+
 # ---------------------------------------------------------------- class files
 
 def class_info(data):
@@ -226,7 +295,7 @@ def analyse(jar_path):
     assets = [n for n in names if n.startswith("assets/") and not n.endswith("/")]
     data = [n for n in names if n.startswith("data/") and not n.endswith("/")]
     namespaces = sorted({n.split("/")[1] for n in assets + data if n.count("/") >= 2} - {"minecraft", "c", "fabric", "forge", "neoforge"})
-    items, blocks, entities, lang, shaped = set(), set(), set(), {}, set()
+    items, blocks, entities, lang, shaped, block_shapes = set(), set(), set(), {}, set(), {}
     for n in assets:
         m = re.match(r"assets/([^/]+)/(items|models/item)/(.+)\.json$", n)
         if m:
@@ -236,12 +305,13 @@ def analyse(jar_path):
             bid = f"{m.group(1)}:{m.group(2)}"
             blocks.add(bid)
             try:
-                bs = json.loads(z.read(n).decode("utf-8", "replace"))
-                variants = bs.get("variants")
-                if "multipart" in bs or (isinstance(variants, dict) and set(variants) - {""}):
-                    shaped.add(bid)
-            except (ValueError, AttributeError):
+                shape = shape_of(json.loads(z.read(n).decode("utf-8", "replace")), bid)
+            except (ValueError, AttributeError, TypeError):
+                shape = None
+            if shape is None:
                 shaped.add(bid)
+            else:
+                block_shapes[bid] = shape
         m = re.match(r"assets/([^/]+)/lang/en_us\.json$", n)
         if m:
             try:
@@ -276,7 +346,7 @@ def analyse(jar_path):
                 loader_only.append((n, "loader-specific JSON (conditions or a loader type)"))
     shaped &= blocks
     r.update(namespaces=namespaces, items=sorted(items - block_items), blocks=sorted(blocks), block_items=sorted(block_items),
-             shaped_blocks=sorted(shaped),
+             shaped_blocks=sorted(shaped), block_shapes={b: block_shapes[b] for b in sorted(block_shapes) if b in blocks},
              spawn_eggs=sorted(spawn_eggs), entities=sorted(entities), data_kinds=dict(sorted(data_kinds.items())),
              old_data_layout=old_layout, loader_only=loader_only, assets=len(assets), data=len(data))
 
@@ -352,8 +422,7 @@ def verdict(r, code_kinds, declarable_items):
     if r["entities"]:
         reasons.append(f"{len(r['entities'])} entit(y/ies): mobs are phase 2")
     if r["shaped_blocks"]:
-        reasons.append(f"{len(r['shaped_blocks'])} block(s) with block-state properties (stairs, slabs, rotation, ...): "
-                       "declarations cover full cubes only so far")
+        reasons.append(f"{len(r['shaped_blocks'])} block(s) whose states match no Conductor block shape: need code")
     if not reasons:
         level = "READY: everything found is declarable or data"
     elif not r["mixins"] and set(code_kinds) <= {"item", "block"} and not r["entities"] and len(r["shaped_blocks"]) < len(r["blocks"]) + 1:
@@ -364,6 +433,12 @@ def verdict(r, code_kinds, declarable_items):
             "declarable_blocks": len(r["blocks"]) - len(r["shaped_blocks"])}
 
 # ---------------------------------------------------------------- report
+
+def shape_counts(r):
+    counts = {}
+    for shape in r["block_shapes"].values():
+        counts[shape] = counts.get(shape, 0) + 1
+    return counts
 
 def report(r):
     m = r["meta"]
@@ -378,8 +453,10 @@ def report(r):
     out += ["", "## Content found (from assets and names)", "",
             "| Kind | Count | Conductor |", "|---|---|---|",
             f"| Items | {len(r['items'])} | declarable (`content.item`); check stack size, durability, food and rarity against the original |",
-            f"| Blocks, full cubes | {len(r['blocks']) - len(r['shaped_blocks'])} | declarable (`content.block`); check strength, sound and light |",
-            f"| Blocks with states (stairs, slabs, rotation, ...) | {len(r['shaped_blocks'])} | not yet: declarations cover full cubes only |",
+            f"| Blocks | {len(r['blocks']) - len(r['shaped_blocks'])} | declarable (`content.block`): "
+            + (", ".join(f"{v.lower().replace('_', ' ')} {n}" for v, n in sorted(shape_counts(r).items())) or "none")
+            + "; check strength, sound and light |",
+            f"| Blocks with other states | {len(r['shaped_blocks'])} | not declarable: their states match no Conductor block shape |",
             f"| Block items | {len(r['block_items'])} | made with their block |",
             f"| Spawn eggs | {len(r['spawn_eggs'])} | phase 2 (with the mobs) |",
             f"| Entities | {len(r['entities'])} | phase 2 |",
@@ -538,16 +615,30 @@ def write_skeleton(r, jar_path, out_dir):
     os.makedirs(src_dir, exist_ok=True)
     lines, skipped = [], []
     custom = {c.rsplit(".", 1)[-1].lower() for k in ("item", "block") for c in r["behaviour"].get(k, [])}
-    for b in r["blocks"]:
+    def block_line(b):
         ns, path = b.split(":", 1)
-        if ns != ns_main:
-            continue
-        if b in r["shaped_blocks"]:
-            skipped.append(f"        // {path}: has block-state properties (stairs, slab, rotation, ...); not declarable yet")
-            continue
+        shape = r["block_shapes"].get(b, "CUBE")
+        call = f'content.block("{path}")'
+        if shape == "STAIRS":
+            base = next((c for c in (path[:-len("_stairs")], path[:-len("_stairs")] + "s", path[:-len("_stairs")] + "_planks")
+                         if path.endswith("_stairs") and f"{ns}:{c}" in cubes), None)
+            call += f'.stairsOf("{base}")' if base else ".shape(BlockShape.STAIRS)"
+        elif shape != "CUBE":
+            call += f".shape(BlockShape.{shape})"
+        if shape in ("DOOR", "TRAPDOOR", "BUTTON", "PRESSURE_PLATE", "FENCE_GATE"):
+            call += f".material(BlockMaterial.{material_guess(b)})"
+        if b not in r["block_items"]:
+            call += ".noItem()"
         note = "  // TODO: a class named like this has custom code in the original" if any(path.replace("_", "") in c for c in custom) else ""
-        item = "" if b in r["block_items"] else ".noItem()"
-        lines.append(f'        content.block("{path}"){item}; // TODO: strength, sound, light, requiresTool{note}')
+        return f"        {call}; // TODO: strength, sound, light, requiresTool{note}"
+    mine = [b for b in r["blocks"] if b.split(":")[0] == ns_main]
+    cubes = {b for b in mine if r["block_shapes"].get(b) in ("CUBE", "GLASS")}
+    for b in mine:
+        if b in r["shaped_blocks"]:
+            skipped.append(f"        // {b.split(':', 1)[1]}: its states match no Conductor block shape; not declarable yet")
+    # cubes first: stairs name their base block, which must be declared before them
+    for b in sorted((b for b in mine if b not in r["shaped_blocks"]), key=lambda b: r["block_shapes"].get(b) not in ("CUBE", "GLASS")):
+        lines.append(block_line(b))
     for i in r["items"]:
         ns, path = i.split(":", 1)
         if ns != ns_main or i in r["spawn_eggs"]:
@@ -557,6 +648,8 @@ def write_skeleton(r, jar_path, out_dir):
     others = [n for n in r["namespaces"] if n != ns_main]
     java = f"""package {pkg};
 
+import conductor.contract.BlockMaterial;
+import conductor.contract.BlockShape;
 import conductor.contract.ContentDeclarations;
 import conductor.contract.ContentModule;
 

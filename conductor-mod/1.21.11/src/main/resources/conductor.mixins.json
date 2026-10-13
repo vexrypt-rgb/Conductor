@@ -14,7 +14,8 @@
     "ClientPacketListenerMixin",
     "LevelRendererMixin",
     "RenderTypeInvoker",
-    "RenderPipelinesAccessor"
+    "RenderPipelinesAccessor",
+    "ItemBlockRenderTypesAccessor"
   ],
   "injectors": {
     "defaultRequire": 0

@@ -1,5 +1,11 @@
 {
   "item.ruby.ruby": "Ruby",
   "item.ruby.ruby_apple": "Ruby Apple",
-  "block.ruby.ruby_block": "Block of Ruby"
+  "block.ruby.ruby_block": "Block of Ruby",
+  "block.ruby.ruby_stairs": "Ruby Stairs",
+  "block.ruby.ruby_slab": "Ruby Slab",
+  "block.ruby.ruby_wall": "Ruby Wall",
+  "block.ruby.ruby_pillar": "Ruby Pillar",
+  "block.ruby.ruby_glass": "Ruby Glass",
+  "block.ruby.ruby_door": "Ruby Door"
 }

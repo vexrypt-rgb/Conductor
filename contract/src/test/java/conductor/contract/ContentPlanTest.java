@@ -120,4 +120,36 @@ class ContentPlanTest {
         assertTrue(!ContentPlan.of(Map.of("t", module("t", c -> c.item("x").tab("ingredients")))).problems().isEmpty());
         assertTrue(!ContentPlan.of(Map.of("t", module("t", c -> c.block("x").noItem().tab("minecraft:ingredients")))).problems().isEmpty());
     }
+
+    @Test
+    void shapesDefaultTheirLayerAndStairsResolveTheirBase() {
+        ContentPlan plan = ContentPlan.of(Map.of("s", module("s", c -> {
+            c.block("bricks");
+            c.block("brick_stairs").stairsOf("bricks");
+            c.block("stone_stairs").shape(BlockShape.STAIRS);
+            c.block("door").shape(BlockShape.DOOR).material(BlockMaterial.IRON);
+            c.block("glass").shape(BlockShape.GLASS).layer(RenderLayer.TRANSLUCENT);
+            c.block("log").shape(BlockShape.PILLAR);
+        })));
+        assertEquals(List.of(), plan.problems());
+        List<BlockDeclaration> b = plan.entries().get(0).blocks();
+        assertEquals(Optional.of("s:bricks"), b.get(1).base());
+        assertEquals(BlockShape.STAIRS, b.get(1).shape());
+        assertEquals(Optional.of("minecraft:stone"), b.get(2).base(), "stairs without a base copy stone");
+        assertEquals(RenderLayer.CUTOUT, b.get(3).layer(), "doors default to cutout");
+        assertEquals(BlockMaterial.IRON, b.get(3).material());
+        assertEquals(RenderLayer.TRANSLUCENT, b.get(4).layer(), "an explicit layer wins");
+        assertEquals(RenderLayer.SOLID, b.get(5).layer());
+    }
+
+    @Test
+    void aStairsBaseMustExistBeforeTheStairs() {
+        assertTrue(!ContentPlan.of(Map.of("s", module("s", c -> {
+            c.block("brick_stairs").stairsOf("bricks");   // declared after
+            c.block("bricks");
+        }))).problems().isEmpty());
+        assertTrue(!ContentPlan.of(Map.of("s", module("s", c -> c.block("x").stairsOf("othermod:bricks")))).problems().isEmpty());
+        assertTrue(!ContentPlan.of(Map.of("s", module("s", c -> c.block("x").stairsOf("x")))).problems().isEmpty());
+        assertTrue(ContentPlan.of(Map.of("s", module("s", c -> c.block("x").stairsOf("minecraft:oak_planks")))).problems().isEmpty());
+    }
 }
