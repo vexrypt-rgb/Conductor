@@ -1,0 +1,4 @@
+ext.mc = '1.8.9'
+// Shared host code for this version: the Fabric boot shim and the entry point (its Mixins are in src/main/java).
+ext.commonDir = 'conductor-mod/1.8.9/common'
+apply from: rootProject.file('gradle/fabric-module.gradle')

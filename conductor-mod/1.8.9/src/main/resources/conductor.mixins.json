@@ -1,0 +1,20 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "conductor.host.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ServerMixin",
+    "CommandManagerMixin",
+    "ServerPlayNetworkMixin"
+  ],
+  "client": [
+    "ClientTickMixin",
+    "ClientPlayerMixin",
+    "ClientPacketMixin",
+    "GameRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}
