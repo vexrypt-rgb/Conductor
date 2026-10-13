@@ -117,9 +117,9 @@ Performance mods are a different category. **They are hosted next to Conductor, 
 - **How Conductor hosts them.**
   - They stay ordinary mods, and Conductor's job is to **stay compatible** with them.
   - Conductor's hooks are deliberately small. One client-tick hook, chat and packet hooks, one injection after the world is drawn, and the content hooks above. None of them replaces a vanilla system.
-  - The render hook (overlays) is the one most likely to meet Sodium. It needs a live compatibility run. Fixes, if any, go into Conductor's hooks, never into the other mod.
+  - The render hook (overlays) is the one most likely to meet Sodium; the live run below found no conflict. Fixes, if any, go into Conductor's hooks, never into the other mod.
 - **Joining the platform.** A performance mod that wants Conductor's settings, commands or module management joins as a **native module**, tied to its Minecraft version, as it is today.
-- **Planned:** compatibility live runs with Sodium and Lithium on 1.21.11 (Conductor's overlays, events and content with each installed).
+- **Done:** compatibility live runs with Sodium and Lithium on 1.21.11 and 1.21.4: Conductor's overlays, content and render layers worked next to both ([live-run-content.md](live-run-content.md) §4).
 
 ## 7. Order of work
 
