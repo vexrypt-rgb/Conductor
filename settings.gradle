@@ -29,12 +29,12 @@ include 'example-server-greeter'
 project(':example-server-greeter').projectDir = file('examples/server-greeter')
 
 // Per Minecraft version (see mcTargets in build.gradle): Conductor's runtime (no engine), the optional Ostinato engine
-// layer, the Conductor mod that hosts modules, and the live test harness. 1.16.1 and 26.3 have no engine layer (and
+// layer, the Conductor mod that hosts modules, and the live test harness. 1.16.1, 26.2 and 26.3 have no engine layer (and
 // so no harness) yet.
-['1.21.11', '1.21.4', '1.16.1', '26.3'].each { mc ->
+['1.21.11', '1.21.4', '1.16.1', '26.2', '26.3'].each { mc ->
     include "runtime-${mc}"
     project(":runtime-${mc}").projectDir = file("runtime/${mc}")
-    if (!(mc in ['1.16.1', '26.3'])) {
+    if (!(mc in ['1.16.1', '26.2', '26.3'])) {
         include "engine-ostinato-${mc}"
         project(":engine-ostinato-${mc}").projectDir = file("engine-ostinato/${mc}")
         include "live-harness-${mc}"
