@@ -38,7 +38,7 @@ public final class ConductorOstinato {
         }
         return install(baritone, sink, policy, game, new TungstenBackendAccess(), MovementBackends.engine(baritone),
                 MovementBackends::preferTungstenTravel, new OstinatoCombatAccess(baritone),
-                new MinecraftPlayerAccess(baritone.getPlayerContext(), game));
+                new MinecraftPlayerAccess(baritone.getPlayerContext(), game), new OstinatoEventFeed(game), new OverlayRenderer());
     }
 
     /** Without a release policy: discovery and observation work, but navigation is never granted. */
@@ -54,16 +54,19 @@ public final class ConductorOstinato {
     static ContractService install(IBaritone baritone, DiagnosticSink sink, ReleasePolicy policy, GameAccess game,
                              SecondaryBackendAccess secondary, IMovementEngine engine, BooleanSupplier prefersSecondaryTravel,
                              CombatAccess combat) {
-        return install(baritone, sink, policy, game, secondary, engine, prefersSecondaryTravel, combat, null);
+        return install(baritone, sink, policy, game, secondary, engine, prefersSecondaryTravel, combat, null, null, null);
     }
 
     /**
      * @param combat engine combat access; null to offer no combat
      * @param player player/world reads and actions; null to offer none
+     * @param feed   game events and chat commands; null to offer none
+     * @param overlay 3D overlay renderer (a per-version class); null to offer none
      */
     static ContractService install(IBaritone baritone, DiagnosticSink sink, ReleasePolicy policy, GameAccess game,
                              SecondaryBackendAccess secondary, IMovementEngine engine, BooleanSupplier prefersSecondaryTravel,
-                             CombatAccess combat, PlayerAccess player) {
+                             CombatAccess combat, PlayerAccess player, OstinatoEventFeed feed,
+                             OverlayRenderer overlay) {
         Objects.requireNonNull(sink, "sink");
         Objects.requireNonNull(policy, "policy");
         synchronized (INSTALLED) {
@@ -78,6 +81,14 @@ public final class ConductorOstinato {
                 new OstinatoNavigationPort(engine, prefersSecondaryTravel));
         if (player != null) {
             runtime.enablePlayer(player);
+        }
+        if (overlay != null) {
+            runtime.enableOverlays(overlay);
+            baritone.getGameEventHandler().registerEventListener(overlay);
+        }
+        if (feed != null) {
+            runtime.enableEvents(feed);
+            baritone.getGameEventHandler().registerEventListener(feed);
         }
         if (combat != null) {
             runtime.enableCombat(new OstinatoCombatPort(combat, engine), combat);

@@ -60,6 +60,8 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
     private final EngineFeatures engineFeatures;
     private CombatPort combatPort;
     private PlayerAccess player;
+    private conductor.contract.EventPort events;
+    private conductor.contract.OverlayPort overlays;
     private CombatAccess combatAccess;
 
     OstinatoRuntimeIntegration(GameAccess game, LifecycleListener lifecycle, OstinatoSignals signals,
@@ -121,6 +123,26 @@ final class OstinatoRuntimeIntegration implements RuntimeIntegration {
                         + "evidence including the use key (Stage 5)",
                 List.of(USE_KEY_HELD, COMBAT_TARGET), combatPort != null ? COMBAT_OPERATIONS : List.of());
         return List.of(primary, secondaryDescriptor(), player, contentDescriptor(), combat, world, actions);
+    }
+
+    /** Offer 3D overlays. Called once by the installer. */
+    void enableOverlays(conductor.contract.OverlayPort overlays) {
+        this.overlays = overlays;
+    }
+
+    @Override
+    public Optional<conductor.contract.OverlayPort> overlays() {
+        return Optional.ofNullable(overlays);
+    }
+
+    /** Offer game events and chat commands. Called once by the installer. */
+    void enableEvents(conductor.contract.EventPort events) {
+        this.events = events;
+    }
+
+    @Override
+    public Optional<conductor.contract.EventPort> events() {
+        return Optional.ofNullable(events);
     }
 
     /** Offer player/world reads and one-shot actions. Called once by the installer. */

@@ -72,6 +72,19 @@ public interface Conductor {
     ActionResult sendChat(String message);
 
     /**
+     * Show a line in the player's own chat window; nothing is sent to the server, so no lease is needed. Modules'
+     * lines are prefixed with their id. At most 20 lines per tick, 1000 characters each.
+     */
+    ActionResult showMessage(String text);
+
+    /**
+     * Replace everything this module draws in the world with {@code shapes} (an empty list clears it). Shown every
+     * frame until replaced, and cleared when the module stops. At most 4096 shapes per module. No lease: overlays
+     * don't change the game.
+     */
+    ActionResult showOverlay(java.util.List<OverlayShape> shapes);
+
+    /**
      * Invoke the engine's cancel for an operation this consumer holds. The result is at most
      * {@link OperationState#CANCELLING}: cancel requested, not confirmed. The engine's cancel may stop more than this
      * operation; see {@link NavigationPort#cancel()}.

@@ -10,6 +10,7 @@ import conductor.contract.DiagnosticSink;
 import conductor.contract.InMemoryDiagnosticSink;
 import conductor.contract.ModuleHost;
 import conductor.contract.ReleasePolicy;
+import conductor.contract.SettingsStore;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,20 +45,25 @@ public final class ConductorBootstrap {
      * uses the longest release windows any module asks for ({@link ModuleHost#combinedPolicy}).
      */
     public static void start(Map<String, ConductorModule> modules, DiagnosticSink sink) {
+        start(modules, sink, SettingsStore.IN_MEMORY);
+    }
+
+    /** As {@link #start(Map, DiagnosticSink)}, keeping module settings in {@code settings}. */
+    public static void start(Map<String, ConductorModule> modules, DiagnosticSink sink, SettingsStore settings) {
         Objects.requireNonNull(modules, "modules");
         Objects.requireNonNull(sink, "sink");
         Map<String, ConductorModule> copy = new LinkedHashMap<>(modules);
-        Thread waiter = new Thread(() -> waitThenInstall(copy, sink), "conductor-bootstrap");
+        Thread waiter = new Thread(() -> waitThenInstall(copy, sink, settings), "conductor-bootstrap");
         waiter.setDaemon(true);
         waiter.start();
     }
 
-    private static void waitThenInstall(Map<String, ConductorModule> modules, DiagnosticSink sink) {
+    private static void waitThenInstall(Map<String, ConductorModule> modules, DiagnosticSink sink, SettingsStore settings) {
         try {
             while (true) {
                 Minecraft mc = Minecraft.getInstance();
                 if (mc != null && mc.submit(() -> mc.player != null && mc.level != null).get(30, TimeUnit.SECONDS)) {
-                    mc.submit(() -> install(modules, sink)).get(30, TimeUnit.SECONDS);
+                    mc.submit(() -> install(modules, sink, settings)).get(30, TimeUnit.SECONDS);
                     return;
                 }
                 Thread.sleep(250);
@@ -68,11 +74,12 @@ public final class ConductorBootstrap {
     }
 
     /** Game thread. */
-    private static void install(Map<String, ConductorModule> modules, DiagnosticSink sink) {
+    private static void install(Map<String, ConductorModule> modules, DiagnosticSink sink, SettingsStore settings) {
         IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
         ReleasePolicy policy = ModuleHost.combinedPolicy(modules.values());
         ContractService core = ConductorOstinato.install(baritone, sink, policy);
-        ModuleHost host = new ModuleHost(core);
+        ModuleHost host = new ModuleHost(core, System.getProperty("conductor.commandPrefix", ModuleHost.DEFAULT_COMMAND_PREFIX));
+        host.useSettingsStore(settings);
         modules.forEach((id, module) -> LOG.info("Conductor registered module {}", host.register(id, module)));
         LOG.info("Conductor core installed; release policy {}", policy);
         // Registered after Conductor's own listener, so each tick the context and evidence are already updated.

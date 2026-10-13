@@ -22,4 +22,5 @@ final class FakeActionPort implements ActionPort {
     public Optional<String> attack(int entityId) { return log("attack " + entityId); }
     public Optional<String> useItem(boolean offhand) { return log("use " + (offhand ? "off" : "main")); }
     public Optional<String> sendChat(String message) { return log("chat " + message); }
+    public Optional<String> showMessage(String text) { return log("show " + text); }
 }

@@ -17,4 +17,10 @@ public interface ModuleManagement {
 
     /** Start a DISABLED or FAILED module again (it gets onReady once more). */
     boolean enable(ModuleId module);
+
+    /** The module's settings and their current values; empty for an unknown module. */
+    List<SettingInfo> settings(ModuleId module);
+
+    /** Change a setting from text; false when the module, setting or value is not valid. Saved at once. */
+    boolean setSetting(ModuleId module, String name, String value);
 }

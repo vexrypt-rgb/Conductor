@@ -38,7 +38,9 @@ public record DiagnosticEvent(Type type, String thread, long tick, ContextId con
         /** Module platform: an optional module feature was checked; detail says ON or OFF and why. */
         MODULE_FEATURE,
         /** A one-shot action was performed or refused. */
-        ACTION
+        ACTION,
+        /** A module setting was loaded, changed, or could not be read or saved. */
+        SETTING
     }
 
     static DiagnosticEvent onGameThread(Type type, long tick, ContextId context, String subject, String detail) {

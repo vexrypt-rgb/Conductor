@@ -1,5 +1,6 @@
 package conductor.host;
 
+import conductor.contract.FileSettingsStore;
 import conductor.contract.InMemoryDiagnosticSink;
 import conductor.runtime.ostinato.ConductorBootstrap;
 import conductor.runtime.ostinato.ModuleDiscovery;
@@ -17,7 +18,8 @@ import java.nio.file.Path;
  * <p>
  * Modules are not Fabric mods. They are plain jars with a {@code META-INF/services/conductor.contract.ConductorModule}
  * entry, put in {@code <game dir>/conductor/modules} (or the folder named by {@code -Dconductor.modulesDir}). See
- * {@link ModuleDiscovery}. A shim for another loader would make the same two calls.
+ * {@link ModuleDiscovery}. Module settings are kept in {@code <game dir>/conductor/config} (or
+ * {@code -Dconductor.configDir}). A shim for another loader would make the same calls.
  */
 public final class ConductorHostMod implements ClientModInitializer {
 
@@ -39,6 +41,8 @@ public final class ConductorHostMod implements ClientModInitializer {
             return;
         }
         LOG.info("Conductor starting {} module(s) from {} and the classpath: {}", found.modules().size(), dir, found.modules().keySet());
-        ConductorBootstrap.start(found.modules(), new InMemoryDiagnosticSink(50_000));
+        String configOverride = System.getProperty("conductor.configDir");
+        Path config = configOverride != null ? Path.of(configOverride) : FabricLoader.getInstance().getGameDir().resolve("conductor/config");
+        ConductorBootstrap.start(found.modules(), new InMemoryDiagnosticSink(50_000), new FileSettingsStore(config));
     }
 }

@@ -66,6 +66,7 @@ class PlayerAdapterTest {
         public Optional<String> attack(int id) { calls.add("attack " + id); return Optional.empty(); }
         public Optional<String> useItem(boolean offhand) { calls.add("use"); return Optional.empty(); }
         public Optional<String> sendChat(String m) { calls.add("chat " + m); return Optional.empty(); }
+        public Optional<String> showMessage(String t) { calls.add("show " + t); return Optional.empty(); }
     }
 
     private final FakeGameAccess game = new FakeGameAccess();
@@ -90,7 +91,7 @@ class PlayerAdapterTest {
         when(control.mostRecentInControl()).thenReturn(Optional.empty());
         when(inputs.isInputForcedDown(any())).thenReturn(false);
         conductor = ConductorOstinato.install(baritone, new InMemoryDiagnosticSink(1000), new ReleasePolicy(OptionalLong.of(2), OptionalLong.empty()),
-                game, new FakeSecondaryBackend(), mock(IMovementEngine.class), () -> false, null, player);
+                game, new FakeSecondaryBackend(), mock(IMovementEngine.class), () -> false, null, player, null, null);
         ArgumentCaptor<IGameEventListener> registered = ArgumentCaptor.forClass(IGameEventListener.class);
         verify(bus).registerEventListener(registered.capture());
         lifecycle = registered.getValue();

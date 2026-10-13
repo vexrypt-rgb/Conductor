@@ -19,6 +19,8 @@ include 'example-agnostic-combat'
 project(':example-agnostic-combat').projectDir = file('examples/agnostic-combat')
 include 'example-player-actions'
 project(':example-player-actions').projectDir = file('examples/player-actions')
+include 'example-block-highlighter'
+project(':example-block-highlighter').projectDir = file('examples/block-highlighter')
 
 // Per Minecraft version (see mcTargets in build.gradle): the runtime adapter, the Conductor mod that hosts modules,
 // and the live test harness.

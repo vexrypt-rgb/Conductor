@@ -39,6 +39,13 @@ final class FakeGameAccess implements GameAccess {
     Boolean useKey = false;
     int selected;
 
+    final java.util.Map<java.util.UUID, String> names = new java.util.HashMap<>();
+
+    @Override
+    public String playerName(java.util.UUID id) {
+        return names.get(id);
+    }
+
     @Override
     public boolean canReach(net.minecraft.world.entity.Entity target) {
         return true;

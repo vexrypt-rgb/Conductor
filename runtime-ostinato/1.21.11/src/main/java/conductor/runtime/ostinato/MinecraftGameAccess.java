@@ -51,6 +51,13 @@ final class MinecraftGameAccess implements GameAccess {
     }
 
     @Override
+    public String playerName(java.util.UUID id) {
+        var connection = ctx.minecraft().getConnection();
+        var info = connection == null ? null : connection.getPlayerInfo(id);
+        return info == null ? null : info.getProfile().name();
+    }
+
+    @Override
     public boolean canReach(net.minecraft.world.entity.Entity target) {
         return ctx.player().isWithinEntityInteractionRange(target, 0);
     }

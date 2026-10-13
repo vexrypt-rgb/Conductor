@@ -11,6 +11,8 @@
 #      CLIENT_TIMEOUT (seconds, default 1200),
 #      HARNESS_SCENARIO (stage4, evidence, or connect-only: join and wait while installed modules run),
 #      EXTRA_MODS (colon-separated Fabric mods to load too, e.g. the Conductor mod),
+#      SCREENSHOT_AT (seconds after the player joins to save <workdir>/screenshot.png of the virtual display),
+#      CONDUCTOR_CONFIG (folder of module settings files; default <game dir>/conductor/config),
 #      CONDUCTOR_MODULES (folder of plain module jars for Conductor to load; default <game dir>/conductor/modules),
 #      HARNESS_HOLD (seconds connect-only waits, default 60),
 #      SERVER_ON_JOIN (server console commands sent after the player joins and is opped, separated by ';';
@@ -60,8 +62,18 @@ echo "server ready"
     done
 ) &
 
+if [ -n "${SCREENSHOT_AT:-}" ]; then
+    rm -f "$WORK/screenshot.png"
+    (
+        until grep -q "Dev joined the game" "$WORK/server.log" 2>/dev/null; do sleep 1; done
+        sleep "$SCREENSHOT_AT"
+        DISPLAY_NUM=$(pgrep -a Xvfb | grep -o ' :[0-9]*' | head -1 | tr -d ' ')
+        import -window root -display "$DISPLAY_NUM" "$WORK/screenshot.png" && echo "screenshot saved: $WORK/screenshot.png"
+    ) &
+fi
+
 MODS="$JAR${EXTRA_MODS:+:$EXTRA_MODS}"
-export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dfabric.addMods=$MODS -Dconductor.harness.out=$OUT -Dconductor.harness.server=localhost:25565 -Dconductor.harness.scenario=${HARNESS_SCENARIO:-stage4} -Dconductor.harness.holdSeconds=${HARNESS_HOLD:-60}${CONDUCTOR_MODULES:+ -Dconductor.modulesDir=$CONDUCTOR_MODULES}"
+export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dfabric.addMods=$MODS -Dconductor.harness.out=$OUT -Dconductor.harness.server=localhost:25565 -Dconductor.harness.scenario=${HARNESS_SCENARIO:-stage4} -Dconductor.harness.holdSeconds=${HARNESS_HOLD:-60}${CONDUCTOR_MODULES:+ -Dconductor.modulesDir=$CONDUCTOR_MODULES}${CONDUCTOR_CONFIG:+ -Dconductor.configDir=$CONDUCTOR_CONFIG}"
 cd "$OSTINATO_DIR"
 timeout "$CLIENT_TIMEOUT" xvfb-run -a -s "-screen 0 1280x720x24" \
     ./gradlew ${GRADLE_ARGS:-} :fabric:runClient -Pavailable_loaders=fabric --no-daemon \

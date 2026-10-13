@@ -28,6 +28,9 @@ interface GameAccess {
      * built-in registry here or the id is malformed (the caller reports UNKNOWN). Built-in registries are frozen at
      * startup, so this is valid in and out of a world.
      */
+    /** Game thread only. The name of the player with this id on the current server, or null when not known. */
+    String playerName(java.util.UUID id);
+
     /** Game thread only. Whether the player can reach {@code target} to attack it; only called with a player. */
     boolean canReach(net.minecraft.world.entity.Entity target);
 

@@ -19,4 +19,7 @@ public interface ActionPort {
 
     /** A message, or a command when it starts with {@code /}. */
     Optional<String> sendChat(String message);
+
+    /** Show a line in the player's own chat window. Nothing is sent to the server. */
+    Optional<String> showMessage(String text);
 }

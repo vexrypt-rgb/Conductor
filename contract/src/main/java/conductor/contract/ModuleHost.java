@@ -40,8 +40,24 @@ public final class ModuleHost {
     private final List<Fault> faults = new ArrayList<>();
     private long nextLeaseId = 1;
 
+    /** Default chat-command prefix: {@code +kit} runs the {@code kit} command. */
+    public static final String DEFAULT_COMMAND_PREFIX = "+";
+
+    private record Command(Entry owner, String help, Consumer<CommandCall> handler) {}
+
+    /** Command name (lower case) to command; owner null for Conductor's own. */
+    private final Map<String, Command> commands = new LinkedHashMap<>();
+    private final List<String> typedCommands = new ArrayList<>();
+    private final String commandPrefix;
+
     public ModuleHost(ContractService core) {
+        this(core, DEFAULT_COMMAND_PREFIX);
+    }
+
+    /** @param commandPrefix chat prefix for commands; null for no chat commands */
+    public ModuleHost(ContractService core, String commandPrefix) {
         this.core = Objects.requireNonNull(core, "core");
+        this.commandPrefix = commandPrefix;
         this.nav = core.navigation();
         this.sink = core.sink();
         for (ResourceKey r : Resources.ALL) {
@@ -49,6 +65,10 @@ public final class ModuleHost {
         }
         nav.setControllerAttribution(this::attributedToMovementHolder);
         services.put(ModuleManagement.KEY, new Provided(ModuleId.CORE, new Management()));
+        builtInCommands();
+        if (commandPrefix != null) {
+            core.interceptCommands(commandPrefix);
+        }
     }
 
     /** The release policy the core should use for these modules: the longest windows any module asks for. */
@@ -83,8 +103,76 @@ public final class ModuleHost {
         }
         Entry e = new Entry(id, module);
         modules.put(id, e);
+        loadSettings(e);
         moduleEvent(e, null, ModuleState.DISCOVERED, "registered");
         return id;
+    }
+
+    private SettingsStore store = SettingsStore.IN_MEMORY;
+
+    /** Where module settings are kept; set before registering modules. */
+    public void useSettingsStore(SettingsStore store) {
+        this.store = Objects.requireNonNull(store, "store");
+    }
+
+    private void loadSettings(Entry e) {
+        List<Setting<?>> declared;
+        try {
+            declared = e.module.settings();
+        } catch (RuntimeException | LinkageError ex) {
+            declared = List.of();
+            settingEvent(e, "settings() threw " + ex);
+        }
+        Map<String, String> saved;
+        try {
+            saved = store.load(e.id);
+        } catch (RuntimeException ex) {
+            saved = Map.of();
+            settingEvent(e, "could not load saved settings: " + ex);
+        }
+        for (Setting<?> setting : declared == null ? List.<Setting<?>>of() : declared) {
+            if (setting == null || e.settings.containsKey(setting.name())) {
+                settingEvent(e, "setting " + setting + " is null or declared twice; ignored");
+                continue;
+            }
+            e.settings.put(setting.name(), setting);
+            String text = saved.get(setting.name());
+            Optional<?> value = text == null ? Optional.empty() : setting.parse(text);
+            if (text != null && value.isEmpty()) {
+                settingEvent(e, setting.name() + ": saved value '" + text + "' is not valid; using the default");
+            }
+            e.values.put(setting.name(), value.isPresent() ? value.get() : setting.defaultValue());
+        }
+    }
+
+    private void settingEvent(Entry e, String why) {
+        sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.SETTING, core.currentTick(),
+                core.currentContext().orElse(null), e.id.value(), why));
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> String formatted(Setting<T> setting, Object value) {
+        return setting.format((T) value);
+    }
+
+    /** Change a setting; returns false for an unknown setting. Saves and announces the change. */
+    private boolean changeSetting(Entry e, String name, Object value) {
+        Setting<?> setting = e.settings.get(name);
+        if (setting == null) {
+            return false;
+        }
+        e.values.put(name, value);
+        Map<String, String> all = new LinkedHashMap<>();
+        e.settings.forEach((n, st) -> all.put(n, formatted(st, e.values.get(n))));
+        try {
+            store.save(e.id, all);
+        } catch (RuntimeException ex) {
+            settingEvent(e, "could not save: " + ex);
+        }
+        String text = formatted(setting, value);
+        settingEvent(e, name + " = " + text);
+        publish(Topics.SETTINGS, new SettingChanged(e.id, name, text));
+        return true;
     }
 
     public ModuleManagement management() {
@@ -103,8 +191,10 @@ public final class ModuleHost {
         }
         progressLeases();
         handleFaults();
+        events();
         lifecycle();
         handleFaults();
+        runTypedCommands();
         for (Entry e : List.copyOf(modules.values())) {
             if (e.state == ModuleState.RUNNING) {
                 call(e, () -> e.module.onTick(e.context));
@@ -113,6 +203,101 @@ public final class ModuleHost {
         }
         flush();
         handleFaults();
+    }
+
+    // ---- game events and commands ----
+
+    private void events() {
+        for (GameEvent event : core.drainEvents()) {
+            switch (event) {
+                case GameEvent.BlockChange b -> publish(Topics.BLOCK_CHANGES, b);
+                case GameEvent.ChunkChange c -> publish(Topics.CHUNKS, c);
+                case GameEvent.PlayerDeath d -> publish(Topics.DEATHS, d);
+                case GameEvent.ChatMessage m -> publish(Topics.CHAT, m);
+                case GameEvent.CommandLine l -> typedCommands.add(l.line());
+            }
+        }
+    }
+
+    private void runTypedCommands() {
+        for (String line : List.copyOf(typedCommands)) {
+            typedCommands.remove(0);
+            String body = commandPrefix != null && line.startsWith(commandPrefix) ? line.substring(commandPrefix.length()) : line;
+            List<String> words = List.of(body.trim().split("\\s+"));
+            String name = words.get(0).toLowerCase(java.util.Locale.ROOT);
+            CommandCall call = new CommandCall(name, words.subList(1, words.size()), line);
+            Command command = commands.get(name);
+            sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.ACTION, core.currentTick(),
+                    core.currentContext().orElse(null), "command", line + (command == null ? " (unknown)" : "")));
+            if (command == null) {
+                say("unknown command " + name + "; " + commandPrefix + "help lists them");
+            } else if (command.owner() == null) {
+                command.handler().accept(call);
+            } else if (command.owner().state != ModuleState.RUNNING) {
+                say(name + " belongs to " + command.owner().id.value() + ", which is " + command.owner().state);
+            } else {
+                call(command.owner(), () -> command.handler().accept(call));
+                handleFaults();
+            }
+        }
+    }
+
+    private void say(String text) {
+        core.showMessage(ModuleId.CORE, text);
+    }
+
+    private Subscription addCommand(Entry owner, String name, String help, Consumer<CommandCall> handler) {
+        String key = Objects.requireNonNull(name, "name").toLowerCase(java.util.Locale.ROOT);
+        if (!key.matches("[a-z0-9_-]{1,32}")) {
+            throw new IllegalArgumentException("command names are 1-32 of a-z 0-9 _ -: " + name);
+        }
+        Command existing = commands.get(key);
+        if (existing != null) {
+            throw new IllegalArgumentException("command " + key + " is taken by "
+                    + (existing.owner() == null ? "Conductor" : existing.owner().id.value()));
+        }
+        Command command = new Command(owner, help == null ? "" : help, Objects.requireNonNull(handler, "handler"));
+        commands.put(key, command);
+        return () -> commands.remove(key, command);
+    }
+
+    private void builtInCommands() {
+        addCommand(null, "help", "list commands", call -> commands.forEach((name, c) ->
+                say(commandPrefix + name + " - " + c.help() + (c.owner() == null ? "" : " (" + c.owner().id.value() + ")"))));
+        addCommand(null, "modules", "list modules and their state", call ->
+                modules.values().forEach(e -> say(e.id.value() + ": " + e.state)));
+        addCommand(null, "disable", "disable <module>: stop a module", call -> toggle(call, false));
+        addCommand(null, "enable", "enable <module>: start a disabled module", call -> toggle(call, true));
+        addCommand(null, "settings", "settings <module>: show a module's settings", call -> {
+            if (call.args().size() != 1 || !modules.containsKey(new ModuleId(call.args().get(0)))) {
+                say("usage: " + commandPrefix + "settings <module>  (" + commandPrefix + "modules lists them)");
+                return;
+            }
+            List<SettingInfo> list = management().settings(new ModuleId(call.args().get(0)));
+            if (list.isEmpty()) {
+                say(call.args().get(0) + " has no settings");
+            }
+            list.forEach(i -> say(i.name() + " = " + i.value() + " (default " + i.defaultValue() + ") " + i.description()));
+        });
+        addCommand(null, "set", "set <module> <setting> <value>: change a setting", call -> {
+            if (call.args().size() < 3) {
+                say("usage: " + commandPrefix + "set <module> <setting> <value>");
+                return;
+            }
+            String value = String.join(" ", call.args().subList(2, call.args().size()));
+            boolean ok = management().setSetting(new ModuleId(call.args().get(0)), call.args().get(1), value);
+            say(ok ? call.args().get(0) + " " + call.args().get(1) + " = " + value : "not changed: unknown module or setting, or value out of range");
+        });
+    }
+
+    private void toggle(CommandCall call, boolean enable) {
+        if (call.args().size() != 1) {
+            say("usage: " + commandPrefix + call.name() + " <module>");
+            return;
+        }
+        ModuleId id = new ModuleId(call.args().get(0));
+        boolean done = enable ? new Management().enable(id) : new Management().disable(id, "chat command");
+        say(id.value() + (done ? (enable ? " enabled" : " disabled") : ": no change (unknown module, or already in that state)"));
     }
 
     private void lifecycle() {
@@ -456,6 +641,8 @@ public final class ModuleHost {
                 dropPending(slot, ModuleId.CORE);
             }
         }
+        commands.values().removeIf(c -> c.owner() == e);
+        core.clearOverlay(e.id);
         for (Sub<?> s : e.subscriptions) {
             s.active()[0] = false;
         }
@@ -510,6 +697,8 @@ public final class ModuleHost {
         final List<ServiceKey<?>> provided = new ArrayList<>();
         final Set<String> declaredControllers = new HashSet<>();
         final Map<String, FeatureStatus> features = new LinkedHashMap<>();
+        final Map<String, Setting<?>> settings = new LinkedHashMap<>();
+        final Map<String, Object> values = new LinkedHashMap<>();
 
         Entry(ModuleId id, ConductorModule module) {
             this.id = id;
@@ -626,6 +815,62 @@ public final class ModuleHost {
         @Override
         public OperationResult cancel(OperationId operation) {
             return core.cancel(e.id, operation);
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public <T> T get(Setting<T> setting) {
+            Object value = e.values.get(Objects.requireNonNull(setting, "setting").name());
+            if (value == null || !e.settings.containsKey(setting.name())) {
+                throw new IllegalArgumentException(setting.name() + " is not one of this module's settings()");
+            }
+            return (T) value;
+        }
+
+        @Override
+        public <T> void set(Setting<T> setting, T value) {
+            Objects.requireNonNull(value, "value");
+            if (!e.settings.containsKey(Objects.requireNonNull(setting, "setting").name())) {
+                throw new IllegalArgumentException(setting.name() + " is not one of this module's settings()");
+            }
+            if (setting.parse(setting.format(value)).isEmpty()) {
+                throw new IllegalArgumentException(value + " is not valid for " + setting.name());
+            }
+            if (core.onGameThread()) {
+                changeSetting(e, setting.name(), value);
+            } else {
+                sink.record(DiagnosticEvent.offThread("set " + setting.name() + " " + e.id, "setting not changed"));
+            }
+        }
+
+        @Override
+        public Subscription command(String name, String help, Consumer<CommandCall> handler) {
+            if (!usable("command")) {
+                return () -> { };
+            }
+            return addCommand(e, name, help, handler);
+        }
+
+        @Override
+        public ActionResult showOverlay(List<OverlayShape> shapes) {
+            if (!core.onGameThread()) {
+                return core.showOverlay(e.id, shapes);
+            }
+            if (e.state != ModuleState.RUNNING) {
+                return ActionResult.rejected(RejectionReason.AUTHORITY_INVALIDATED, "module is " + e.state);
+            }
+            return core.showOverlay(e.id, shapes);
+        }
+
+        @Override
+        public ActionResult showMessage(String text) {
+            if (!core.onGameThread()) {
+                return core.showMessage(e.id, text);
+            }
+            if (e.state != ModuleState.RUNNING) {
+                return ActionResult.rejected(RejectionReason.AUTHORITY_INVALIDATED, "module is " + e.state);
+            }
+            return core.showMessage(e.id, text);
         }
 
         @Override
@@ -796,6 +1041,32 @@ public final class ModuleHost {
             }
             setState(e, ModuleState.DISCOVERED, "enabled");
             return true;
+        }
+
+        @Override
+        public List<SettingInfo> settings(ModuleId module) {
+            Entry e = modules.get(module);
+            if (!core.onGameThread() || e == null) {
+                return List.of();
+            }
+            List<SettingInfo> out = new ArrayList<>();
+            e.settings.forEach((n, st) -> out.add(new SettingInfo(n, st.description(), formatted(st, e.values.get(n)),
+                    formatted(st, st.defaultValue()))));
+            return out;
+        }
+
+        @Override
+        public boolean setSetting(ModuleId module, String name, String value) {
+            Entry e = modules.get(module);
+            if (!core.onGameThread() || e == null || name == null) {
+                return false;
+            }
+            Setting<?> setting = e.settings.get(name);
+            if (setting == null) {
+                return false;
+            }
+            Optional<?> parsed = setting.parse(value);
+            return parsed.isPresent() && changeSetting(e, name, parsed.get());
         }
     }
 

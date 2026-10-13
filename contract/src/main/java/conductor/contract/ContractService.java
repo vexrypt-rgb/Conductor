@@ -445,4 +445,119 @@ public final class ContractService implements Conductor {
         }
         return ActionResult.done(kind.name());
     }
+
+    // ---- local messages and game events ----
+
+    static final int MAX_MESSAGES_PER_TICK = 20;
+    private long messageTick = Long.MIN_VALUE;
+    private int messagesThisTick;
+
+    @Override
+    public ActionResult showMessage(String text) {
+        return showMessage(ModuleId.CORE, text);
+    }
+
+    ActionResult showMessage(ModuleId module, String text) {
+        if (!runtime.isGameThread()) {
+            sink.record(DiagnosticEvent.offThread("showMessage " + module, "rejected before any game call"));
+            return ActionResult.rejected(RejectionReason.OFF_THREAD, "call was not on the game thread");
+        }
+        if (text == null || text.isBlank() || text.length() > 1000) {
+            return ActionResult.rejected(RejectionReason.INVALID_ARGUMENT, "text must be 1-1000 characters");
+        }
+        Optional<ActionPort> port = runtime.actions();
+        if (port.isEmpty()) {
+            return ActionResult.rejected(RejectionReason.NO_ACTIONS, "runtime offers no actions");
+        }
+        long tick = runtime.currentTick();
+        if (messageTick != tick) {
+            messageTick = tick;
+            messagesThisTick = 0;
+        }
+        if (messagesThisTick >= MAX_MESSAGES_PER_TICK) {
+            return ActionResult.rejected(RejectionReason.RATE_LIMITED, MAX_MESSAGES_PER_TICK + " lines per tick");
+        }
+        String line = module.equals(ModuleId.CORE) ? text : "[" + module.value() + "] " + text;
+        try {
+            Optional<String> problem = port.get().showMessage(line);
+            if (problem.isPresent()) {
+                return ActionResult.rejected(RejectionReason.ENGINE_DECLINED, problem.get());
+            }
+        } catch (RuntimeException | LinkageError e) {
+            sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.PROVIDER_FAULT, tick, contexts.current().orElse(null), "showMessage", e.toString()));
+            return ActionResult.rejected(RejectionReason.ENGINE_DECLINED, "game call threw: " + e);
+        }
+        messagesThisTick++;
+        return ActionResult.done("shown");
+    }
+
+    /** Host API, game thread: events collected by the runtime since the last call. */
+    List<GameEvent> drainEvents() {
+        Optional<EventPort> port = runtime.events();
+        if (port.isEmpty()) {
+            return List.of();
+        }
+        try {
+            return port.get().drain();
+        } catch (RuntimeException | LinkageError e) {
+            sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.PROVIDER_FAULT, runtime.currentTick(),
+                    contexts.current().orElse(null), "events", e.toString()));
+            return List.of();
+        }
+    }
+
+    /** Host API: lines starting with {@code prefix} become commands (null: off). */
+    void interceptCommands(String prefix) {
+        runtime.events().ifPresent(p -> p.interceptCommands(prefix));
+    }
+
+    // ---- overlays ----
+
+    static final int MAX_SHAPES_PER_MODULE = 4096;
+    private final java.util.Map<ModuleId, List<OverlayShape>> overlays = new java.util.LinkedHashMap<>();
+
+    @Override
+    public ActionResult showOverlay(List<OverlayShape> shapes) {
+        return showOverlay(ModuleId.CORE, shapes);
+    }
+
+    ActionResult showOverlay(ModuleId module, List<OverlayShape> shapes) {
+        if (!runtime.isGameThread()) {
+            sink.record(DiagnosticEvent.offThread("showOverlay " + module, "rejected before any game call"));
+            return ActionResult.rejected(RejectionReason.OFF_THREAD, "call was not on the game thread");
+        }
+        if (shapes == null || shapes.size() > MAX_SHAPES_PER_MODULE || shapes.stream().anyMatch(java.util.Objects::isNull)) {
+            return ActionResult.rejected(RejectionReason.INVALID_ARGUMENT, "0-" + MAX_SHAPES_PER_MODULE + " shapes, none null");
+        }
+        Optional<OverlayPort> port = runtime.overlays();
+        if (port.isEmpty()) {
+            return ActionResult.rejected(RejectionReason.NO_ACTIONS, "runtime offers no overlays");
+        }
+        if (shapes.isEmpty()) {
+            overlays.remove(module);
+        } else {
+            overlays.put(module, List.copyOf(shapes));
+        }
+        return pushOverlays(port.get()) ? ActionResult.done(shapes.size() + " shapes") : ActionResult.rejected(RejectionReason.ENGINE_DECLINED, "renderer failed");
+    }
+
+    /** Host API: drop everything {@code module} draws (it stopped). */
+    void clearOverlay(ModuleId module) {
+        if (overlays.remove(module) != null) {
+            runtime.overlays().ifPresent(this::pushOverlays);
+        }
+    }
+
+    private boolean pushOverlays(OverlayPort port) {
+        List<OverlayShape> all = new java.util.ArrayList<>();
+        overlays.values().forEach(all::addAll);
+        try {
+            port.show(List.copyOf(all));
+            return true;
+        } catch (RuntimeException | LinkageError e) {
+            sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.PROVIDER_FAULT, runtime.currentTick(),
+                    contexts.current().orElse(null), "overlays", e.toString()));
+            return false;
+        }
+    }
 }

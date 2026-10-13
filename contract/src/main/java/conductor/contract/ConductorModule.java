@@ -37,6 +37,10 @@ public interface ConductorModule {
      * Optional parts of this module that need content which may not exist everywhere (see {@link ModuleFeature}).
      * Conductor checks them when the module starts; ask {@link ModuleContext#feature(String)} which are on.
      */
+    default java.util.List<Setting<?>> settings() {
+        return java.util.List.of();
+    }
+
     default java.util.List<ModuleFeature> features() {
         return java.util.List.of();
     }

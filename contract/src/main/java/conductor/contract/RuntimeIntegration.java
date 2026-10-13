@@ -43,6 +43,16 @@ public interface RuntimeIntegration {
         return Optional.empty();
     }
 
+    /** 3D overlays drawn in the world, if this runtime offers them. */
+    default Optional<OverlayPort> overlays() {
+        return Optional.empty();
+    }
+
+    /** Game events and chat-command interception, if this runtime offers them. */
+    default Optional<EventPort> events() {
+        return Optional.empty();
+    }
+
     /** One-shot player actions, if this runtime offers them. */
     default Optional<ActionPort> actions() {
         return Optional.empty();

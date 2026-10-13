@@ -238,6 +238,16 @@ final class MinecraftPlayerAccess implements PlayerAccess {
     }
 
     @Override
+    public Optional<String> showMessage(String text) {
+        Minecraft mc = ctx.minecraft();
+        if (mc.gui == null) {
+            return Optional.of("no game window");
+        }
+        mc.gui.getChat().addMessage(net.minecraft.network.chat.Component.literal(text));
+        return Optional.empty();
+    }
+
+    @Override
     public Optional<String> sendChat(String message) {
         LocalPlayer p = player();
         if (p == null || p.connection == null) {

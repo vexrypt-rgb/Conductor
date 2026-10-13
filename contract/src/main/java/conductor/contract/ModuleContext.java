@@ -39,10 +39,25 @@ public interface ModuleContext extends Conductor {
 
     <T> Subscription subscribe(Topic<T> topic, Consumer<T> handler);
 
+    /**
+     * Register a chat command: when the player types the command prefix (default {@code +}) followed by
+     * {@code name}, {@code handler} runs on the game thread at the end of that tick, and the line is not sent to the
+     * server. Names are case-insensitive and first come, first served.
+     *
+     * @throws IllegalArgumentException if another module or Conductor already has this name
+     */
+    Subscription command(String name, String help, Consumer<CommandCall> handler);
+
     /** Offer a service to other modules. Withdrawn automatically when this module stops. */
     <T> void provide(ServiceKey<T> key, T service);
 
     <T> Optional<T> service(ServiceKey<T> key);
+
+    /** The current value of one of this module's settings (its default until changed). */
+    <T> T get(Setting<T> setting);
+
+    /** Change one of this module's settings; saved at once. */
+    <T> void set(Setting<T> setting, T value);
 
     /** Whether this module's optional feature {@code name} is on (see {@link ConductorModule#features()}). */
     FeatureStatus feature(String name);
