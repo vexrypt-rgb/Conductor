@@ -23,12 +23,18 @@
 # offers no sRGB visual, so the client cannot open its window ("Couldn't find matching GLX visual"). For 26.x this
 # script sets SDL_VIDEO_FORCE_EGL=1 (unless it is already set), which needs Mesa's EGL (Debian/Ubuntu: libegl1
 # libegl-mesa0). Older versions use GLFW and GLX and are not affected.
+# Minecraft 1.10 to 1.12 use LWJGL 2, which lists display modes by running `xrandr -q` and parsing it. Without the
+# xrandr binary (Debian/Ubuntu: x11-xserver-utils) it finds no screen and the client dies in Display.<clinit>.
 # Output: <workdir>/prod-client.log, server.log, screenshot.png.
 set -euo pipefail
 
 WORK=$(realpath "$1")
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 MC=${MC:-1.21.11}
+case "$MC" in
+    1.1[0-2]|1.1[0-2].*)
+        command -v xrandr >/dev/null || { echo "xrandr not found: install x11-xserver-utils (LWJGL 2 needs it for display modes)"; exit 1; } ;;
+esac
 LOADER=${LOADER:-0.19.5}
 HOLD=${HOLD:-60}
 GAME="$WORK/prod-game"
