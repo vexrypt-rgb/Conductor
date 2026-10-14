@@ -65,7 +65,7 @@ public final class ConductorHostMod implements ClientModInitializer {
         }
         LOG.info("Conductor starting {} module(s) from {} and the classpath: {}", found.modules().size(), dir, found.modules().keySet());
         String configOverride = System.getProperty("conductor.configDir");
-        Path config = configOverride != null ? Path.of(configOverride) : FabricLoader.getInstance().getGameDir().resolve("conductor/config");
+        Path config = configOverride != null ? java.nio.file.Paths.get(configOverride) : FabricLoader.getInstance().getGameDir().resolve("conductor/config");
         ConductorBootstrap.start(found.modules(), new InMemoryDiagnosticSink(50_000), new FileSettingsStore(config));
     }
 }

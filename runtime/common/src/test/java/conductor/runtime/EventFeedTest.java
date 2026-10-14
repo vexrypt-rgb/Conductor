@@ -24,7 +24,7 @@ class EventFeedTest {
         assertTrue(feed.outgoingChat("+kit check"));
         assertFalse(feed.outgoingChat("hello"));
         assertFalse(feed.outgoingChat("+"), "a lone prefix is ordinary chat");
-        assertEquals(List.of(new GameEvent.CommandLine("+kit check")), feed.drain());
+        assertEquals(Jdk8.listOf(new GameEvent.CommandLine("+kit check")), feed.drain());
     }
 
     @Test
@@ -39,7 +39,7 @@ class EventFeedTest {
         feed.chunk(1, 2, true);
         feed.chunk(1, 2, false);
         feed.death();
-        assertEquals(List.of(new GameEvent.BlockChange(new BlockPoint(1, 64, 2), "minecraft:stone"),
+        assertEquals(Jdk8.listOf(new GameEvent.BlockChange(new BlockPoint(1, 64, 2), "minecraft:stone"),
                 new GameEvent.ChunkChange(1, 2, true), new GameEvent.ChunkChange(1, 2, false),
                 new GameEvent.PlayerDeath()), feed.drain());
         assertTrue(feed.drain().isEmpty());
@@ -52,7 +52,7 @@ class EventFeedTest {
         game.names.put(alex, "Alex");                    // learned before the game thread drains
         feed.chat("who?", UUID.randomUUID());
         feed.chat("[Server] restart", null);
-        assertEquals(List.of(new GameEvent.ChatMessage("hi", Optional.of("Alex")),
+        assertEquals(Jdk8.listOf(new GameEvent.ChatMessage("hi", Optional.of("Alex")),
                 new GameEvent.ChatMessage("who?", Optional.empty()),
                 new GameEvent.ChatMessage("[Server] restart", Optional.empty())), feed.drain());
     }
@@ -76,6 +76,6 @@ class EventFeedTest {
         }
         assertEquals(HookEventFeed.MAX_QUEUED, feed.drain().size());
         feed.death();
-        assertEquals(List.of(new GameEvent.PlayerDeath()), feed.drain(), "accepts again once drained");
+        assertEquals(Jdk8.listOf(new GameEvent.PlayerDeath()), feed.drain(), "accepts again once drained");
     }
 }

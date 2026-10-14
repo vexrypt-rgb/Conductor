@@ -21,13 +21,13 @@ class MobFilesTest {
     void jsonReadsWhatBlockbenchWrites() {
         Object v = MiniJson.parse("﻿{\"a\": [1, -2.5e1, \"x\\n\\u0041\"], \"b\": {\"c\": true, \"d\": null}}");
         Map<?, ?> m = (Map<?, ?>) v;
-        assertEquals(List.of(1.0, -25.0, "x\nA"), m.get("a"));
+        assertEquals(Jdk8.listOf(1.0, -25.0, "x\nA"), m.get("a"));
         assertEquals(Boolean.TRUE, ((Map<?, ?>) m.get("b")).get("c"));
         assertTrue(((Map<?, ?>) m.get("b")).containsKey("d"));
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> MiniJson.parse("{\n \"a\": [1,}"));
         assertTrue(e.getMessage().startsWith("JSON line 2"), e.getMessage());
         assertThrows(IllegalArgumentException.class, () -> MiniJson.parse("[1] x"));
-        assertThrows(IllegalArgumentException.class, () -> MiniJson.parse("[".repeat(100) + "]".repeat(100)));
+        assertThrows(IllegalArgumentException.class, () -> MiniJson.parse(Jdk8.repeat("[", 100) + Jdk8.repeat("]", 100)));
     }
 
     private static Molang.Context at(double animTime) {
@@ -54,28 +54,27 @@ class MobFilesTest {
         assertThrows(IllegalArgumentException.class, () -> Molang.parse("math.sin(1, 2)"));
         assertThrows(IllegalArgumentException.class, () -> Molang.parse("math.nope(1)"));
         assertThrows(IllegalArgumentException.class, () -> Molang.parse("1 +"));
-        assertThrows(IllegalArgumentException.class, () -> Molang.parse("(".repeat(200) + "1" + ")".repeat(200)));
+        assertThrows(IllegalArgumentException.class, () -> Molang.parse(Jdk8.repeat("(", 200) + "1" + Jdk8.repeat(")", 200)));
     }
 
     /** Vanilla's player arm and pig body, as Bedrock ships them, must come out as Java's own models build them. */
     @Test
     void bedrockGeometryLandsWhereJavasVanillaModelsAre() {
-        MobGeometry g = MobGeometry.parse("""
-                {"format_version": "1.12.0", "minecraft:geometry": [{
-                  "description": {"identifier": "geometry.test", "texture_width": 64, "texture_height": 32},
-                  "bones": [
-                    {"name": "body", "pivot": [0, 13, 2], "rotation": [90, 0, 0],
-                     "cubes": [{"origin": [-5, 7, -5], "size": [10, 16, 8], "uv": [28, 8]}]},
-                    {"name": "leftArm", "pivot": [5, 22, 0],
-                     "cubes": [{"origin": [4, 12, -2], "size": [4, 12, 4], "uv": [32, 48], "mirror": true}]},
-                    {"name": "head", "parent": "body", "pivot": [0, 24, 0],
-                     "cubes": [{"origin": [-4, 24, -4], "size": [8, 8, 8], "uv": [0, 0], "inflate": 0.5},
-                               {"origin": [-1, 30, -6], "size": [2, 2, 2], "uv": [0, 0], "pivot": [0, 31, -5], "rotation": [0, 0, 45]}]}
-                  ]}]}
-                """);
+        MobGeometry g = MobGeometry.parse(
+                "{\"format_version\": \"1.12.0\", \"minecraft:geometry\": [{\n"
+                    + "  \"description\": {\"identifier\": \"geometry.test\", \"texture_width\": 64, \"texture_height\": 32},\n"
+                    + "  \"bones\": [\n"
+                    + "    {\"name\": \"body\", \"pivot\": [0, 13, 2], \"rotation\": [90, 0, 0],\n"
+                    + "     \"cubes\": [{\"origin\": [-5, 7, -5], \"size\": [10, 16, 8], \"uv\": [28, 8]}]},\n"
+                    + "    {\"name\": \"leftArm\", \"pivot\": [5, 22, 0],\n"
+                    + "     \"cubes\": [{\"origin\": [4, 12, -2], \"size\": [4, 12, 4], \"uv\": [32, 48], \"mirror\": true}]},\n"
+                    + "    {\"name\": \"head\", \"parent\": \"body\", \"pivot\": [0, 24, 0],\n"
+                    + "     \"cubes\": [{\"origin\": [-4, 24, -4], \"size\": [8, 8, 8], \"uv\": [0, 0], \"inflate\": 0.5},\n"
+                    + "               {\"origin\": [-1, 30, -6], \"size\": [2, 2, 2], \"uv\": [0, 0], \"pivot\": [0, 31, -5], \"rotation\": [0, 0, 45]}]}\n"
+                    + "  ]}]}\n");
         assertEquals(64, g.textureWidth());
         assertEquals(32, g.textureHeight());
-        assertEquals(List.of("body", "head", "head$cube1", "leftArm"), g.boneNames());
+        assertEquals(Jdk8.listOf("body", "head", "head$cube1", "leftArm"), g.boneNames());
 
         // Java pig: PartPose.offsetAndRotation(0, 11, 2, PI/2, 0, 0), addBox(-5, -10, -7, 10, 16, 8), texOffs(28, 8)
         MobGeometry.Bone body = g.roots().get(0);
@@ -129,16 +128,15 @@ class MobFilesTest {
 
     @Test
     void animationsInterpolateLoopAndAddUp() {
-        MobAnimations anims = MobAnimations.parse("""
-                {"format_version": "1.8.0", "animations": {
-                  "animation.golem.walk": {"loop": true, "animation_length": 1.0, "bones": {
-                    "leg": {"rotation": {"0.0": [0, 0, 0], "0.5": [40, 0, 0], "1.0": [0, 0, 0]}}}},
-                  "animation.golem.slam": {"animation_length": 0.5, "bones": {
-                    "body": {"position": [0, "math.sin(q.anim_time * 360) * 4", 0], "scale": 2},
-                    "arm": {"rotation": {"0.0": {"pre": [0, 0, 0], "post": [-90, 0, 0]}, "0.5": [0, 0, 0]}}}},
-                  "animation.golem.idle": {"loop": "hold_on_last_frame", "bones": {"head": {"rotation": [0, 10, 0]}}}
-                }}
-                """);
+        MobAnimations anims = MobAnimations.parse(
+                "{\"format_version\": \"1.8.0\", \"animations\": {\n"
+                    + "  \"animation.golem.walk\": {\"loop\": true, \"animation_length\": 1.0, \"bones\": {\n"
+                    + "    \"leg\": {\"rotation\": {\"0.0\": [0, 0, 0], \"0.5\": [40, 0, 0], \"1.0\": [0, 0, 0]}}}},\n"
+                    + "  \"animation.golem.slam\": {\"animation_length\": 0.5, \"bones\": {\n"
+                    + "    \"body\": {\"position\": [0, \"math.sin(q.anim_time * 360) * 4\", 0], \"scale\": 2},\n"
+                    + "    \"arm\": {\"rotation\": {\"0.0\": {\"pre\": [0, 0, 0], \"post\": [-90, 0, 0]}, \"0.5\": [0, 0, 0]}}}},\n"
+                    + "  \"animation.golem.idle\": {\"loop\": \"hold_on_last_frame\", \"bones\": {\"head\": {\"rotation\": [0, 10, 0]}}}\n"
+                    + "}}\n");
         MobAnimations.Animation walk = anims.find("walk");
         assertNotNull(walk);
         assertEquals(MobAnimations.Loop.LOOP, walk.loop());
@@ -166,7 +164,7 @@ class MobFilesTest {
         pose.clear();
         pose.apply(slam, 5, 1, at(0));
         assertEquals(0, pose.bones().get("arm")[0], E, "a finished animation rests on its last frame");
-        assertEquals(List.of("arm", "body"), anims.unknownBones(List.of("leg", "head")));
+        assertEquals(Jdk8.listOf("arm", "body"), anims.unknownBones(Jdk8.listOf("leg", "head")));
 
         assertThrows(IllegalArgumentException.class, () -> MobAnimations.parse("{\"animations\": {\"a\": {\"bones\": {\"b\": {\"rotation\": \"q.nope\"}}}}}"));
         assertThrows(IllegalArgumentException.class, () -> MobAnimations.parse("{\"animations\": {\"a\": {\"bones\": {\"b\": {\"rotation\": {\"x\": [0, 0, 0]}}}}}}"));

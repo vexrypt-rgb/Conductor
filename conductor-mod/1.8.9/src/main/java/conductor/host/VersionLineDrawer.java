@@ -16,7 +16,56 @@ import java.util.List;
 public final class VersionLineDrawer implements LineDrawer {
 
     /** What the render hook passes per frame: the camera's rotation and position. */
-    public record Frame(float pitch, float yaw, double x, double y, double z) {}
+    public static final class Frame {
+        private final float pitch;
+        private final float yaw;
+        private final double x;
+        private final double y;
+        private final double z;
+
+        public Frame(float pitch, float yaw, double x, double y, double z) {
+            this.pitch = pitch;
+            this.yaw = yaw;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
+
+        public float pitch() {
+            return pitch;
+        }
+
+        public float yaw() {
+            return yaw;
+        }
+
+        public double x() {
+            return x;
+        }
+
+        public double y() {
+            return y;
+        }
+
+        public double z() {
+            return z;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Frame)) return false;
+            Frame other = (Frame) o;
+            return java.util.Objects.equals(this.pitch, other.pitch) && java.util.Objects.equals(this.yaw, other.yaw) && java.util.Objects.equals(this.x, other.x) && java.util.Objects.equals(this.y, other.y) && java.util.Objects.equals(this.z, other.z);
+        }
+
+        @Override public int hashCode() {
+            return java.util.Objects.hash(pitch, yaw, x, y, z);
+        }
+
+        @Override public String toString() {
+            return "Frame[" + "pitch=" + pitch + ", yaw=" + yaw + ", x=" + x + ", y=" + y + ", z=" + z + "]";
+        }
+    }
 
     private static final float WIDTH = 2.0F;
 

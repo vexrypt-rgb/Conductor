@@ -11,7 +11,7 @@ import java.util.List;
  */
 final class OverlayRenderer implements OverlayPort {
 
-    private volatile List<OverlayShape> shapes = List.of();
+    private volatile List<OverlayShape> shapes = Jdk8.listOf();
     private final LineDrawer drawer;
 
     OverlayRenderer(LineDrawer drawer) {
@@ -20,7 +20,7 @@ final class OverlayRenderer implements OverlayPort {
 
     @Override
     public void show(List<OverlayShape> shapes) {
-        this.shapes = List.copyOf(shapes);
+        this.shapes = Jdk8.copyList(shapes);
     }
 
     /** Render thread (the game thread), once per frame, from the render hook. */

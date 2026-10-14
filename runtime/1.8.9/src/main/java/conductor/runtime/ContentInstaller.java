@@ -16,11 +16,11 @@ public final class ContentInstaller {
 
     /** No content blocks, so no see-through render layers to set. */
     public static Map<Object, Object> renderLayers() {
-        return Map.of();
+        return Jdk8.mapOf();
     }
 
     /** No content mobs, so no renderers to add. */
     public static Map<Object, Object> mobs() {
-        return Map.of();
+        return Jdk8.mapOf();
     }
 }

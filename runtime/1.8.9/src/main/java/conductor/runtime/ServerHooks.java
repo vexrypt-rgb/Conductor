@@ -104,7 +104,7 @@ public final class ServerHooks {
 
         @Override
         public List<String> getAliases() {
-            return List.of();
+            return Jdk8.listOf();
         }
 
         @Override
@@ -112,8 +112,8 @@ public final class ServerHooks {
             ServerCommand c = r.command();
             try {
                 Access a = access(MinecraftServer.getServer());
-                Optional<OnlinePlayer> player = src instanceof ServerPlayerEntity p ? Optional.of(a.info(p)) : Optional.empty();
-                List<String> list = args.length == 0 ? List.of() : Arrays.asList(args);
+                Optional<OnlinePlayer> player = src instanceof ServerPlayerEntity ? Optional.of(a.info((ServerPlayerEntity) src)) : Optional.empty();
+                List<String> list = args.length == 0 ? Jdk8.listOf() : Arrays.asList(args);
                 String reply = ServerModules.get().run(r, a, new ServerCommand.Call(c.name(), list, src.getName().asUnformattedString(), player));
                 if (reply != null) {
                     src.sendMessage(new LiteralText(reply));
@@ -133,7 +133,7 @@ public final class ServerHooks {
 
         @Override
         public List<String> getAutoCompleteHints(CommandSource src, String[] args, BlockPos pos) {
-            return List.of();
+            return Jdk8.listOf();
         }
 
         @Override
@@ -155,7 +155,31 @@ public final class ServerHooks {
         return access;
     }
 
-    private record Access(MinecraftServer server) implements ServerModules.Server {
+    private static final class Access implements ServerModules.Server {
+        private final MinecraftServer server;
+
+        public Access(MinecraftServer server) {
+            this.server = server;
+        }
+
+        public MinecraftServer server() {
+            return server;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Access)) return false;
+            Access other = (Access) o;
+            return java.util.Objects.equals(this.server, other.server);
+        }
+
+        @Override public int hashCode() {
+            return java.util.Objects.hash(server);
+        }
+
+        @Override public String toString() {
+            return "Access[" + "server=" + server + "]";
+        }
 
         OnlinePlayer info(ServerPlayerEntity p) {
             return new OnlinePlayer(p.getName().asUnformattedString(), p.getUuid().toString(),

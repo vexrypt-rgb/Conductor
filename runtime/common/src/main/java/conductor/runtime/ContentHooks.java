@@ -11,15 +11,15 @@ import java.util.Map;
  */
 public final class ContentHooks {
 
-    private static volatile ContentPlan plan = new ContentPlan(java.util.List.of(), java.util.List.of());
-    private static volatile Map<String, Path> jars = Map.of();
+    private static volatile ContentPlan plan = new ContentPlan(Jdk8.listOf(), Jdk8.listOf());
+    private static volatile Map<String, Path> jars = Jdk8.mapOf();
 
     private ContentHooks() {}
 
     /** Before the game starts (pre-launch). {@code jars}: module id to the jar its assets and data come from. */
     public static void plan(ContentPlan contentPlan, Map<String, Path> moduleJars) {
         plan = contentPlan;
-        jars = Map.copyOf(moduleJars);
+        jars = Jdk8.copyMap(moduleJars);
     }
 
     public static ContentPlan plan() {

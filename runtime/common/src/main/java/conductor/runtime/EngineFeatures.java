@@ -34,8 +34,8 @@ final class EngineFeatures {
         t.put("ostinato:combat/buckets", "baritone.process.CombatBuckets");
         t.put("ostinato:combat/mending", "baritone.process.CombatMending");
         t.put("ostinato:pvp/autotune", "baritone.process.CombatTuner");
-        TABLE = Map.copyOf(t);
-        IDS = List.copyOf(t.keySet());
+        TABLE = Jdk8.copyMap(t);
+        IDS = Jdk8.copyList(t.keySet());
     }
 
     static final List<String> IDS;
@@ -73,6 +73,6 @@ final class EngineFeatures {
     }
 
     List<String> present() {
-        return IDS.stream().filter(id -> check(ContentId.engine(id)).isPresent()).toList();
+        return IDS.stream().filter(id -> check(ContentId.engine(id)).isPresent()).collect(java.util.stream.Collectors.toList());
     }
 }

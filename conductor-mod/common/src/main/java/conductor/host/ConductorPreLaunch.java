@@ -33,7 +33,7 @@ public final class ConductorPreLaunch implements PreLaunchEntrypoint {
             ContentHooks.plan(plan, found.jars());
             if (!found.content().isEmpty()) {
                 LOG.info("Conductor content modules: {} found, {} accepted {}", found.content().size(), plan.entries().size(),
-                        plan.entries().stream().map(ContentPlan.Entry::namespace).toList());
+                        plan.entries().stream().map(ContentPlan.Entry::namespace).collect(java.util.stream.Collectors.toList()));
             }
         } catch (Throwable t) {
             LOG.error("Conductor could not look for modules; continuing without them", t);

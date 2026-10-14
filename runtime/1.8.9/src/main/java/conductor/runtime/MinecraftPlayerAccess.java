@@ -95,12 +95,12 @@ final class MinecraftPlayerAccess implements PlayerAccess {
             if (distance > radius) {
                 continue;
             }
-            OptionalDouble health = e instanceof LivingEntity living ? OptionalDouble.of(living.getHealth()) : OptionalDouble.empty();
+            OptionalDouble health = e instanceof LivingEntity ? OptionalDouble.of(((LivingEntity) e).getHealth()) : OptionalDouble.empty();
             found.add(new EntityInfo(e.getEntityId(), String.valueOf(EntityType.getIdByEntity(e)), e.getName().asUnformattedString(),
                     e.x, e.y, e.z, distance, health, e instanceof PlayerEntity, e instanceof HostileEntity));
         }
         found.sort(Comparator.comparingDouble(EntityInfo::distance));
-        return found.size() > max ? List.copyOf(found.subList(0, max)) : List.copyOf(found);
+        return found.size() > max ? Jdk8.copyList(found.subList(0, max)) : Jdk8.copyList(found);
     }
 
     @Override
@@ -118,7 +118,7 @@ final class MinecraftPlayerAccess implements PlayerAccess {
                         stack.getDamage(), stack.isDamageable() ? stack.getMaxDamage() : 0));
             }
         }
-        return List.copyOf(slots);
+        return Jdk8.copyList(slots);
     }
 
     @Override
@@ -139,7 +139,7 @@ final class MinecraftPlayerAccess implements PlayerAccess {
                     effect.getAmplifier(), effect.getDuration()));
         }
         effects.sort(Comparator.comparing(EffectInfo::effect));
-        return List.copyOf(effects);
+        return Jdk8.copyList(effects);
     }
 
     // ---- WorldPort ----
@@ -157,7 +157,7 @@ final class MinecraftPlayerAccess implements PlayerAccess {
     public List<BlockPoint> findBlocks(Set<String> blockIds, BlockPoint center, int radius, int limit) {
         ClientWorld level = level();
         if (level == null) {
-            return List.of();
+            return Jdk8.listOf();
         }
         Map<Block, Boolean> matches = new HashMap<>();
         List<BlockPoint> found = new ArrayList<>();
@@ -180,7 +180,7 @@ final class MinecraftPlayerAccess implements PlayerAccess {
             long dx = b.x() - center.x(), dy = b.y() - center.y(), dz = b.z() - center.z();
             return dx * dx + dy * dy + dz * dz;
         }));
-        return found.size() > limit ? List.copyOf(found.subList(0, limit)) : List.copyOf(found);
+        return found.size() > limit ? Jdk8.copyList(found.subList(0, limit)) : Jdk8.copyList(found);
     }
 
     private static boolean loaded(ClientWorld level, int chunkX, int chunkZ) {

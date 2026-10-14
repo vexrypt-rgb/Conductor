@@ -44,7 +44,7 @@ class ModuleDiscoveryTest {
         Path src = tmp.resolve("src-" + name).resolve(pkg.replace('.', '/'));
         Files.createDirectories(src);
         Path file = src.resolve(name + ".java");
-        Files.writeString(file, "package " + pkg + ";\n" + body);
+        Files.write(file, ("package " + pkg + ";\n" + body).getBytes(StandardCharsets.UTF_8));
         Path classes = tmp.resolve("classes-" + name);
         Files.createDirectories(classes);
         JavaCompiler javac = ToolProvider.getSystemJavaCompiler();
@@ -68,7 +68,7 @@ class ModuleDiscoveryTest {
         moduleJar("Alpha", "test.a", "test.a.Alpha");
         moduleJar("Beta", "test.b", "test.b.Beta");
         ModuleDiscovery.Found found = ModuleDiscovery.discover(tmp.resolve("modules"), getClass().getClassLoader());
-        assertEquals(java.util.List.of("alpha", "beta"), java.util.List.copyOf(found.modules().keySet()));
+        assertEquals(Jdk8.listOf("alpha", "beta"), Jdk8.copyList(found.modules().keySet()));
         assertEquals("test.a.Alpha", found.modules().get("alpha").getClass().getName());
         assertTrue(found.problems().isEmpty(), found.problems()::toString);
         // the module's own class loader, but the contract it implements is the running Conductor's
@@ -81,7 +81,7 @@ class ModuleDiscoveryTest {
         moduleJar("Good", "test.g", "test.g.Good");
         moduleJar("Bad", "test.x", "test.x.DoesNotExist");
         ModuleDiscovery.Found found = ModuleDiscovery.discover(tmp.resolve("modules"), getClass().getClassLoader());
-        assertEquals(java.util.Set.of("good"), found.modules().keySet());
+        assertEquals(Jdk8.setOf("good"), found.modules().keySet());
         assertEquals(1, found.problems().size(), found.problems()::toString);
     }
 
@@ -97,14 +97,14 @@ class ModuleDiscoveryTest {
         moduleJar("Alpha", "test.a", "test.a.Alpha");
         Path gems = contentJar("Gems", "test.c", "gems");
         ModuleDiscovery.Found content = ModuleDiscovery.discoverContent(tmp.resolve("modules"), getClass().getClassLoader());
-        assertEquals(java.util.Set.of("gems"), content.content().keySet());
+        assertEquals(Jdk8.setOf("gems"), content.content().keySet());
         assertTrue(content.modules().isEmpty(), "no behaviour module is created before the game starts");
         assertEquals(gems, content.jars().get("gems"));
         conductor.contract.ContentPlan plan = conductor.contract.ContentPlan.of(content.content());
         assertEquals("gems:gem", plan.entries().get(0).items().get(0).id());
 
         ModuleDiscovery.Found modules = ModuleDiscovery.discover(tmp.resolve("modules"), getClass().getClassLoader());
-        assertEquals(java.util.Set.of("alpha"), modules.modules().keySet());
+        assertEquals(Jdk8.setOf("alpha"), modules.modules().keySet());
         assertTrue(modules.content().isEmpty());
     }
 
@@ -114,7 +114,7 @@ class ModuleDiscoveryTest {
         jar("Greeter", "test.s", ModuleDiscovery.SERVER_SERVICE_FILE, "test.s.Greeter",
                 "public final class Greeter implements conductor.contract.ServerModule {}\n");
         ModuleDiscovery.Found server = ModuleDiscovery.discoverServer(tmp.resolve("modules"), getClass().getClassLoader());
-        assertEquals(java.util.Set.of("greeter"), server.server().keySet());
+        assertEquals(Jdk8.setOf("greeter"), server.server().keySet());
         assertTrue(server.modules().isEmpty());
         assertTrue(server.problems().isEmpty(), server.problems()::toString);
         assertTrue(ModuleDiscovery.discover(tmp.resolve("modules"), getClass().getClassLoader()).server().isEmpty());

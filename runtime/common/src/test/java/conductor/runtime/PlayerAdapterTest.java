@@ -39,13 +39,13 @@ class PlayerAdapterTest {
         public PlayerMotion motion() { return present ? new PlayerMotion(0.5, 64, 0.5, 0, -0.08, 0, 90, 10) : null; }
         public List<EntityInfo> entities(double radius, int max) {
             lastRadius = radius;
-            return present ? List.of(new EntityInfo(7, "minecraft:zombie", "Zombie", 3, 64, 0, 2.5, OptionalDouble.of(20), false, true)) : null;
+            return present ? Jdk8.listOf(new EntityInfo(7, "minecraft:zombie", "Zombie", 3, 64, 0, 2.5, OptionalDouble.of(20), false, true)) : null;
         }
-        public List<SlotInfo> slots() { return present ? List.of(new SlotInfo(0, "minecraft:iron_sword", 1, 3, 250)) : null; }
+        public List<SlotInfo> slots() { return present ? Jdk8.listOf(new SlotInfo(0, "minecraft:iron_sword", 1, 3, 250)) : null; }
         public Integer selectedSlot() { return present ? 0 : null; }
-        public List<EffectInfo> effects() { return present ? List.of() : null; }
+        public List<EffectInfo> effects() { return present ? Jdk8.listOf() : null; }
         public Optional<String> blockAt(BlockPoint at) { return Optional.of("minecraft:grass_block"); }
-        public List<BlockPoint> findBlocks(Set<String> ids, BlockPoint center, int radius, int limit) { return List.of(center); }
+        public List<BlockPoint> findBlocks(Set<String> ids, BlockPoint center, int radius, int limit) { return Jdk8.listOf(center); }
         public Optional<String> selectHotbar(int slot) { calls.add("hotbar " + slot); return Optional.empty(); }
         public Optional<String> look(double yaw, double pitch) { calls.add("look"); return Optional.empty(); }
         public Optional<String> attack(int id) { calls.add("attack " + id); return Optional.empty(); }
@@ -75,30 +75,30 @@ class PlayerAdapterTest {
 
     @Test
     void everyNewObservationIsRoutedToThePlayerAccess() {
-        assertEquals(20.0, read(ObservationKinds.PLAYER_STATUS).orElseThrow().health());
-        assertEquals(90.0, read(ObservationKinds.PLAYER_MOTION).orElseThrow().yaw());
-        assertEquals("minecraft:zombie", read(ObservationKinds.NEARBY_ENTITIES).orElseThrow().get(0).type());
+        assertEquals(20.0, read(ObservationKinds.PLAYER_STATUS).get().health());
+        assertEquals(90.0, read(ObservationKinds.PLAYER_MOTION).get().yaw());
+        assertEquals("minecraft:zombie", read(ObservationKinds.NEARBY_ENTITIES).get().get(0).type());
         assertEquals(CoreRuntime.ENTITY_RADIUS, player.lastRadius);
-        assertEquals(250, read(ObservationKinds.INVENTORY_SLOTS).orElseThrow().get(0).maxDamage());
+        assertEquals(250, read(ObservationKinds.INVENTORY_SLOTS).get().get(0).maxDamage());
         assertEquals(Optional.of(0), read(ObservationKinds.SELECTED_SLOT));
-        assertEquals(Optional.of(List.of()), read(ObservationKinds.ACTIVE_EFFECTS));
+        assertEquals(Optional.of(Jdk8.listOf()), read(ObservationKinds.ACTIVE_EFFECTS));
     }
 
     @Test
     void withoutAPlayerReadsAreNotObservedNotZero() {
         player.present = false;
         assertEquals(Availability.NOT_OBSERVED,
-                conductor.observe(ObservationKinds.PLAYER_STATUS, FreshnessPolicy.sameTick()).observation().orElseThrow().availability());
+                conductor.observe(ObservationKinds.PLAYER_STATUS, FreshnessPolicy.sameTick()).observation().get().availability());
     }
 
     @Test
     void actionsAndBlockQueriesReachTheGameAndDiscoveryListsThem() {
         assertTrue(conductor.selectHotbar(2).isAccepted());
         assertTrue(conductor.sendChat("/help").isAccepted());
-        assertEquals(List.of("hotbar 2", "chat /help"), player.calls);
+        assertEquals(Jdk8.listOf("hotbar 2", "chat /help"), player.calls);
         assertEquals(Optional.of("minecraft:grass_block"), conductor.blockAt(new BlockPoint(0, 63, 0)).block());
         CapabilityDescriptor actions = conductor.discover().capabilities().stream()
-                .filter(c -> c.id().equals(CoreRuntime.ACTIONS)).findFirst().orElseThrow();
+                .filter(c -> c.id().equals(CoreRuntime.ACTIONS)).findFirst().get();
         assertEquals(CoreRuntime.ACTION_OPERATIONS, actions.operations());
     }
 }

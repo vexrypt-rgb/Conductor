@@ -14,7 +14,37 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class CustomMobAssets {
 
     /** What a custom mob is drawn with. */
-    public record Loaded(MobGeometry geometry, MobAnimations animations) {
+    public static final class Loaded {
+        private final MobGeometry geometry;
+        private final MobAnimations animations;
+
+        public Loaded(MobGeometry geometry, MobAnimations animations) {
+            this.geometry = geometry;
+            this.animations = animations;
+        }
+
+        public MobGeometry geometry() {
+            return geometry;
+        }
+
+        public MobAnimations animations() {
+            return animations;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Loaded)) return false;
+            Loaded other = (Loaded) o;
+            return java.util.Objects.equals(this.geometry, other.geometry) && java.util.Objects.equals(this.animations, other.animations);
+        }
+
+        @Override public int hashCode() {
+            return java.util.Objects.hash(geometry, animations);
+        }
+
+        @Override public String toString() {
+            return "Loaded[" + "geometry=" + geometry + ", animations=" + animations + "]";
+        }
     }
 
     private static final Map<String, Optional<Loaded>> CACHE = new ConcurrentHashMap<>();
@@ -23,7 +53,7 @@ public final class CustomMobAssets {
 
     /** The custom mob's files for this Minecraft version, or null if it has none or they could not be read. */
     public static Loaded get(MobDeclaration d, String minecraft) {
-        if (d.custom().isEmpty()) {
+        if (!d.custom().isPresent()) {
             return null;
         }
         return CACHE.computeIfAbsent(d.id(), id -> load(d, minecraft)).orElse(null);

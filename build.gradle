@@ -17,7 +17,7 @@ ext.mcTargets = [
     // Minecraft 1.12.2 on Legacy Fabric (no Mojang names; legacy Yarn names), no movement engine yet.
     '1.12.2' : [legacy: true, legacyFabric: true, yarn: 604, noEngine: true, loader: '0.19.5'],
     // Minecraft 1.8.9 on Legacy Fabric (legacy Yarn 1.8.9 build 604), no movement engine yet and no content.
-    '1.8.9' : [legacy: true, legacyFabric: true, yarn: 604, noEngine: true, loader: '0.19.5'],
+    '1.8.9' : [legacy: true, legacyFabric: true, yarn: 604, noEngine: true, loader: '0.19.5', release: 8],
     // The year-numbered releases: Mojang ships them unobfuscated (no intermediary) and they need Java 25. No engine
     // layer yet. 26.2 is the same shape as 26.3 (its renderer is still the one 26.3 changed; see the live run).
     '26.2'   : [noEngine: true, unobfuscated: true, java: 25, loader: '0.19.5'],

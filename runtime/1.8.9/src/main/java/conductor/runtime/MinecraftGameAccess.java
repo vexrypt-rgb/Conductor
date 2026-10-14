@@ -5,6 +5,8 @@ import conductor.contract.ContentId;
 import conductor.contract.ContentResult;
 import net.minecraft.block.Block;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.EntityType;
@@ -88,8 +90,8 @@ final class MinecraftGameAccess implements GameAccess {
 
     @Override
     public String playerName(UUID id) {
-        var connection = minecraft().getNetworkHandler();
-        var info = connection == null ? null : connection.getPlayerListEntry(id);
+        ClientPlayNetworkHandler connection = minecraft().getNetworkHandler();
+        PlayerListEntry info = connection == null ? null : connection.getPlayerListEntry(id);
         return info == null ? null : info.getProfile().getName();
     }
 
@@ -142,13 +144,24 @@ final class MinecraftGameAccess implements GameAccess {
         if (key == null) {
             return null;
         }
-        Boolean present = switch (kind) {
-            case ITEM -> Item.REGISTRY.containsKey(key);
-            case BLOCK -> Block.REGISTRY.containsKey(key);
-            case ENTITY -> EntityType.getEntityNames().contains(key.getPath());
-            case EFFECT -> StatusEffect.get(key.getPath()) != null;
-            default -> null;
-        };
+        Boolean present;
+        switch (kind) {
+            case ITEM:
+                present = Item.REGISTRY.containsKey(key);
+                break;
+            case BLOCK:
+                present = Block.REGISTRY.containsKey(key);
+                break;
+            case ENTITY:
+                present = EntityType.getEntityNames().contains(key.getPath());
+                break;
+            case EFFECT:
+                present = StatusEffect.get(key.getPath()) != null;
+                break;
+            default:
+                present = null;
+                break;
+        }
         if (present == null) {
             return null;
         }

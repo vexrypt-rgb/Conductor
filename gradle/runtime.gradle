@@ -8,6 +8,10 @@ if (target.java) {
     java.toolchain.languageVersion = JavaLanguageVersion.of(target.java)
     tasks.withType(JavaCompile).configureEach { options.release = target.java }
 }
+// Legacy runtimes run on Java 8: compile their code (and the contract it uses) against the Java 8 API and bytecode.
+if (target.release) {
+    tasks.withType(JavaCompile).configureEach { options.release = target.release }
+}
 
 repositories {
     maven { url = 'https://maven.fabricmc.net/' }

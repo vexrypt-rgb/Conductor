@@ -40,11 +40,58 @@ public final class ModuleDiscovery {
      * module id came from (modules found on the game's classpath have none), plus problems that kept a jar or class
      * from loading.
      */
-    public record Found(Map<String, ConductorModule> modules, Map<String, ContentModule> content,
-                        Map<String, ServerModule> server, Map<String, Path> jars, List<String> problems) {
+    public static final class Found {
+        private final Map<String, ConductorModule> modules;
+        private final Map<String, ContentModule> content;
+        private final Map<String, ServerModule> server;
+        private final Map<String, Path> jars;
+        private final List<String> problems;
+
+        public Found(Map<String, ConductorModule> modules, Map<String, ContentModule> content, Map<String, ServerModule> server, Map<String, Path> jars, List<String> problems) {
+            this.modules = modules;
+            this.content = content;
+            this.server = server;
+            this.jars = jars;
+            this.problems = problems;
+        }
+
+        public Map<String, ConductorModule> modules() {
+            return modules;
+        }
+
+        public Map<String, ContentModule> content() {
+            return content;
+        }
+
+        public Map<String, ServerModule> server() {
+            return server;
+        }
+
+        public Map<String, Path> jars() {
+            return jars;
+        }
+
+        public List<String> problems() {
+            return problems;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Found)) return false;
+            Found other = (Found) o;
+            return java.util.Objects.equals(this.modules, other.modules) && java.util.Objects.equals(this.content, other.content) && java.util.Objects.equals(this.server, other.server) && java.util.Objects.equals(this.jars, other.jars) && java.util.Objects.equals(this.problems, other.problems);
+        }
+
+        @Override public int hashCode() {
+            return java.util.Objects.hash(modules, content, server, jars, problems);
+        }
+
+        @Override public String toString() {
+            return "Found[" + "modules=" + modules + ", content=" + content + ", server=" + server + ", jars=" + jars + ", problems=" + problems + "]";
+        }
 
         public Found(Map<String, ConductorModule> modules, List<String> problems) {
-            this(modules, Map.of(), Map.of(), Map.of(), problems);
+            this(modules, Jdk8.mapOf(), Jdk8.mapOf(), Jdk8.mapOf(), problems);
         }
     }
 
@@ -80,9 +127,9 @@ public final class ModuleDiscovery {
         if (modulesDir != null && Files.isDirectory(modulesDir)) {
             List<Path> jars;
             try (Stream<Path> listing = Files.list(modulesDir)) {
-                jars = listing.filter(p -> p.getFileName().toString().endsWith(".jar")).sorted().toList();
+                jars = listing.filter(p -> p.getFileName().toString().endsWith(".jar")).sorted().collect(java.util.stream.Collectors.toList());
             } catch (IOException e) {
-                jars = List.of();
+                jars = Jdk8.listOf();
                 problems.add("cannot list " + modulesDir + ": " + e);
             }
             for (Path jar : jars) {
@@ -91,9 +138,15 @@ public final class ModuleDiscovery {
         }
         if (game != null) {
             switch (kind) {
-                case BEHAVIOUR -> load(ServiceLoader.load(ConductorModule.class, game), null, "classpath", modules, problems);
-                case CONTENT -> load(ServiceLoader.load(ContentModule.class, game), null, "classpath", content, problems);
-                case SERVER -> load(ServiceLoader.load(ServerModule.class, game), null, "classpath", server, problems);
+                case BEHAVIOUR:
+                    load(ServiceLoader.load(ConductorModule.class, game), null, "classpath", modules, problems);
+                    break;
+                case CONTENT:
+                    load(ServiceLoader.load(ContentModule.class, game), null, "classpath", content, problems);
+                    break;
+                case SERVER:
+                    load(ServiceLoader.load(ServerModule.class, game), null, "classpath", server, problems);
+                    break;
             }
         }
         return new Found(modules, content, server, jarOf, problems);
@@ -111,11 +164,11 @@ public final class ModuleDiscovery {
         }
         String name = jar.getFileName().toString();
         String source = name.substring(0, name.length() - 4);
-        List<String> ids = switch (kind) {
-            case BEHAVIOUR -> load(ServiceLoader.load(ConductorModule.class, loader), loader, source, modules, problems);
-            case CONTENT -> load(ServiceLoader.load(ContentModule.class, loader), loader, source, content, problems);
-            case SERVER -> load(ServiceLoader.load(ServerModule.class, loader), loader, source, server, problems);
-        };
+        List<String> ids = kind == Kind.BEHAVIOUR
+                ? load(ServiceLoader.load(ConductorModule.class, loader), loader, source, modules, problems)
+                : kind == Kind.CONTENT
+                ? load(ServiceLoader.load(ContentModule.class, loader), loader, source, content, problems)
+                : load(ServiceLoader.load(ServerModule.class, loader), loader, source, server, problems);
         ids.forEach(id -> jarOf.put(id, jar));
     }
 
@@ -124,21 +177,21 @@ public final class ModuleDiscovery {
     private static <M> List<String> load(ServiceLoader<M> services, ClassLoader only, String source,
                                          Map<String, M> modules, List<String> problems) {
         List<String> added = new ArrayList<>();
-        java.util.Iterator<ServiceLoader.Provider<M>> it = services.stream().iterator();
+        java.util.Iterator<M> it = services.iterator();
         while (true) {
-            ServiceLoader.Provider<M> provider;
+            M module;
             try {
                 if (!it.hasNext()) {
                     return added;
                 }
-                provider = it.next();
+                module = it.next();
             } catch (java.util.ServiceConfigurationError | LinkageError e) {
                 // a broken entry; the service loader carries on with the next one
                 problems.add(source + ": " + e);
                 continue;
             }
             try {
-                Class<? extends M> type = provider.type();
+                Class<?> type = module.getClass();
                 if (only != null && type.getClassLoader() != only) {
                     continue;
                 }
@@ -147,7 +200,7 @@ public final class ModuleDiscovery {
                 }
                 String id = only != null ? source : type.getName();
                 String key = modules.containsKey(id) ? id + "/" + type.getSimpleName() : id;
-                modules.put(key, provider.get());
+                modules.put(key, module);
                 added.add(key);
             } catch (java.util.ServiceConfigurationError | RuntimeException | LinkageError e) {
                 problems.add(source + ": module could not be created: " + e);

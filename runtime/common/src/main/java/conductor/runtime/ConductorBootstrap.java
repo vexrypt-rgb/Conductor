@@ -30,7 +30,7 @@ public final class ConductorBootstrap {
 
     /** Start one module, with a fresh in-memory diagnostic sink. */
     public static void start(ConductorModule module) {
-        start(new LinkedHashMap<>(Map.of(module.getClass().getName(), module)), new InMemoryDiagnosticSink(10_000));
+        start(new LinkedHashMap<>(Jdk8.mapOf(module.getClass().getName(), module)), new InMemoryDiagnosticSink(10_000));
     }
 
     public static void start(Map<String, ConductorModule> modules, DiagnosticSink sink) {

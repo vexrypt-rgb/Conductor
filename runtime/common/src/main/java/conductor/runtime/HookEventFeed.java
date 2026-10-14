@@ -24,7 +24,38 @@ final class HookEventFeed implements EventPort {
     static final int MAX_QUEUED = 50_000;
 
     /** A player chat line whose sender name is resolved on the game thread. */
-    private record PendingChat(String text, UUID sender) {}
+    private static final class PendingChat {
+        private final String text;
+        private final UUID sender;
+
+        public PendingChat(String text, UUID sender) {
+            this.text = text;
+            this.sender = sender;
+        }
+
+        public String text() {
+            return text;
+        }
+
+        public UUID sender() {
+            return sender;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof PendingChat)) return false;
+            PendingChat other = (PendingChat) o;
+            return java.util.Objects.equals(this.text, other.text) && java.util.Objects.equals(this.sender, other.sender);
+        }
+
+        @Override public int hashCode() {
+            return java.util.Objects.hash(text, sender);
+        }
+
+        @Override public String toString() {
+            return "PendingChat[" + "text=" + text + ", sender=" + sender + "]";
+        }
+    }
 
     private final ConcurrentLinkedQueue<Object> queue = new ConcurrentLinkedQueue<>();
     private final AtomicInteger queued = new AtomicInteger();
@@ -55,7 +86,8 @@ final class HookEventFeed implements EventPort {
         Object next;
         while ((next = queue.poll()) != null) {
             queued.decrementAndGet();
-            if (next instanceof PendingChat chat) {
+            if (next instanceof PendingChat) {
+                PendingChat chat = (PendingChat) next;
                 out.add(new GameEvent.ChatMessage(chat.text(), Optional.ofNullable(game.playerName(chat.sender()))));
             } else {
                 out.add((GameEvent) next);

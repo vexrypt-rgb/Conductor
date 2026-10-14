@@ -19,7 +19,7 @@ class OverlayGeometryTest {
 
     @Test
     void aBlockIsTwelveEdgesRelativeToTheCamera() {
-        List<LineDrawer.LineBatch> batches = OverlayGeometry.batches(List.of(OverlayShape.block(new BlockPoint(10, 63, -5), 0xFFFF0000)), CAMERA);
+        List<LineDrawer.LineBatch> batches = OverlayGeometry.batches(Jdk8.listOf(OverlayShape.block(new BlockPoint(10, 63, -5), 0xFFFF0000)), CAMERA);
         assertEquals(1, batches.size());
         float[] s = batches.get(0).segments();
         assertEquals(12 * 6, s.length);
@@ -31,13 +31,13 @@ class OverlayGeometryTest {
 
     @Test
     void aTracerStartsJustAheadOfTheCamera() {
-        float[] s = OverlayGeometry.batches(List.of(OverlayShape.tracer(10, 64, 5, 0xFF00FF00)), CAMERA).get(0).segments();
+        float[] s = OverlayGeometry.batches(Jdk8.listOf(OverlayShape.tracer(10, 64, 5, 0xFF00FF00)), CAMERA).get(0).segments();
         assertArrayEquals(new float[]{0, 0, (float) OverlayGeometry.TRACER_START, 0, 0, 10}, s);
     }
 
     @Test
     void shapesAreBatchedByColourAndDepthMode() {
-        List<LineDrawer.LineBatch> batches = OverlayGeometry.batches(List.of(
+        List<LineDrawer.LineBatch> batches = OverlayGeometry.batches(Jdk8.listOf(
                 OverlayShape.line(0, 0, 0, 1, 1, 1, 0xFFFFFFFF),
                 OverlayShape.line(0, 0, 0, 2, 2, 2, 0xFFFFFFFF),
                 OverlayShape.line(0, 0, 0, 1, 1, 1, 0xFFFFFFFF).throughWalls(true),
@@ -58,10 +58,10 @@ class OverlayGeometryTest {
         });
         renderer.render("frame");
         assertTrue(drawn.isEmpty());
-        renderer.show(List.of(OverlayShape.tracer(0, 0, 0, -1)));
+        renderer.show(Jdk8.listOf(OverlayShape.tracer(0, 0, 0, -1)));
         renderer.render("frame");
         assertEquals(1, drawn.size());
-        renderer.show(List.of());
+        renderer.show(Jdk8.listOf());
         renderer.render("frame");
         assertEquals(1, drawn.size());
     }

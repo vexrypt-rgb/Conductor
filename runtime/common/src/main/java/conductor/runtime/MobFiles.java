@@ -44,7 +44,13 @@ public final class MobFiles {
                 throw new IOException(path + " is larger than 8 MiB");
             }
             try (InputStream in = zip.getInputStream(entry)) {
-                byte[] bytes = in.readNBytes((int) MAX_SIZE + 1);
+                java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+                byte[] buf = new byte[8192];
+                int n;
+                while (out.size() <= MAX_SIZE && (n = in.read(buf)) != -1) {
+                    out.write(buf, 0, n);
+                }
+                byte[] bytes = out.toByteArray();
                 if (bytes.length > MAX_SIZE) {
                     throw new IOException(path + " is larger than 8 MiB");
                 }

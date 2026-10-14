@@ -53,7 +53,37 @@ public final class ServerModules {
     }
 
     /** A module's command, with the module that added it. */
-    public record Registered(String moduleId, ServerCommand command) {
+    public static final class Registered {
+        private final String moduleId;
+        private final ServerCommand command;
+
+        public Registered(String moduleId, ServerCommand command) {
+            this.moduleId = moduleId;
+            this.command = command;
+        }
+
+        public String moduleId() {
+            return moduleId;
+        }
+
+        public ServerCommand command() {
+            return command;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Registered)) return false;
+            Registered other = (Registered) o;
+            return java.util.Objects.equals(this.moduleId, other.moduleId) && java.util.Objects.equals(this.command, other.command);
+        }
+
+        @Override public int hashCode() {
+            return java.util.Objects.hash(moduleId, command);
+        }
+
+        @Override public String toString() {
+            return "Registered[" + "moduleId=" + moduleId + ", command=" + command + "]";
+        }
     }
 
     private static final class Entry {
@@ -68,7 +98,37 @@ public final class ServerModules {
         }
     }
 
-    private record Chat(String uuid, String message) {
+    private static final class Chat {
+        private final String uuid;
+        private final String message;
+
+        public Chat(String uuid, String message) {
+            this.uuid = uuid;
+            this.message = message;
+        }
+
+        public String uuid() {
+            return uuid;
+        }
+
+        public String message() {
+            return message;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Chat)) return false;
+            Chat other = (Chat) o;
+            return java.util.Objects.equals(this.uuid, other.uuid) && java.util.Objects.equals(this.message, other.message);
+        }
+
+        @Override public int hashCode() {
+            return java.util.Objects.hash(uuid, message);
+        }
+
+        @Override public String toString() {
+            return "Chat[" + "uuid=" + uuid + ", message=" + message + "]";
+        }
     }
 
     private final List<Entry> entries = new ArrayList<>();
@@ -76,7 +136,7 @@ public final class ServerModules {
     private final Log log;
     private final Queue<Chat> chats = new ConcurrentLinkedQueue<>();
     private Server server;
-    private Map<String, OnlinePlayer> seen = Map.of();
+    private Map<String, OnlinePlayer> seen = Jdk8.mapOf();
 
     public ServerModules(Map<String, ServerModule> modules, Log log) {
         this.log = log;
@@ -85,7 +145,7 @@ public final class ServerModules {
         for (Entry e : entries) {
             List<ServerCommand> declared;
             try {
-                declared = List.copyOf(e.module.commands());
+                declared = Jdk8.copyList(e.module.commands());
             } catch (RuntimeException | LinkageError t) {
                 fail(e, "commands", t);
                 continue;
@@ -102,12 +162,12 @@ public final class ServerModules {
     }
 
     public List<String> moduleIds() {
-        return entries.stream().map(e -> e.id).toList();
+        return entries.stream().map(e -> e.id).collect(java.util.stream.Collectors.toList());
     }
 
     /** Every module's commands, first come first served by name. Vanilla's own names are checked by the caller. */
     public List<Registered> commands() {
-        return List.copyOf(commands);
+        return Jdk8.copyList(commands);
     }
 
     /** True while a server is running with these modules started. */
@@ -129,7 +189,7 @@ public final class ServerModules {
         }
         if (server == null) {
             server = s;
-            seen = Map.of();
+            seen = Jdk8.mapOf();
             chats.clear();
             for (Entry e : entries) {
                 e.control = new Control(e.id, s);
@@ -177,7 +237,7 @@ public final class ServerModules {
         }
         each("stopping", m -> m.module.stopping(m.control));
         server = null;
-        seen = Map.of();
+        seen = Jdk8.mapOf();
         chats.clear();
         for (Entry e : entries) {
             e.control = null;
@@ -190,7 +250,7 @@ public final class ServerModules {
      * @throws ServerCommand.Failure an error answer for the sender: the handler's own, or that the module is off
      */
     public String run(Registered r, Server s, ServerCommand.Call call) {
-        Entry e = entries.stream().filter(x -> x.id.equals(r.moduleId())).findFirst().orElseThrow();
+        Entry e = entries.stream().filter(x -> x.id.equals(r.moduleId())).findFirst().get();
         if (e.off) {
             throw ServerCommand.fail("/" + r.command().name() + " is off: its module (" + e.id + ") failed earlier; see the server log");
         }
@@ -314,7 +374,7 @@ public final class ServerModules {
         synchronized (ServerModules.class) {
             if (instance == null) {
                 Log log = log4j();
-                Map<String, ServerModule> found = Map.of();
+                Map<String, ServerModule> found = Jdk8.mapOf();
                 try {
                     ModuleDiscovery.Found f = ModuleDiscovery.discoverServer(modulesDir, loader != null ? loader
                             : ServerModules.class.getClassLoader());

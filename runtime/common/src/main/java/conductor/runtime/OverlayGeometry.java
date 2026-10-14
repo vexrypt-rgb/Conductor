@@ -24,10 +24,16 @@ final class OverlayGeometry {
             List<Float> out = groups.computeIfAbsent(key, k -> new ArrayList<>());
             firsts.putIfAbsent(key, s);
             switch (s.kind()) {
-                case BOX -> box(out, s.x1() - cx, s.y1() - cy, s.z1() - cz, s.x2() - cx, s.y2() - cy, s.z2() - cz);
-                case LINE -> segment(out, s.x1() - cx, s.y1() - cy, s.z1() - cz, s.x2() - cx, s.y2() - cy, s.z2() - cz);
-                case TRACER -> segment(out, camera[3] * TRACER_START, camera[4] * TRACER_START, camera[5] * TRACER_START,
-                        s.x1() - cx, s.y1() - cy, s.z1() - cz);
+                case BOX:
+                    box(out, s.x1() - cx, s.y1() - cy, s.z1() - cz, s.x2() - cx, s.y2() - cy, s.z2() - cz);
+                    break;
+                case LINE:
+                    segment(out, s.x1() - cx, s.y1() - cy, s.z1() - cz, s.x2() - cx, s.y2() - cy, s.z2() - cz);
+                    break;
+                case TRACER:
+                    segment(out, camera[3] * TRACER_START, camera[4] * TRACER_START, camera[5] * TRACER_START,
+                            s.x1() - cx, s.y1() - cy, s.z1() - cz);
+                    break;
             }
         }
         List<LineDrawer.LineBatch> batches = new ArrayList<>();
