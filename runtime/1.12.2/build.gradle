@@ -1,0 +1,2 @@
+ext.mc = '1.12.2'
+apply from: rootProject.file('gradle/runtime.gradle')

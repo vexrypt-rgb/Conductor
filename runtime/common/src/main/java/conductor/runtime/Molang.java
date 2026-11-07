@@ -263,17 +263,25 @@ public final class Molang {
 
     private Expr name(String name) {
         String q = name.startsWith("q.") ? "query." + name.substring(2) : name;
-        return switch (q) {
-            case "math.pi" -> constant(Math.PI);
-            case "query.anim_time" -> Context::animTime;
-            case "query.life_time" -> Context::lifeTime;
-            case "query.modified_distance_moved" -> Context::distanceMoved;
-            case "query.modified_move_speed" -> Context::moveSpeed;
-            case "true" -> constant(1);
-            case "false" -> constant(0);
-            default -> throw error("unknown name '" + name + "' (supported: query.anim_time, query.life_time, "
+        switch (q) {
+            case "math.pi":
+                return constant(Math.PI);
+            case "query.anim_time":
+                return Context::animTime;
+            case "query.life_time":
+                return Context::lifeTime;
+            case "query.modified_distance_moved":
+                return Context::distanceMoved;
+            case "query.modified_move_speed":
+                return Context::moveSpeed;
+            case "true":
+                return constant(1);
+            case "false":
+                return constant(0);
+            default:
+                throw error("unknown name '" + name + "' (supported: query.anim_time, query.life_time, "
                     + "query.modified_distance_moved, query.modified_move_speed, math.pi)");
-        };
+        }
     }
 
     private Expr function(String name, List<Expr> a) {
@@ -281,40 +289,59 @@ public final class Molang {
         if (f == null) {
             throw error("unknown function '" + name + "'");
         }
-        return switch (f) {
-            case "sin" -> one(f, a, v -> Math.sin(Math.toRadians(v)));
-            case "cos" -> one(f, a, v -> Math.cos(Math.toRadians(v)));
-            case "asin" -> one(f, a, v -> Math.toDegrees(Math.asin(v)));
-            case "acos" -> one(f, a, v -> Math.toDegrees(Math.acos(v)));
-            case "atan" -> one(f, a, v -> Math.toDegrees(Math.atan(v)));
-            case "abs" -> one(f, a, Math::abs);
-            case "sqrt" -> one(f, a, Math::sqrt);
-            case "floor" -> one(f, a, Math::floor);
-            case "ceil" -> one(f, a, Math::ceil);
-            case "round" -> one(f, a, v -> (double) Math.round(v));
-            case "trunc" -> one(f, a, v -> v < 0 ? Math.ceil(v) : Math.floor(v));
-            case "exp" -> one(f, a, Math::exp);
-            case "ln" -> one(f, a, Math::log);
-            case "atan2" -> two(f, a, (y, x) -> Math.toDegrees(Math.atan2(y, x)));
-            case "min" -> two(f, a, Math::min);
-            case "max" -> two(f, a, Math::max);
-            case "pow" -> two(f, a, Math::pow);
-            case "mod" -> two(f, a, (x, y) -> y == 0 ? 0 : x % y);
-            case "clamp" -> {
+        switch (f) {
+            case "sin":
+                return one(f, a, v -> Math.sin(Math.toRadians(v)));
+            case "cos":
+                return one(f, a, v -> Math.cos(Math.toRadians(v)));
+            case "asin":
+                return one(f, a, v -> Math.toDegrees(Math.asin(v)));
+            case "acos":
+                return one(f, a, v -> Math.toDegrees(Math.acos(v)));
+            case "atan":
+                return one(f, a, v -> Math.toDegrees(Math.atan(v)));
+            case "abs":
+                return one(f, a, Math::abs);
+            case "sqrt":
+                return one(f, a, Math::sqrt);
+            case "floor":
+                return one(f, a, Math::floor);
+            case "ceil":
+                return one(f, a, Math::ceil);
+            case "round":
+                return one(f, a, v -> (double) Math.round(v));
+            case "trunc":
+                return one(f, a, v -> v < 0 ? Math.ceil(v) : Math.floor(v));
+            case "exp":
+                return one(f, a, Math::exp);
+            case "ln":
+                return one(f, a, Math::log);
+            case "atan2":
+                return two(f, a, (y, x) -> Math.toDegrees(Math.atan2(y, x)));
+            case "min":
+                return two(f, a, Math::min);
+            case "max":
+                return two(f, a, Math::max);
+            case "pow":
+                return two(f, a, Math::pow);
+            case "mod":
+                return two(f, a, (x, y) -> y == 0 ? 0 : x % y);
+            case "clamp": {
                 arity(f, a, 3);
                 Expr v = a.get(0), lo = a.get(1), hi = a.get(2);
-                yield c -> Math.max(lo.eval(c), Math.min(hi.eval(c), v.eval(c)));
+                return c -> Math.max(lo.eval(c), Math.min(hi.eval(c), v.eval(c)));
             }
-            case "lerp" -> {
+            case "lerp": {
                 arity(f, a, 3);
                 Expr x = a.get(0), y = a.get(1), t = a.get(2);
-                yield c -> {
+                return c -> {
                     double from = x.eval(c);
                     return from + (y.eval(c) - from) * t.eval(c);
                 };
             }
-            default -> throw error("unknown function '" + name + "'");
-        };
+            default:
+                throw error("unknown function '" + name + "'");
+        }
     }
 
     private Expr one(String f, List<Expr> a, java.util.function.DoubleUnaryOperator op) {

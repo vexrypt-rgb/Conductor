@@ -64,8 +64,8 @@ public final class ConductorLog {
 
     private static synchronized void print(java.io.PrintStream stream, String level, String message, Object[] args) {
         stream.println("[" + Thread.currentThread().getName() + "/" + level + "] (conductor) " + format(message, args));
-        if (args.length > 0 && args[args.length - 1] instanceof Throwable t && placeholders(message) < args.length) {
-            t.printStackTrace(stream);
+        if (args.length > 0 && args[args.length - 1] instanceof Throwable && placeholders(message) < args.length) {
+            ((Throwable) args[args.length - 1]).printStackTrace(stream);
         }
     }
 

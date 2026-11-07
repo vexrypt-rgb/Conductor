@@ -19,7 +19,7 @@ public final class ContentDeclarations {
     /** Minecraft's own rule for paths. */
     public static final Pattern PATH = Pattern.compile("[a-z0-9_./-]+");
     /** Namespaces a module may not use: the game's own, and ones loaders reserve. */
-    public static final Set<String> RESERVED = Set.of("minecraft", "realms", "brigadier", "c", "fabric", "forge", "neoforge", "conductor");
+    public static final Set<String> RESERVED = Jdk8.setOf("minecraft", "realms", "brigadier", "c", "fabric", "forge", "neoforge", "conductor");
     /** Tab ids are checked for syntax only; whether the tab exists is checked by the runtime. */
     static final Pattern TAB = Pattern.compile("[a-z0-9_.-]+:[a-z0-9_./-]+");
     /** More boxes than this make outline checks slow; real models have far fewer. */
@@ -60,8 +60,42 @@ public final class ContentDeclarations {
     }
 
     /** The checked result. */
-    public record Checked(String namespace, List<ItemDeclaration> items, List<BlockDeclaration> blocks, List<MobDeclaration> mobs,
-                          List<String> problems) {
+    public static final class Checked {
+        private final String namespace;
+        private final List<ItemDeclaration> items;
+        private final List<BlockDeclaration> blocks;
+        private final List<MobDeclaration> mobs;
+        private final List<String> problems;
+
+        public Checked(String namespace, List<ItemDeclaration> items, List<BlockDeclaration> blocks, List<MobDeclaration> mobs, List<String> problems) {
+            this.namespace = namespace;
+            this.items = items;
+            this.blocks = blocks;
+            this.mobs = mobs;
+            this.problems = problems;
+        }
+
+        public String namespace() { return namespace; }
+
+        public List<ItemDeclaration> items() { return items; }
+
+        public List<BlockDeclaration> blocks() { return blocks; }
+
+        public List<MobDeclaration> mobs() { return mobs; }
+
+        public List<String> problems() { return problems; }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Checked)) return false;
+            Checked other = (Checked) o;
+            return java.util.Arrays.deepEquals(new Object[] {this.namespace, this.items, this.blocks, this.mobs, this.problems}, new Object[] {other.namespace, other.items, other.blocks, other.mobs, other.problems});
+        }
+
+        @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.namespace, this.items, this.blocks, this.mobs, this.problems}); }
+
+        @Override public String toString() { return "Checked[" + "namespace=" + namespace + ", " + "items=" + items + ", " + "blocks=" + blocks + ", " + "mobs=" + mobs + ", " + "problems=" + problems + "]"; }
+
         public boolean ok() {
             return problems.isEmpty();
         }
@@ -128,7 +162,7 @@ public final class ContentDeclarations {
                 problems.add("block " + d.id() + ": only MODEL blocks have boxes");
             }
             d.sounds().ifPresent(s -> {
-                for (String sound : List.of(s.breakSound(), s.step(), s.place(), s.hit(), s.fall())) {
+                for (String sound : Jdk8.listOf(s.breakSound(), s.step(), s.place(), s.hit(), s.fall())) {
                     if (sound == null || !TAB.matcher(sound).matches()) {
                         problems.add("block " + d.id() + ": sound '" + sound + "' is not a namespace:path id");
                     }
@@ -196,8 +230,8 @@ public final class ContentDeclarations {
             d.custom().ifPresent(c -> custom(d.id(), c, problems));
             checkedMobs.add(d);
         }
-        return new Checked(namespace, List.copyOf(checkedItems), List.copyOf(checkedBlocks), List.copyOf(checkedMobs),
-                List.copyOf(problems));
+        return new Checked(namespace, Jdk8.copyList(checkedItems), Jdk8.copyList(checkedBlocks), Jdk8.copyList(checkedMobs),
+                Jdk8.copyList(problems));
     }
 
     private static void range(MobDeclaration d, String what, java.util.OptionalDouble value, double min, double max, List<String> problems) {
@@ -235,7 +269,7 @@ public final class ContentDeclarations {
         c.boss().filter(b -> b.color() == null || b.style() == null)
                 .ifPresent(b -> problems.add("mob " + id + ": boss bar colour and style must be set"));
         MobDeclaration.Sounds s = c.sounds();
-        java.util.stream.Stream.of(s.ambient(), s.hurt(), s.death(), s.step()).flatMap(java.util.Optional::stream)
+        java.util.stream.Stream.of(s.ambient(), s.hurt(), s.death(), s.step()).flatMap(o -> o.map(java.util.stream.Stream::of).orElseGet(java.util.stream.Stream::empty))
                 .filter(sound -> !TAB.matcher(sound).matches())
                 .forEach(sound -> problems.add("mob " + id + ": sound '" + sound + "' must be namespace:path"));
     }

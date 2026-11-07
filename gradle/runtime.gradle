@@ -8,6 +8,10 @@ if (target.java) {
     java.toolchain.languageVersion = JavaLanguageVersion.of(target.java)
     tasks.withType(JavaCompile).configureEach { options.release = target.java }
 }
+// Legacy runtimes run on Java 8: compile their code (and the contract it uses) against the Java 8 API and bytecode.
+if (target.release) {
+    tasks.named('compileJava', JavaCompile) { options.release = target.release } // main sources only: the shared tests use newer APIs
+}
 
 repositories {
     if (target.ancient) {
@@ -43,12 +47,18 @@ unimined.minecraft {
     } else {
         version mc
         mappings {
-            if (!target.unobfuscated) {
-                intermediary()
-            }
-            mojmap()
-            if (target.parchment) {
-                parchment(mc, target.parchment)
+            if (target.yarn) {
+                // Legacy Fabric: intermediary and legacy Yarn names (no Mojang names exist for this version)
+                legacyIntermediary()
+                legacyYarn(target.yarn)
+            } else {
+                if (!target.unobfuscated) {
+                    intermediary()
+                }
+                mojmap()
+                if (target.parchment) {
+                    parchment(mc, target.parchment)
+                }
             }
         }
     }

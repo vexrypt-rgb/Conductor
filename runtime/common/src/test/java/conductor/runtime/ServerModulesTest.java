@@ -86,7 +86,7 @@ class ServerModulesTest {
         Recorder(String id, List<String> events, ServerCommand... commands) {
             this.id = id;
             this.events = events;
-            this.commands = List.of(commands);
+            this.commands = Jdk8.listOf(commands);
         }
 
         public List<ServerCommand> commands() {
@@ -129,13 +129,13 @@ class ServerModulesTest {
     private static Map<String, ServerModule> modules(ServerModule... ms) {
         Map<String, ServerModule> map = new LinkedHashMap<>();
         for (int i = 0; i < ms.length; i++) {
-            map.put(ms[i] instanceof Recorder r ? r.id : "m" + i, ms[i]);
+            map.put(ms[i] instanceof Recorder ? ((Recorder) ms[i]).id : "m" + i, ms[i]);
         }
         return map;
     }
 
     private static ServerModules.Registered command(ServerModules sm, String name) {
-        return sm.commands().stream().filter(r -> r.command().name().equals(name)).findFirst().orElseThrow();
+        return sm.commands().stream().filter(r -> r.command().name().equals(name)).findFirst().get();
     }
 
     @Test
@@ -147,35 +147,35 @@ class ServerModulesTest {
 
         s.tick = 1;
         sm.tick(s);
-        assertEquals(List.of("a started", "a tick 1"), events);
+        assertEquals(Jdk8.listOf("a started", "a tick 1"), events);
         assertTrue(log.lines.contains("INFO Conductor server modules started on a dedicated server: [a]"), log.lines::toString);
 
         events.clear();
         s.tick = 2;
-        s.players = List.of(player("Alex", 20));
+        s.players = Jdk8.listOf(player("Alex", 20));
         sm.chat("uuid-Alex", "hello");
         sm.tick(s);
-        assertEquals(List.of("a joined Alex", "a chat Alex hello", "a tick 2"), events);
+        assertEquals(Jdk8.listOf("a joined Alex", "a chat Alex hello", "a tick 2"), events);
 
         events.clear();
         s.tick = 3;
-        s.players = List.of(player("Alex", 0), player("Steve", 20));
+        s.players = Jdk8.listOf(player("Alex", 0), player("Steve", 20));
         sm.tick(s);
-        assertEquals(List.of("a joined Steve", "a died Alex", "a tick 3"), events);
+        assertEquals(Jdk8.listOf("a joined Steve", "a died Alex", "a tick 3"), events);
 
         events.clear();
         s.tick = 4;
-        s.players = List.of(player("Alex", 0));
+        s.players = Jdk8.listOf(player("Alex", 0));
         sm.chat("uuid-Steve", "bye");
         sm.tick(s);
         // Steve's last message still arrives, from the tick he left in, before he leaves
-        assertEquals(List.of("a chat Steve bye", "a left Steve", "a tick 4"), events);
+        assertEquals(Jdk8.listOf("a chat Steve bye", "a left Steve", "a tick 4"), events);
 
         events.clear();
         s.tick = 5;
-        s.players = List.of(player("Alex", 20));
+        s.players = Jdk8.listOf(player("Alex", 20));
         sm.tick(s);
-        assertEquals(List.of("a tick 5"), events, "respawning is not a join");
+        assertEquals(Jdk8.listOf("a tick 5"), events, "respawning is not a join");
     }
 
     @Test
@@ -190,15 +190,15 @@ class ServerModulesTest {
         };
         ServerModules sm = new ServerModules(modules(bad, new Recorder("good", events)), log);
         FakeServer s = new FakeServer();
-        s.players = List.of(player("Alex", 20));
+        s.players = Jdk8.listOf(player("Alex", 20));
         sm.tick(s);
-        assertEquals(List.of("bad started", "good started", "good joined Alex", "good tick 0"), events);
+        assertEquals(Jdk8.listOf("bad started", "good started", "good joined Alex", "good tick 0"), events);
         assertTrue(log.lines.stream().anyMatch(l -> l.startsWith("ERROR Conductor server module bad threw in joined")),
                 log.lines::toString);
 
         ServerModules.Registered boom = command(sm, "boom");
         ServerCommand.Failure f = assertThrows(ServerCommand.Failure.class,
-                () -> sm.run(boom, s, new ServerCommand.Call("boom", List.of(), "Alex", Optional.empty())));
+                () -> sm.run(boom, s, new ServerCommand.Call("boom", Jdk8.listOf(), "Alex", Optional.empty())));
         assertEquals("/boom is off: its module (bad) failed earlier; see the server log", f.getMessage());
     }
 
@@ -218,7 +218,7 @@ class ServerModulesTest {
         FakeServer s = new FakeServer();
         s.tick = 7;
         sm.tick(s);
-        ServerCommand.Call call = new ServerCommand.Call("echo", List.of("x", "y"), "Server", Optional.empty());
+        ServerCommand.Call call = new ServerCommand.Call("echo", Jdk8.listOf("x", "y"), "Server", Optional.empty());
         assertEquals("7 x,y", sm.run(command(sm, "echo"), s, call));
 
         ServerCommand.Failure nope = assertThrows(ServerCommand.Failure.class,
@@ -232,7 +232,7 @@ class ServerModulesTest {
         assertThrows(ServerCommand.Failure.class, () -> sm.run(command(sm, "echo"), s, call));
         events.clear();
         sm.tick(s);
-        assertEquals(List.of(), events, "the module gets no more events");
+        assertEquals(Jdk8.listOf(), events, "the module gets no more events");
     }
 
     @Test
@@ -249,8 +249,8 @@ class ServerModulesTest {
             }
         };
         ServerModules sm = new ServerModules(modules(first, second, broken), log);
-        assertEquals(List.of("first/home", "second/spawn"),
-                sm.commands().stream().map(r -> r.moduleId() + "/" + r.command().name()).toList());
+        assertEquals(Jdk8.listOf("first/home", "second/spawn"),
+                sm.commands().stream().map(r -> r.moduleId() + "/" + r.command().name()).collect(java.util.stream.Collectors.toList()));
         assertTrue(log.lines.contains("WARN Conductor server module second: /home is already added by first; left out"),
                 log.lines::toString);
         assertTrue(log.lines.stream().anyMatch(l -> l.startsWith("ERROR Conductor server module m2 threw in commands")),
@@ -262,18 +262,18 @@ class ServerModulesTest {
         List<String> events = new ArrayList<>();
         ServerModules sm = new ServerModules(modules(new Recorder("a", events)), new ListLog());
         FakeServer s = new FakeServer();
-        s.players = List.of(player("Alex", 20));
+        s.players = Jdk8.listOf(player("Alex", 20));
         sm.tick(s);
         assertTrue(sm.running());
         sm.stop();
         assertFalse(sm.running());
         sm.stop();
-        assertEquals(List.of("a started", "a joined Alex", "a tick 0", "a stopping"), events, "stop is once");
+        assertEquals(Jdk8.listOf("a started", "a joined Alex", "a tick 0", "a stopping"), events, "stop is once");
 
         events.clear();
         sm.chat("uuid-Alex", "from the old server");
         sm.tick(s);
-        assertEquals(List.of("a started", "a joined Alex", "a tick 0"), events, "a new server: fresh joins, old chat dropped");
+        assertEquals(Jdk8.listOf("a started", "a joined Alex", "a tick 0"), events, "a new server: fresh joins, old chat dropped");
     }
 
     @Test
@@ -290,23 +290,23 @@ class ServerModulesTest {
         map.put("greeter", m);
         ServerModules sm = new ServerModules(map, log);
         FakeServer s = new FakeServer();
-        s.players = List.of(player("Alex", 20));
+        s.players = Jdk8.listOf(player("Alex", 20));
         sm.tick(s);
         ServerControl c = controls.get(0);
         c.runCommand("/time set noon");
         c.runCommand("say hi");
-        assertEquals(List.of("time set noon", "say hi"), s.ran);
+        assertEquals(Jdk8.listOf("time set noon", "say hi"), s.ran);
         assertTrue(log.lines.contains("INFO Conductor server module greeter runs /time set noon"), log.lines::toString);
         c.log("hello");
         assertTrue(log.lines.contains("INFO [greeter] hello"));
-        assertEquals("Alex", c.player("alex").orElseThrow().name());
-        assertTrue(c.player("Steve").isEmpty());
+        assertEquals("Alex", c.player("alex").get().name());
+        assertTrue(!c.player("Steve").isPresent());
         assertEquals(Optional.of("minecraft:stone"), c.blockAt("minecraft:overworld", 0, 0, 0));
     }
 
     @Test
     void withNoModulesNothingHappens() {
-        ServerModules sm = new ServerModules(Map.of(), new ListLog());
+        ServerModules sm = new ServerModules(Jdk8.mapOf(), new ListLog());
         FakeServer s = new FakeServer();
         sm.chat("x", "y");
         sm.tick(s);
@@ -320,7 +320,7 @@ class ServerModulesTest {
         assertThrows(IllegalArgumentException.class, () -> ServerCommand.of("Home", "", h));
         assertThrows(IllegalArgumentException.class, () -> ServerCommand.of("", "", h));
         assertThrows(IllegalArgumentException.class, () -> ServerCommand.of("a b", "", h));
-        assertThrows(IllegalArgumentException.class, () -> ServerCommand.of("x".repeat(33), "", h));
+        assertThrows(IllegalArgumentException.class, () -> ServerCommand.of(Jdk8.repeat("x", 33), "", h));
         assertEquals("ruby-home_2", ServerCommand.of("ruby-home_2", null, h).name());
         assertEquals("", ServerCommand.of("ok", null, h).help());
         assertTrue(ServerCommand.operator("op", "", h).operator());

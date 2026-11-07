@@ -21,6 +21,7 @@ import conductor.contract.ResourceState;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
@@ -42,7 +43,7 @@ class CoreRuntimeTest {
     private final FakeGameAccess game = new FakeGameAccess();
     private final InMemoryDiagnosticSink sink = new InMemoryDiagnosticSink(1000);
     /** Engine classes this fake build contains. */
-    private final Set<String> engineClasses = new java.util.HashSet<>(Set.of(
+    private final Set<String> engineClasses = new java.util.HashSet<>(Jdk8.setOf(
             "baritone.process.PvpProcess", "baritone.process.PveProcess"));
 
     private ConductorRuntime.Installed installed;
@@ -68,7 +69,7 @@ class CoreRuntimeTest {
     private <T> Observation<T> observe(conductor.contract.ObservationKind<T> kind) {
         ObservationResult<T> result = conductor.observe(kind, FreshnessPolicy.sameTick());
         assertTrue(result.isAccepted(), result::toString);
-        return result.observation().orElseThrow();
+        return result.observation().get();
     }
 
     // --- context identity from Conductor's own tick hook ---
@@ -77,7 +78,7 @@ class CoreRuntimeTest {
     void pollingTheGameDrivesContextIdentity() {
         assertEquals(Optional.empty(), context());
         ticks(1);
-        ContextId first = context().orElseThrow();
+        ContextId first = context().get();
 
         ticks(1);
         assertEquals(Optional.of(first), context(), "nothing changed, same context");
@@ -85,20 +86,20 @@ class CoreRuntimeTest {
         game.dimension = "minecraft:the_nether";
         game.level = new Object();
         ticks(1);
-        ContextId nether = context().orElseThrow();
+        ContextId nether = context().get();
         assertEquals(first.sessionId(), nether.sessionId());
         assertNotEquals(first.epoch(), nether.epoch());
         assertEquals("minecraft:the_nether", nether.dimension());
 
         game.level = new Object();                       // respawn: new world object, same dimension
         ticks(1);
-        ContextId respawned = context().orElseThrow();
+        ContextId respawned = context().get();
         assertEquals(nether.sessionId(), respawned.sessionId());
         assertNotEquals(nether.epoch(), respawned.epoch());
 
         game.connection = new Object();
         ticks(1);
-        assertNotEquals(respawned.sessionId(), context().orElseThrow().sessionId());
+        assertNotEquals(respawned.sessionId(), context().get().sessionId());
 
         game.level = null;
         ticks(1);
@@ -114,7 +115,7 @@ class CoreRuntimeTest {
     void observationFromBeforeADimensionChangeIsRejected() {
         ticks(1);
         FreshnessPolicy policy = FreshnessPolicy.maxAge(OptionalLong.of(100), Optional.empty());
-        Observation<?> before = conductor.observe(ObservationKinds.PLAYER_POSITION, policy).observation().orElseThrow();
+        Observation<?> before = conductor.observe(ObservationKinds.PLAYER_POSITION, policy).observation().get();
 
         game.dimension = "minecraft:the_end";
         game.level = new Object();
@@ -154,7 +155,7 @@ class CoreRuntimeTest {
     void inventoryIsReportedByRegistryIdAndNotObservedWithoutAPlayer() {
         ticks(1);
         game.inventory.put("minecraft:shield", 1);
-        assertEquals(Optional.of(java.util.Map.of("minecraft:iron_sword", 1, "minecraft:shield", 1)),
+        assertEquals(Optional.of(Jdk8.mapOf("minecraft:iron_sword", 1, "minecraft:shield", 1)),
                 observe(ObservationKinds.INVENTORY_ITEMS).observedValue());
         game.inventory = null;
         assertEquals(Availability.NOT_OBSERVED, observe(ObservationKinds.INVENTORY_ITEMS).availability());
@@ -195,10 +196,10 @@ class CoreRuntimeTest {
     @Test
     void discoveryShowsTheCoreAndNoEngine() {
         ticks(1);
-        var caps = conductor.discover().capabilities();
-        assertEquals(Set.of(CoreRuntime.PLAYER, CoreRuntime.WORLD, CoreRuntime.ACTIONS, CoreRuntime.EVENTS,
+        List<CapabilityDescriptor> caps = conductor.discover().capabilities();
+        assertEquals(Jdk8.setOf(CoreRuntime.PLAYER, CoreRuntime.WORLD, CoreRuntime.ACTIONS, CoreRuntime.EVENTS,
                 CoreRuntime.OVERLAYS, CoreRuntime.CONTENT), caps.stream().map(CapabilityDescriptor::id).collect(Collectors.toSet()));
-        CapabilityDescriptor content = caps.stream().filter(c -> c.id().equals(CoreRuntime.CONTENT)).findFirst().orElseThrow();
+        CapabilityDescriptor content = caps.stream().filter(c -> c.id().equals(CoreRuntime.CONTENT)).findFirst().get();
         assertTrue(content.detail().contains("engine none"), content.detail());
         assertTrue(content.detail().contains("[ostinato:pvp, ostinato:pve]"), content.detail());
         assertEquals(CapabilityAvailability.AVAILABLE, content.availability());

@@ -125,13 +125,27 @@ public final class MiniJson {
             }
             char e = s.charAt(i++);
             switch (e) {
-                case '"', '\\', '/' -> b.append(e);
-                case 'b' -> b.append('\b');
-                case 'f' -> b.append('\f');
-                case 'n' -> b.append('\n');
-                case 'r' -> b.append('\r');
-                case 't' -> b.append('\t');
-                case 'u' -> {
+                case '"':
+                case '\\':
+                case '/':
+                    b.append(e);
+                    break;
+                case 'b':
+                    b.append('\b');
+                    break;
+                case 'f':
+                    b.append('\f');
+                    break;
+                case 'n':
+                    b.append('\n');
+                    break;
+                case 'r':
+                    b.append('\r');
+                    break;
+                case 't':
+                    b.append('\t');
+                    break;
+                case 'u':
                     if (i + 4 > s.length()) {
                         throw error("bad \\u escape");
                     }
@@ -141,8 +155,9 @@ public final class MiniJson {
                         throw error("bad \\u escape");
                     }
                     i += 4;
-                }
-                default -> throw error("bad escape \\" + e);
+                    break;
+                default:
+                    throw error("bad escape \\" + e);
             }
         }
     }

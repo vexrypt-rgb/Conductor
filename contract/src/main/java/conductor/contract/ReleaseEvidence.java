@@ -27,7 +27,38 @@ import static conductor.contract.ObservationKinds.USE_KEY_HELD;
  * @param controller      the process the engine reports in control, if one was observed
  * @param reason          why the evidence is not quiet; empty when it is
  */
-record ReleaseEvidence(boolean pathingStopped, boolean quiet, Optional<String> controller, String reason) {
+final class ReleaseEvidence {
+    private final boolean pathingStopped;
+    private final boolean quiet;
+    private final Optional<String> controller;
+    private final String reason;
+
+    ReleaseEvidence(boolean pathingStopped, boolean quiet, Optional<String> controller, String reason) {
+        this.pathingStopped = pathingStopped;
+        this.quiet = quiet;
+        this.controller = controller;
+        this.reason = reason;
+    }
+
+    public boolean pathingStopped() { return pathingStopped; }
+
+    public boolean quiet() { return quiet; }
+
+    public Optional<String> controller() { return controller; }
+
+    public String reason() { return reason; }
+
+    @Override public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ReleaseEvidence)) return false;
+        ReleaseEvidence other = (ReleaseEvidence) o;
+        return java.util.Arrays.deepEquals(new Object[] {this.pathingStopped, this.quiet, this.controller, this.reason}, new Object[] {other.pathingStopped, other.quiet, other.controller, other.reason});
+    }
+
+    @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.pathingStopped, this.quiet, this.controller, this.reason}); }
+
+    @Override public String toString() { return "ReleaseEvidence[" + "pathingStopped=" + pathingStopped + ", " + "quiet=" + quiet + ", " + "controller=" + controller + ", " + "reason=" + reason + "]"; }
+
 
     static ReleaseEvidence sample(RuntimeIntegration runtime, Set<ObservationKind<?>> supported) {
         StringBuilder why = new StringBuilder();
@@ -48,7 +79,7 @@ record ReleaseEvidence(boolean pathingStopped, boolean quiet, Optional<String> c
         Optional<Optional<String>> c = observed(runtime, supported, CONTROLLING_PROCESS, why);
         if (c.isPresent()) {
             controller = c.get();
-            noController = controller.isEmpty();
+            noController = !controller.isPresent();
             if (!noController) {
                 why.append("controller ").append(controller.get()).append("; ");
             }

@@ -1,0 +1,26 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "conductor.host.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "BuiltInRegistriesMixin",
+    "CreativeModeTabMixin",
+    "PackRepositoryMixin",
+    "BuiltInPackSourceAccessor",
+    "DefaultAttributesMixin",
+    "MinecraftServerMixin",
+    "CommandsMixin",
+    "ServerChatMixin"
+  ],
+  "client": [
+    "IrisBlockIdsMixin",
+    "MinecraftMixin",
+    "ClientPacketListenerMixin",
+    "LevelExtractorMixin",
+    "EntityRenderersInvoker"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

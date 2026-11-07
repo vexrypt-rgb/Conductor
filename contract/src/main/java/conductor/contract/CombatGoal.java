@@ -8,7 +8,39 @@ import java.util.Objects;
  * The goal says <em>whom</em> to fight, never <em>how</em>. Which weapons and tricks the engine uses depends on the
  * engine build and on what exists in the game; ask with {@link Conductor#content(ContentId)}.
  */
-public record CombatGoal(Kind kind, String name) {
+public final class CombatGoal {
+    private final Kind kind;
+    private final String name;
+
+    public CombatGoal(Kind kind, String name) {
+        Objects.requireNonNull(kind, "kind");
+        boolean named = kind == Kind.PLAYER || kind == Kind.MOB;
+        if (named && (name == null || name.trim().isEmpty())) {
+        throw new IllegalArgumentException(kind + " needs a name");
+        }
+        if (!named && name != null) {
+        throw new IllegalArgumentException(kind + " takes no name");
+        }
+
+        this.kind = kind;
+        this.name = name;
+    }
+
+    public Kind kind() { return kind; }
+
+    public String name() { return name; }
+
+    @Override public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof CombatGoal)) return false;
+        CombatGoal other = (CombatGoal) o;
+        return java.util.Arrays.deepEquals(new Object[] {this.kind, this.name}, new Object[] {other.kind, other.name});
+    }
+
+    @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.kind, this.name}); }
+
+    @Override public String toString() { return "CombatGoal[" + "kind=" + kind + ", " + "name=" + name + "]"; }
+
 
     public enum Kind {
         /** One player, by name (case-insensitive). */
@@ -19,17 +51,6 @@ public record CombatGoal(Kind kind, String name) {
         HOSTILES,
         /** One mob type, by entity id, e.g. {@code minecraft:zombie}. */
         MOB
-    }
-
-    public CombatGoal {
-        Objects.requireNonNull(kind, "kind");
-        boolean named = kind == Kind.PLAYER || kind == Kind.MOB;
-        if (named && (name == null || name.isBlank())) {
-            throw new IllegalArgumentException(kind + " needs a name");
-        }
-        if (!named && name != null) {
-            throw new IllegalArgumentException(kind + " takes no name");
-        }
     }
 
     public static CombatGoal player(String name) {

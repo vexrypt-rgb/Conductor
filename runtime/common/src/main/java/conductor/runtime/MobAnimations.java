@@ -28,7 +28,7 @@ public final class MobAnimations {
     private final Map<String, Animation> byName;
 
     /** No animations: the model stands in its rest pose (the head still follows the look). */
-    public static final MobAnimations NONE = new MobAnimations(Map.of());
+    public static final MobAnimations NONE = new MobAnimations(Jdk8.mapOf());
 
     private MobAnimations(Map<String, Animation> byName) {
         this.byName = byName;
@@ -43,7 +43,55 @@ public final class MobAnimations {
      * @param role  the part after the last dot, lower case ({@code slam}): what {@code idle}, {@code walk},
      *              {@code attack} and {@code MobControl.animate} match
      */
-    public record Animation(String name, String role, Loop loop, double length, Map<String, Channels> bones) {
+    public static final class Animation {
+        private final String name;
+        private final String role;
+        private final Loop loop;
+        private final double length;
+        private final Map<String, Channels> bones;
+
+        public Animation(String name, String role, Loop loop, double length, Map<String, Channels> bones) {
+            this.name = name;
+            this.role = role;
+            this.loop = loop;
+            this.length = length;
+            this.bones = bones;
+        }
+
+        public String name() {
+            return name;
+        }
+
+        public String role() {
+            return role;
+        }
+
+        public Loop loop() {
+            return loop;
+        }
+
+        public double length() {
+            return length;
+        }
+
+        public Map<String, Channels> bones() {
+            return bones;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Animation)) return false;
+            Animation other = (Animation) o;
+            return java.util.Objects.equals(this.name, other.name) && java.util.Objects.equals(this.role, other.role) && java.util.Objects.equals(this.loop, other.loop) && java.util.Objects.equals(this.length, other.length) && java.util.Objects.equals(this.bones, other.bones);
+        }
+
+        @Override public int hashCode() {
+            return java.util.Objects.hash(name, role, loop, length, bones);
+        }
+
+        @Override public String toString() {
+            return "Animation[" + "name=" + name + ", role=" + role + ", loop=" + loop + ", length=" + length + ", bones=" + bones + "]";
+        }
 
         /** Whether a non-looping animation started {@code seconds} ago is over. */
         public boolean finished(double seconds) {
@@ -52,11 +100,83 @@ public final class MobAnimations {
     }
 
     /** A bone's channels; any may be null. */
-    public record Channels(Track rotation, Track position, Track scale) {
+    public static final class Channels {
+        private final Track rotation;
+        private final Track position;
+        private final Track scale;
+
+        public Channels(Track rotation, Track position, Track scale) {
+            this.rotation = rotation;
+            this.position = position;
+            this.scale = scale;
+        }
+
+        public Track rotation() {
+            return rotation;
+        }
+
+        public Track position() {
+            return position;
+        }
+
+        public Track scale() {
+            return scale;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Channels)) return false;
+            Channels other = (Channels) o;
+            return java.util.Objects.equals(this.rotation, other.rotation) && java.util.Objects.equals(this.position, other.position) && java.util.Objects.equals(this.scale, other.scale);
+        }
+
+        @Override public int hashCode() {
+            return java.util.Objects.hash(rotation, position, scale);
+        }
+
+        @Override public String toString() {
+            return "Channels[" + "rotation=" + rotation + ", position=" + position + ", scale=" + scale + "]";
+        }
     }
 
     /** One channel: keyframe times (seconds) and values, each before ({@code pre}) and after ({@code post}). */
-    public record Track(double[] times, Molang.Expr[][] pre, Molang.Expr[][] post) {
+    public static final class Track {
+        private final double[] times;
+        private final Molang.Expr[][] pre;
+        private final Molang.Expr[][] post;
+
+        public Track(double[] times, Molang.Expr[][] pre, Molang.Expr[][] post) {
+            this.times = times;
+            this.pre = pre;
+            this.post = post;
+        }
+
+        public double[] times() {
+            return times;
+        }
+
+        public Molang.Expr[][] pre() {
+            return pre;
+        }
+
+        public Molang.Expr[][] post() {
+            return post;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Track)) return false;
+            Track other = (Track) o;
+            return java.util.Objects.equals(this.times, other.times) && java.util.Objects.equals(this.pre, other.pre) && java.util.Objects.equals(this.post, other.post);
+        }
+
+        @Override public int hashCode() {
+            return java.util.Objects.hash(times, pre, post);
+        }
+
+        @Override public String toString() {
+            return "Track[" + "times=" + times + ", pre=" + pre + ", post=" + post + "]";
+        }
 
         void sample(double t, Molang.Context c, double[] out) {
             int n = times.length;
@@ -116,9 +236,11 @@ public final class MobAnimations {
 
     /** Read an animation file's text; throws {@link IllegalArgumentException} saying what is wrong. */
     public static MobAnimations parse(String json) {
-        if (!(MiniJson.parse(json) instanceof Map<?, ?> top) || !(top.get("animations") instanceof Map<?, ?> anims)) {
+        Object parsed = MiniJson.parse(json);
+        if (!(parsed instanceof Map) || !(((Map<?, ?>) parsed).get("animations") instanceof Map)) {
             throw new IllegalArgumentException("an animation file is an object with \"animations\"");
         }
+        Map<?, ?> anims = (Map<?, ?>) ((Map<?, ?>) parsed).get("animations");
         if (anims.size() > MAX_ANIMATIONS) {
             throw new IllegalArgumentException("more than " + MAX_ANIMATIONS + " animations");
         }
@@ -126,9 +248,10 @@ public final class MobAnimations {
         Map<String, Animation> out = new LinkedHashMap<>();
         for (Map.Entry<?, ?> e : anims.entrySet()) {
             String name = String.valueOf(e.getKey());
-            if (!(e.getValue() instanceof Map<?, ?> a)) {
+            if (!(e.getValue() instanceof Map)) {
                 throw new IllegalArgumentException("animation " + name + " is not an object");
             }
+            Map<?, ?> a = (Map<?, ?>) e.getValue();
             try {
                 out.put(name, animation(name, a, keyframes));
             } catch (IllegalArgumentException ex) {
@@ -144,12 +267,15 @@ public final class MobAnimations {
                 : "hold_on_last_frame".equals(loopValue) ? Loop.HOLD : Loop.ONCE;
         Map<String, Channels> bones = new LinkedHashMap<>();
         double last = 0;
-        if (a.get("bones") instanceof Map<?, ?> bs) {
+        Object bonesValue = a.get("bones");
+        if (bonesValue instanceof Map) {
+            Map<?, ?> bs = (Map<?, ?>) bonesValue;
             for (Map.Entry<?, ?> be : bs.entrySet()) {
                 String bone = String.valueOf(be.getKey());
-                if (!(be.getValue() instanceof Map<?, ?> ch)) {
+                if (!(be.getValue() instanceof Map)) {
                     throw new IllegalArgumentException("bone " + bone + " is not an object");
                 }
+                Map<?, ?> ch = (Map<?, ?>) be.getValue();
                 Track r = track(ch.get("rotation"), 0, keyframes);
                 Track p = track(ch.get("position"), 0, keyframes);
                 Track s = track(ch.get("scale"), 1, keyframes);
@@ -174,7 +300,8 @@ public final class MobAnimations {
         if (o == null) {
             return null;
         }
-        if (o instanceof Map<?, ?> frames && !frames.containsKey("pre") && !frames.containsKey("post") && !frames.isEmpty()
+        Map<?, ?> frames = o instanceof Map ? (Map<?, ?>) o : Jdk8.mapOf();
+        if (o instanceof Map && !frames.containsKey("pre") && !frames.containsKey("post") && !frames.isEmpty()
                 && !frames.containsKey("vector")) {
             TreeMap<Double, Object> sorted = new TreeMap<>();
             for (Map.Entry<?, ?> f : frames.entrySet()) {
@@ -200,7 +327,9 @@ public final class MobAnimations {
             for (Map.Entry<Double, Object> f : sorted.entrySet()) {
                 times[k] = f.getKey();
                 Object v = f.getValue();
-                if (v instanceof Map<?, ?> m && (m.containsKey("pre") || m.containsKey("post") || m.containsKey("vector"))) {
+                if (v instanceof Map && (((Map<?, ?>) v).containsKey("pre") || ((Map<?, ?>) v).containsKey("post")
+                        || ((Map<?, ?>) v).containsKey("vector"))) {
+                    Map<?, ?> m = (Map<?, ?>) v;
                     Object single = m.containsKey("vector") ? m.get("vector") : null;
                     pre[k] = vector(m.containsKey("pre") ? m.get("pre") : single != null ? single : m.get("post"), fallback);
                     post[k] = vector(m.containsKey("post") ? m.get("post") : single != null ? single : m.get("pre"), fallback);
@@ -212,13 +341,19 @@ public final class MobAnimations {
             }
             return new Track(times, pre, post);
         }
-        Molang.Expr[] v = vector(o instanceof Map<?, ?> m ? (m.containsKey("post") ? m.get("post") : m.containsKey("vector") ? m.get("vector") : m.get("pre")) : o, fallback);
+        Object chosen = o;
+        if (o instanceof Map) {
+            Map<?, ?> m = (Map<?, ?>) o;
+            chosen = m.containsKey("post") ? m.get("post") : m.containsKey("vector") ? m.get("vector") : m.get("pre");
+        }
+        Molang.Expr[] v = vector(chosen, fallback);
         return new Track(new double[]{0}, new Molang.Expr[][]{v}, new Molang.Expr[][]{v});
     }
 
     /** A value: [x, y, z] of numbers or Molang strings, or one number/string for all three. */
     private static Molang.Expr[] vector(Object o, double fallback) {
-        if (o instanceof List<?> l) {
+        if (o instanceof List) {
+            List<?> l = (List<?>) o;
             if (l.size() != 3) {
                 throw new IllegalArgumentException("a keyframe value must have three parts, not " + l.size());
             }
@@ -229,11 +364,12 @@ public final class MobAnimations {
     }
 
     private static Molang.Expr scalar(Object o, double fallback) {
-        if (o instanceof Number n) {
-            return Molang.constant(Double.isFinite(n.doubleValue()) ? n.doubleValue() : fallback);
+        if (o instanceof Number) {
+            double n = ((Number) o).doubleValue();
+            return Molang.constant(Double.isFinite(n) ? n : fallback);
         }
-        if (o instanceof String s) {
-            return Molang.parse(s);
+        if (o instanceof String) {
+            return Molang.parse((String) o);
         }
         if (o == null) {
             return Molang.constant(fallback);

@@ -44,7 +44,7 @@ final class CoreRuntime implements RuntimeIntegration {
     static final String ACTIONS = "actions";
     static final String EVENTS = "events";
     static final String OVERLAYS = "overlays";
-    static final List<String> ACTION_OPERATIONS = List.of("selectHotbar", "look", "attack", "useItem", "sendChat", "showMessage");
+    static final List<String> ACTION_OPERATIONS = Jdk8.listOf("selectHotbar", "look", "attack", "useItem", "sendChat", "showMessage");
     static final double ENTITY_RADIUS = 32;
     static final int MAX_ENTITIES = 64;
 
@@ -107,24 +107,24 @@ final class CoreRuntime implements RuntimeIntegration {
     public List<CapabilityDescriptor> capabilities() {
         boolean p = player != null;
         List<ObservationKind<?>> playerKinds = p
-                ? List.of(PLAYER_POSITION, INVENTORY_ITEMS, PLAYER_STATUS, PLAYER_MOTION, NEARBY_ENTITIES, INVENTORY_SLOTS,
+                ? Jdk8.listOf(PLAYER_POSITION, INVENTORY_ITEMS, PLAYER_STATUS, PLAYER_MOTION, NEARBY_ENTITIES, INVENTORY_SLOTS,
                         SELECTED_SLOT, ACTIVE_EFFECTS, USE_KEY_HELD)
-                : List.of(PLAYER_POSITION, INVENTORY_ITEMS, USE_KEY_HELD);
+                : Jdk8.listOf(PLAYER_POSITION, INVENTORY_ITEMS, USE_KEY_HELD);
         List<CapabilityDescriptor> caps = new ArrayList<>();
-        caps.add(new CapabilityDescriptor(PLAYER, CapabilityAvailability.AVAILABLE, "read-only player state", playerKinds, List.of()));
-        caps.add(new CapabilityDescriptor(WORLD, availability(p), "read-only blocks from loaded chunks", List.of(),
-                p ? List.of("blockAt", "findBlocks") : List.of()));
+        caps.add(new CapabilityDescriptor(PLAYER, CapabilityAvailability.AVAILABLE, "read-only player state", playerKinds, Jdk8.listOf()));
+        caps.add(new CapabilityDescriptor(WORLD, availability(p), "read-only blocks from loaded chunks", Jdk8.listOf(),
+                p ? Jdk8.listOf("blockAt", "findBlocks") : Jdk8.listOf()));
         caps.add(new CapabilityDescriptor(ACTIONS, availability(p), "one-shot player actions; each needs its resource lease",
-                List.of(), p ? ACTION_OPERATIONS : List.of()));
+                Jdk8.listOf(), p ? ACTION_OPERATIONS : Jdk8.listOf()));
         caps.add(new CapabilityDescriptor(EVENTS, availability(events != null),
-                "block changes, chunks, deaths, received chat, chat commands (Conductor's own hooks)", List.of(), List.of()));
+                "block changes, chunks, deaths, received chat, chat commands (Conductor's own hooks)", Jdk8.listOf(), Jdk8.listOf()));
         caps.add(new CapabilityDescriptor(OVERLAYS, availability(overlays != null), "boxes, lines and tracers in the world",
-                List.of(), overlays != null ? List.of("showOverlay") : List.of()));
+                Jdk8.listOf(), overlays != null ? Jdk8.listOf("showOverlay") : Jdk8.listOf()));
         caps.add(contentDescriptor());
         if (engine != null) {
             caps.addAll(engine.capabilities());
         }
-        return List.copyOf(caps);
+        return Jdk8.copyList(caps);
     }
 
     private static CapabilityAvailability availability(boolean on) {
@@ -139,7 +139,7 @@ final class CoreRuntime implements RuntimeIntegration {
         } catch (RuntimeException | LinkageError e) {
             detail = "item/block/entity/effect ids via built-in registries; engine feature probe failed: " + e;
         }
-        return new CapabilityDescriptor(CONTENT, CapabilityAvailability.AVAILABLE, detail, List.of(), List.of("content"));
+        return new CapabilityDescriptor(CONTENT, CapabilityAvailability.AVAILABLE, detail, Jdk8.listOf(), Jdk8.listOf("content"));
     }
 
     @Override
@@ -163,7 +163,7 @@ final class CoreRuntime implements RuntimeIntegration {
         }
         if (kind == INVENTORY_ITEMS) {
             Map<String, Integer> items = game.inventoryItems();
-            return (Sample<T>) (items == null ? Sample.notObserved("no player") : Sample.observed(Map.copyOf(items)));
+            return (Sample<T>) (items == null ? Sample.notObserved("no player") : Sample.observed(Jdk8.copyMap(items)));
         }
         if (kind == USE_KEY_HELD) {
             Boolean down = game.useKeyDown();

@@ -38,16 +38,16 @@ public interface ConductorModule {
      * Conductor checks them when the module starts; ask {@link ModuleContext#feature(String)} which are on.
      */
     default java.util.List<Setting<?>> settings() {
-        return java.util.List.of();
+        return Jdk8.listOf();
     }
 
     default java.util.List<ModuleFeature> features() {
-        return java.util.List.of();
+        return Jdk8.listOf();
     }
 
     /** Services that must be provided before this module starts. */
     default Set<ServiceKey<?>> requires() {
-        return Set.of();
+        return Jdk8.setOf();
     }
 
     /** A PENDING request was granted. */

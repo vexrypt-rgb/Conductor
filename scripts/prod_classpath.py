@@ -26,6 +26,11 @@ v = json.load(open(f"{U}/net/minecraft/minecraft/{mc}/version.json"))
 if 'client_mappings' in v['downloads']:
     inter = glob.glob(f"{G}/net.fabricmc/intermediary/{mc}/*/intermediary-{mc}-v2.jar")
     (cp.append(inter[0]) if inter else missing.append('intermediary'))
+else:
+    # Legacy Fabric (1.12.2 and older, no Mojang mappings): its intermediary jar is published under net.legacyfabric
+    legacy = glob.glob(f"{G}/net.legacyfabric/intermediary/{mc}/*/intermediary-{mc}-v2.jar")
+    if legacy:
+        cp.append(legacy[0])
 if server_dir:
     # the bundler's own list: libraries/... and versions/<mc>/server-<mc>.jar, relative to the server folder.
     # Servers before 1.18 are not bundlers: server.jar is the game with its libraries inside, used as it is.
@@ -61,6 +66,15 @@ for lib in v['libraries']:
     if native:
         p = find(g, a, ver, native)
         (cp.append(p) if p else missing.append(f"{lib['name']}:{native}"))
+        if p and not server_dir:
+            # LWJGL 2 (1.12 and older) loads its natives from extracted files: the launcher's natives folder
+            natdir = os.path.join(os.path.dirname(os.path.abspath(out)), 'natives')
+            os.makedirs(natdir, exist_ok=True)
+            with zipfile.ZipFile(p) as z:
+                for name in z.namelist():
+                    if name.endswith(('.so', '.dylib', '.dll')) and not name.startswith('META-INF/'):
+                        with open(os.path.join(natdir, os.path.basename(name)), 'wb') as f:
+                            f.write(z.read(name))
 if not server_dir:
     cp.append(f"{U}/net/minecraft/minecraft/{mc}/minecraft-{mc}-client.jar")
 seen=[]; [seen.append(x) for x in cp if x and x not in seen]

@@ -21,7 +21,43 @@ import java.util.Map;
  *
  * @param roots bones without a parent, each with its children
  */
-public record MobGeometry(int textureWidth, int textureHeight, List<Bone> roots) {
+public final class MobGeometry {
+    private final int textureWidth;
+    private final int textureHeight;
+    private final List<Bone> roots;
+
+    public MobGeometry(int textureWidth, int textureHeight, List<Bone> roots) {
+        this.textureWidth = textureWidth;
+        this.textureHeight = textureHeight;
+        this.roots = roots;
+    }
+
+    public int textureWidth() {
+        return textureWidth;
+    }
+
+    public int textureHeight() {
+        return textureHeight;
+    }
+
+    public List<Bone> roots() {
+        return roots;
+    }
+
+    @Override public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof MobGeometry)) return false;
+        MobGeometry other = (MobGeometry) o;
+        return java.util.Objects.equals(this.textureWidth, other.textureWidth) && java.util.Objects.equals(this.textureHeight, other.textureHeight) && java.util.Objects.equals(this.roots, other.roots);
+    }
+
+    @Override public int hashCode() {
+        return java.util.Objects.hash(textureWidth, textureHeight, roots);
+    }
+
+    @Override public String toString() {
+        return "MobGeometry[" + "textureWidth=" + textureWidth + ", textureHeight=" + textureHeight + ", roots=" + roots + "]";
+    }
 
     private static final int MAX_BONES = 512;
     private static final int MAX_CUBES = 8192;
@@ -32,11 +68,113 @@ public record MobGeometry(int textureWidth, int textureHeight, List<Bone> roots)
      * @param offset   pivot, relative to the parent's pivot (Java units)
      * @param rotation radians, about x, y and z
      */
-    public record Bone(String name, float[] offset, float[] rotation, List<Cube> cubes, List<Bone> children) {
+    public static final class Bone {
+        private final String name;
+        private final float[] offset;
+        private final float[] rotation;
+        private final List<Cube> cubes;
+        private final List<Bone> children;
+
+        public Bone(String name, float[] offset, float[] rotation, List<Cube> cubes, List<Bone> children) {
+            this.name = name;
+            this.offset = offset;
+            this.rotation = rotation;
+            this.cubes = cubes;
+            this.children = children;
+        }
+
+        public String name() {
+            return name;
+        }
+
+        public float[] offset() {
+            return offset;
+        }
+
+        public float[] rotation() {
+            return rotation;
+        }
+
+        public List<Cube> cubes() {
+            return cubes;
+        }
+
+        public List<Bone> children() {
+            return children;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Bone)) return false;
+            Bone other = (Bone) o;
+            return java.util.Objects.equals(this.name, other.name) && java.util.Objects.equals(this.offset, other.offset) && java.util.Objects.equals(this.rotation, other.rotation) && java.util.Objects.equals(this.cubes, other.cubes) && java.util.Objects.equals(this.children, other.children);
+        }
+
+        @Override public int hashCode() {
+            return java.util.Objects.hash(name, offset, rotation, cubes, children);
+        }
+
+        @Override public String toString() {
+            return "Bone[" + "name=" + name + ", offset=" + offset + ", rotation=" + rotation + ", cubes=" + cubes + ", children=" + children + "]";
+        }
     }
 
     /** A box: its corner relative to its part's pivot, its size, texture offset, inflation and mirroring. */
-    public record Cube(float[] min, float[] size, int u, int v, float inflate, boolean mirror) {
+    public static final class Cube {
+        private final float[] min;
+        private final float[] size;
+        private final int u;
+        private final int v;
+        private final float inflate;
+        private final boolean mirror;
+
+        public Cube(float[] min, float[] size, int u, int v, float inflate, boolean mirror) {
+            this.min = min;
+            this.size = size;
+            this.u = u;
+            this.v = v;
+            this.inflate = inflate;
+            this.mirror = mirror;
+        }
+
+        public float[] min() {
+            return min;
+        }
+
+        public float[] size() {
+            return size;
+        }
+
+        public int u() {
+            return u;
+        }
+
+        public int v() {
+            return v;
+        }
+
+        public float inflate() {
+            return inflate;
+        }
+
+        public boolean mirror() {
+            return mirror;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Cube)) return false;
+            Cube other = (Cube) o;
+            return java.util.Objects.equals(this.min, other.min) && java.util.Objects.equals(this.size, other.size) && java.util.Objects.equals(this.u, other.u) && java.util.Objects.equals(this.v, other.v) && java.util.Objects.equals(this.inflate, other.inflate) && java.util.Objects.equals(this.mirror, other.mirror);
+        }
+
+        @Override public int hashCode() {
+            return java.util.Objects.hash(min, size, u, v, inflate, mirror);
+        }
+
+        @Override public String toString() {
+            return "Cube[" + "min=" + min + ", size=" + size + ", u=" + u + ", v=" + v + ", inflate=" + inflate + ", mirror=" + mirror + "]";
+        }
     }
 
     /** All bone names in the model, depth first (generated cube parts included). */
@@ -58,40 +196,45 @@ public record MobGeometry(int textureWidth, int textureHeight, List<Bone> roots)
     /** Read a geometry file's text; throws {@link IllegalArgumentException} saying what is wrong. */
     public static MobGeometry parse(String json) {
         Object root = MiniJson.parse(json);
-        if (!(root instanceof Map<?, ?> top)) {
+        if (!(root instanceof Map)) {
             throw new IllegalArgumentException("a geometry file is a JSON object");
         }
+        Map<?, ?> top = (Map<?, ?>) root;
         Map<?, ?> geo;
         Map<?, ?> desc;
-        if (top.get("minecraft:geometry") instanceof List<?> list) {
+        Object formatList = top.get("minecraft:geometry");
+        if (formatList instanceof List) {
             // format 1.12.0 and later
-            if (list.isEmpty() || !(list.get(0) instanceof Map<?, ?> first)) {
+            List<?> list = (List<?>) formatList;
+            if (list.isEmpty() || !(list.get(0) instanceof Map)) {
                 throw new IllegalArgumentException("minecraft:geometry is empty");
             }
-            geo = first;
-            desc = geo.get("description") instanceof Map<?, ?> d ? d : Map.of();
+            geo = (Map<?, ?>) list.get(0);
+            Object descValue = geo.get("description");
+            desc = descValue instanceof Map ? (Map<?, ?>) descValue : Jdk8.mapOf();
         } else {
             // format 1.8.0: "geometry.<name>": { "texturewidth": ..., "bones": [...] }
             geo = null;
             for (Map.Entry<?, ?> e : top.entrySet()) {
-                if (String.valueOf(e.getKey()).startsWith("geometry.") && e.getValue() instanceof Map<?, ?> m) {
-                    geo = m;
+                if (String.valueOf(e.getKey()).startsWith("geometry.") && e.getValue() instanceof Map) {
+                    geo = (Map<?, ?>) e.getValue();
                     break;
                 }
             }
             if (geo == null) {
                 throw new IllegalArgumentException("no minecraft:geometry (Bedrock geometry 1.12.0+) or geometry.<name> (1.8.0)");
             }
-            desc = Map.of("texture_width", number(geo.get("texturewidth"), 64), "texture_height", number(geo.get("textureheight"), 64));
+            desc = Jdk8.mapOf("texture_width", number(geo.get("texturewidth"), 64), "texture_height", number(geo.get("textureheight"), 64));
         }
         int tw = (int) number(desc.get("texture_width"), 64);
         int th = (int) number(desc.get("texture_height"), 64);
         if (tw < 1 || th < 1 || tw > 8192 || th > 8192) {
             throw new IllegalArgumentException("texture size " + tw + "x" + th + " must be 1..8192");
         }
-        if (!(geo.get("bones") instanceof List<?> bones) || bones.isEmpty()) {
+        if (!(geo.get("bones") instanceof List) || ((List<?>) geo.get("bones")).isEmpty()) {
             throw new IllegalArgumentException("the model has no bones");
         }
+        List<?> bones = (List<?>) geo.get("bones");
         if (bones.size() > MAX_BONES) {
             throw new IllegalArgumentException("more than " + MAX_BONES + " bones");
         }
@@ -100,9 +243,14 @@ public record MobGeometry(int textureWidth, int textureHeight, List<Bone> roots)
         Map<String, List<String>> children = new HashMap<>();
         List<String> rootNames = new ArrayList<>();
         for (Object o : bones) {
-            if (!(o instanceof Map<?, ?> b) || !(b.get("name") instanceof String name) || name.isEmpty()) {
+            if (!(o instanceof Map)) {
                 throw new IllegalArgumentException("a bone without a name");
             }
+            Map<?, ?> b = (Map<?, ?>) o;
+            if (!(b.get("name") instanceof String) || ((String) b.get("name")).isEmpty()) {
+                throw new IllegalArgumentException("a bone without a name");
+            }
+            String name = (String) b.get("name");
             if (byName.put(name, b) != null) {
                 throw new IllegalArgumentException("bone '" + name + "' twice");
             }
@@ -111,10 +259,10 @@ public record MobGeometry(int textureWidth, int textureHeight, List<Bone> roots)
             Object parent = e.getValue().get("parent");
             if (parent == null) {
                 rootNames.add(e.getKey());
-            } else if (!(parent instanceof String p) || !byName.containsKey(p)) {
+            } else if (!(parent instanceof String) || !byName.containsKey(parent)) {
                 throw new IllegalArgumentException("bone '" + e.getKey() + "' has parent '" + parent + "', which is not in the model");
             } else {
-                children.computeIfAbsent(p, k -> new ArrayList<>()).add(e.getKey());
+                children.computeIfAbsent((String) parent, k -> new ArrayList<>()).add(e.getKey());
             }
         }
         int[] cubes = {0};
@@ -128,7 +276,7 @@ public record MobGeometry(int textureWidth, int textureHeight, List<Bone> roots)
             loose.removeAll(reached);
             throw new IllegalArgumentException("bones " + loose + " are parented in a loop");
         }
-        return new MobGeometry(tw, th, List.copyOf(roots));
+        return new MobGeometry(tw, th, Jdk8.copyList(roots));
     }
 
     private static Bone bone(String name, float[] parentPivot, Map<String, Map<?, ?>> byName, Map<String, List<String>> children,
@@ -146,25 +294,30 @@ public record MobGeometry(int textureWidth, int textureHeight, List<Bone> roots)
 
         List<Cube> cubes = new ArrayList<>();
         List<Bone> kids = new ArrayList<>();
-        if (b.get("cubes") instanceof List<?> list) {
+        Object cubesValue = b.get("cubes");
+        if (cubesValue instanceof List) {
+            List<?> list = (List<?>) cubesValue;
             int n = 0;
             for (Object o : list) {
-                if (!(o instanceof Map<?, ?> c)) {
+                if (!(o instanceof Map)) {
                     throw new IllegalArgumentException("bone '" + name + "': a cube that is not an object");
                 }
+                Map<?, ?> c = (Map<?, ?>) o;
                 if (++cubeCount[0] > MAX_CUBES) {
                     throw new IllegalArgumentException("more than " + MAX_CUBES + " cubes");
                 }
                 String where = "bone '" + name + "' cube " + n;
                 float[] origin = vec(c.get("origin"), 0, where + " origin");
                 float[] size = vec(c.get("size"), 0, where + " size");
-                if (!(c.get("uv") instanceof List<?> uv) || uv.size() != 2) {
+                if (!(c.get("uv") instanceof List) || ((List<?>) c.get("uv")).size() != 2) {
                     throw new IllegalArgumentException(where + ": uv must be [u, v] (box UV); per-face UV is not supported");
                 }
+                List<?> uv = (List<?>) c.get("uv");
                 int u = (int) number(uv.get(0), 0);
                 int v = (int) number(uv.get(1), 0);
                 float inflate = (float) number(c.get("inflate"), boneInflate);
-                boolean mirror = c.get("mirror") instanceof Boolean m ? m : boneMirror;
+                Object mirrorValue = c.get("mirror");
+                boolean mirror = mirrorValue instanceof Boolean ? (Boolean) mirrorValue : boneMirror;
                 // Bedrock origin is the cube's lowest corner, y up; in Java the top (lowest y) corner
                 float[] javaMin = {origin[0], 24 - origin[1] - size[1], origin[2]};
                 float[] cubeRotation = vec(c.get("rotation"), 0, where + " rotation");
@@ -173,15 +326,15 @@ public record MobGeometry(int textureWidth, int textureHeight, List<Bone> roots)
                 } else {
                     float[] cubePivot = c.get("pivot") == null ? pivot : java(vec(c.get("pivot"), 0, where + " pivot"));
                     kids.add(new Bone(name + "$cube" + n, sub(cubePivot, pivot), radians(cubeRotation),
-                            List.of(new Cube(sub(javaMin, cubePivot), size, u, v, inflate, mirror)), List.of()));
+                            Jdk8.listOf(new Cube(sub(javaMin, cubePivot), size, u, v, inflate, mirror)), Jdk8.listOf()));
                 }
                 n++;
             }
         }
-        for (String child : children.getOrDefault(name, List.of())) {
+        for (String child : children.getOrDefault(name, Jdk8.listOf())) {
             kids.add(bone(child, pivot, byName, children, reached, cubeCount, depth + 1));
         }
-        return new Bone(name, offset, rotation, List.copyOf(cubes), List.copyOf(kids));
+        return new Bone(name, offset, rotation, Jdk8.copyList(cubes), Jdk8.copyList(kids));
     }
 
     /** A Bedrock point in Java model space. */
@@ -201,20 +354,22 @@ public record MobGeometry(int textureWidth, int textureHeight, List<Bone> roots)
         if (o == null) {
             return new float[]{fallback, fallback, fallback};
         }
-        if (!(o instanceof List<?> l) || l.size() != 3) {
+        if (!(o instanceof List) || ((List<?>) o).size() != 3) {
             throw new IllegalArgumentException(what + " must be [x, y, z]");
         }
+        List<?> l = (List<?>) o;
         float[] v = new float[3];
         for (int k = 0; k < 3; k++) {
-            if (!(l.get(k) instanceof Number n) || !Double.isFinite(n.doubleValue())) {
+            Object item = l.get(k);
+            if (!(item instanceof Number) || !Double.isFinite(((Number) item).doubleValue())) {
                 throw new IllegalArgumentException(what + " must be three numbers");
             }
-            v[k] = n.floatValue();
+            v[k] = ((Number) item).floatValue();
         }
         return v;
     }
 
     static double number(Object o, double fallback) {
-        return o instanceof Number n && Double.isFinite(n.doubleValue()) ? n.doubleValue() : fallback;
+        return o instanceof Number && Double.isFinite(((Number) o).doubleValue()) ? ((Number) o).doubleValue() : fallback;
     }
 }

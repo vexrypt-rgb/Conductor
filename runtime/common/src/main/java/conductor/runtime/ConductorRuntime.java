@@ -16,7 +16,49 @@ public final class ConductorRuntime {
 
 
     /** The installed core: the contract service plus the pieces the bootstrap and tests drive. */
-    public record Installed(ContractService service, String engine, Runnable tick, Lifecycle lifecycle) {
+    public static final class Installed {
+        private final ContractService service;
+        private final String engine;
+        private final Runnable tick;
+        private final Lifecycle lifecycle;
+
+        public Installed(ContractService service, String engine, Runnable tick, Lifecycle lifecycle) {
+            this.service = service;
+            this.engine = engine;
+            this.tick = tick;
+            this.lifecycle = lifecycle;
+        }
+
+        public ContractService service() {
+            return service;
+        }
+
+        public String engine() {
+            return engine;
+        }
+
+        public Runnable tick() {
+            return tick;
+        }
+
+        public Lifecycle lifecycle() {
+            return lifecycle;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Installed)) return false;
+            Installed other = (Installed) o;
+            return java.util.Objects.equals(this.service, other.service) && java.util.Objects.equals(this.engine, other.engine) && java.util.Objects.equals(this.tick, other.tick) && java.util.Objects.equals(this.lifecycle, other.lifecycle);
+        }
+
+        @Override public int hashCode() {
+            return java.util.Objects.hash(service, engine, tick, lifecycle);
+        }
+
+        @Override public String toString() {
+            return "Installed[" + "service=" + service + ", engine=" + engine + ", tick=" + tick + ", lifecycle=" + lifecycle + "]";
+        }
 
         /** Run {@code hook} on every in-world tick, after the contract's own tick. */
         public void afterEachInWorldTick(Runnable hook) {
@@ -75,16 +117,26 @@ public final class ConductorRuntime {
 
     /** The first available engine layer, or null: Conductor then runs without a movement engine. */
     static EngineLayer findEngine(ClassLoader loader) {
-        for (ServiceLoader.Provider<EngineLayerProvider> p : ServiceLoader.load(EngineLayerProvider.class, loader).stream().toList()) {
+        java.util.Iterator<EngineLayerProvider> providers = ServiceLoader.load(EngineLayerProvider.class, loader).iterator();
+        while (true) {
+            EngineLayerProvider provider;
             try {
-                EngineLayerProvider provider = p.get();
+                if (!providers.hasNext()) {
+                    break;
+                }
+                provider = providers.next();
+            } catch (java.util.ServiceConfigurationError e) {
+                ConductorLog.warn("Conductor engine provider failed to load; continuing without it: {}", e.toString());
+                continue;
+            }
+            try {
                 if (provider.available(loader)) {
                     EngineLayer layer = provider.create();
                     ConductorLog.info("Conductor engine: {}", layer.name());
                     return layer;
                 }
             } catch (RuntimeException | LinkageError e) {
-                ConductorLog.warn("Conductor engine provider {} failed; continuing without it: {}", p.type().getName(), e.toString());
+                ConductorLog.warn("Conductor engine provider {} failed; continuing without it: {}", provider.getClass().getName(), e.toString());
             }
         }
         ConductorLog.info("Conductor engine: none (no movement engine installed; travel and combat are unavailable)");

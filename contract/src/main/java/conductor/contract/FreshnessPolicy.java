@@ -13,32 +13,57 @@ import java.util.OptionalLong;
  * @param maxAgeTicks       for {@link Requirement#BOUNDED_AGE}: the maximum age in game ticks
  * @param maxAgeDuration    for {@link Requirement#BOUNDED_AGE}: the maximum age in monotonic time
  */
-public record FreshnessPolicy(Requirement requiredFreshness, OptionalLong maxAgeTicks, Optional<Duration> maxAgeDuration) {
+public final class FreshnessPolicy {
+    private final Requirement requiredFreshness;
+    private final OptionalLong maxAgeTicks;
+    private final Optional<Duration> maxAgeDuration;
+
+    public FreshnessPolicy(Requirement requiredFreshness, OptionalLong maxAgeTicks, Optional<Duration> maxAgeDuration) {
+        Objects.requireNonNull(requiredFreshness, "requiredFreshness");
+        Objects.requireNonNull(maxAgeTicks, "maxAgeTicks");
+        Objects.requireNonNull(maxAgeDuration, "maxAgeDuration");
+        boolean anyBound = maxAgeTicks.isPresent() || maxAgeDuration.isPresent();
+        if (requiredFreshness == Requirement.SAME_TICK && anyBound) {
+        throw new IllegalArgumentException("SAME_TICK takes no age bounds");
+        }
+        if (requiredFreshness == Requirement.BOUNDED_AGE && !anyBound) {
+        throw new IllegalArgumentException("BOUNDED_AGE needs maxAgeTicks and/or maxAgeDuration");
+        }
+        if (maxAgeTicks.isPresent() && maxAgeTicks.getAsLong() < 0) {
+        throw new IllegalArgumentException("maxAgeTicks must not be negative");
+        }
+        if (maxAgeDuration.isPresent() && maxAgeDuration.get().isNegative()) {
+        throw new IllegalArgumentException("maxAgeDuration must not be negative");
+        }
+
+        this.requiredFreshness = requiredFreshness;
+        this.maxAgeTicks = maxAgeTicks;
+        this.maxAgeDuration = maxAgeDuration;
+    }
+
+    public Requirement requiredFreshness() { return requiredFreshness; }
+
+    public OptionalLong maxAgeTicks() { return maxAgeTicks; }
+
+    public Optional<Duration> maxAgeDuration() { return maxAgeDuration; }
+
+    @Override public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof FreshnessPolicy)) return false;
+        FreshnessPolicy other = (FreshnessPolicy) o;
+        return java.util.Arrays.deepEquals(new Object[] {this.requiredFreshness, this.maxAgeTicks, this.maxAgeDuration}, new Object[] {other.requiredFreshness, other.maxAgeTicks, other.maxAgeDuration});
+    }
+
+    @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.requiredFreshness, this.maxAgeTicks, this.maxAgeDuration}); }
+
+    @Override public String toString() { return "FreshnessPolicy[" + "requiredFreshness=" + requiredFreshness + ", " + "maxAgeTicks=" + maxAgeTicks + ", " + "maxAgeDuration=" + maxAgeDuration + "]"; }
+
 
     public enum Requirement {
         /** Only an observation sampled in the current game tick is fresh. Takes no bounds. */
         SAME_TICK,
         /** Fresh while every configured bound holds. At least one bound is required. */
         BOUNDED_AGE
-    }
-
-    public FreshnessPolicy {
-        Objects.requireNonNull(requiredFreshness, "requiredFreshness");
-        Objects.requireNonNull(maxAgeTicks, "maxAgeTicks");
-        Objects.requireNonNull(maxAgeDuration, "maxAgeDuration");
-        boolean anyBound = maxAgeTicks.isPresent() || maxAgeDuration.isPresent();
-        if (requiredFreshness == Requirement.SAME_TICK && anyBound) {
-            throw new IllegalArgumentException("SAME_TICK takes no age bounds");
-        }
-        if (requiredFreshness == Requirement.BOUNDED_AGE && !anyBound) {
-            throw new IllegalArgumentException("BOUNDED_AGE needs maxAgeTicks and/or maxAgeDuration");
-        }
-        if (maxAgeTicks.isPresent() && maxAgeTicks.getAsLong() < 0) {
-            throw new IllegalArgumentException("maxAgeTicks must not be negative");
-        }
-        if (maxAgeDuration.isPresent() && maxAgeDuration.get().isNegative()) {
-            throw new IllegalArgumentException("maxAgeDuration must not be negative");
-        }
     }
 
     public static FreshnessPolicy sameTick() {
@@ -56,13 +81,11 @@ public record FreshnessPolicy(Requirement requiredFreshness, OptionalLong maxAge
         if (ageTicks < 0 || ageNanos < 0) {
             return Freshness.STALE;
         }
-        return switch (requiredFreshness) {
-            case SAME_TICK -> ageTicks == 0 ? Freshness.FRESH : Freshness.STALE;
-            case BOUNDED_AGE -> {
-                boolean ticksOk = maxAgeTicks.isEmpty() || ageTicks <= maxAgeTicks.getAsLong();
-                boolean timeOk = maxAgeDuration.isEmpty() || ageNanos <= maxAgeDuration.get().toNanos();
-                yield ticksOk && timeOk ? Freshness.FRESH : Freshness.STALE;
-            }
-        };
+        if (requiredFreshness == Requirement.SAME_TICK) {
+            return ageTicks == 0 ? Freshness.FRESH : Freshness.STALE;
+        }
+        boolean ticksOk = !maxAgeTicks.isPresent() || ageTicks <= maxAgeTicks.getAsLong();
+        boolean timeOk = !maxAgeDuration.isPresent() || ageNanos <= maxAgeDuration.get().toNanos();
+        return ticksOk && timeOk ? Freshness.FRESH : Freshness.STALE;
     }
 }

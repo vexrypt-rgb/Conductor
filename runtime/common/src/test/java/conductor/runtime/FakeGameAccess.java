@@ -64,7 +64,7 @@ public final class FakeGameAccess implements GameAccess {
     public void setSelectedSlot(int slot) {
         selected = slot;
     }
-    public java.util.Map<String, Integer> inventory = new java.util.HashMap<>(java.util.Map.of("minecraft:iron_sword", 1));
+    public java.util.Map<String, Integer> inventory = new java.util.HashMap<>(Jdk8.mapOf("minecraft:iron_sword", 1));
 
     @Override
     public java.util.Map<String, Integer> inventoryItems() {

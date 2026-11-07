@@ -16,12 +16,12 @@ public interface SettingsStore {
 
         @Override
         public Map<String, String> load(ModuleId module) {
-            return saved.getOrDefault(module, Map.of());
+            return saved.getOrDefault(module, Jdk8.mapOf());
         }
 
         @Override
         public void save(ModuleId module, Map<String, String> values) {
-            saved.put(module, Map.copyOf(values));
+            saved.put(module, Jdk8.copyMap(values));
         }
     };
 }

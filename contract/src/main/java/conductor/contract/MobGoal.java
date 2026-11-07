@@ -10,7 +10,42 @@ package conductor.contract;
  * @param interval   ticks between ranged attacks
  * @param projectile what {@link Kind#RANGED_ATTACK} shoots
  */
-public record MobGoal(Kind kind, double speed, double range, int interval, MobProjectile projectile) {
+public final class MobGoal {
+    private final Kind kind;
+    private final double speed;
+    private final double range;
+    private final int interval;
+    private final MobProjectile projectile;
+
+    public MobGoal(Kind kind, double speed, double range, int interval, MobProjectile projectile) {
+        this.kind = kind;
+        this.speed = speed;
+        this.range = range;
+        this.interval = interval;
+        this.projectile = projectile;
+    }
+
+    public Kind kind() { return kind; }
+
+    public double speed() { return speed; }
+
+    public double range() { return range; }
+
+    public int interval() { return interval; }
+
+    public MobProjectile projectile() { return projectile; }
+
+    @Override public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof MobGoal)) return false;
+        MobGoal other = (MobGoal) o;
+        return java.util.Arrays.deepEquals(new Object[] {this.kind, this.speed, this.range, this.interval, this.projectile}, new Object[] {other.kind, other.speed, other.range, other.interval, other.projectile});
+    }
+
+    @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.kind, this.speed, this.range, this.interval, this.projectile}); }
+
+    @Override public String toString() { return "MobGoal[" + "kind=" + kind + ", " + "speed=" + speed + ", " + "range=" + range + ", " + "interval=" + interval + ", " + "projectile=" + projectile + "]"; }
+
 
     public enum Kind { FLOAT, MELEE_ATTACK, RANGED_ATTACK, WANDER, LOOK_AT_PLAYERS, LOOK_AROUND, PANIC, TARGET_PLAYERS, RETALIATE }
 

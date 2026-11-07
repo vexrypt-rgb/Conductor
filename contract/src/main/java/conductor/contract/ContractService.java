@@ -164,7 +164,7 @@ public final class ContractService implements Conductor {
     public DiscoveryResult discover() {
         if (!runtime.isGameThread()) {
             sink.record(DiagnosticEvent.offThread("discover", "rejected before reading runtime state"));
-            return new DiscoveryResult(RejectionReason.OFF_THREAD, CONTRACT_VERSION, Optional.empty(), -1, List.of());
+            return new DiscoveryResult(RejectionReason.OFF_THREAD, CONTRACT_VERSION, Optional.empty(), -1, Jdk8.listOf());
         }
         return new DiscoveryResult(null, CONTRACT_VERSION, contexts.current(), runtime.currentTick(), runtime.capabilities());
     }
@@ -183,7 +183,7 @@ public final class ContractService implements Conductor {
             return reject(RejectionReason.NO_FRESHNESS_POLICY, "observe " + kind, null, null, tick, "no freshness policy; not sampled");
         }
         Optional<ContextId> current = contexts.current();
-        if (current.isEmpty()) {
+        if (!current.isPresent()) {
             return reject(RejectionReason.NO_CURRENT_CONTEXT, "observe " + kind, null, null, tick, "no current context; not sampled");
         }
         if (!supports(kind)) {
@@ -209,7 +209,7 @@ public final class ContractService implements Conductor {
             return reject(RejectionReason.NO_FRESHNESS_POLICY, subject, observation, null, tick, "no freshness policy");
         }
         Optional<ContextId> current = contexts.current();
-        if (current.isEmpty()) {
+        if (!current.isPresent()) {
             return reject(RejectionReason.CONTEXT_INVALIDATED, subject, observation, null, tick,
                     "no current context; observation was from " + observation.context());
         }
@@ -272,11 +272,11 @@ public final class ContractService implements Conductor {
         if (at == null) {
             return new BlockReading(RejectionReason.INVALID_ARGUMENT, null, Optional.empty(), tick, "position is null");
         }
-        if (contexts.current().isEmpty()) {
+        if (!contexts.current().isPresent()) {
             return new BlockReading(RejectionReason.NO_CURRENT_CONTEXT, at, Optional.empty(), tick, "not in a world");
         }
         Optional<WorldPort> world = runtime.world();
-        if (world.isEmpty()) {
+        if (!world.isPresent()) {
             return new BlockReading(RejectionReason.NO_ACTIONS, at, Optional.empty(), tick, "runtime offers no block access");
         }
         try {
@@ -295,19 +295,19 @@ public final class ContractService implements Conductor {
     public BlockSearch findBlocks(java.util.Set<String> blockIds, int radius, int limit) {
         if (!runtime.isGameThread()) {
             sink.record(DiagnosticEvent.offThread("findBlocks", "rejected before reading the world"));
-            return new BlockSearch(RejectionReason.OFF_THREAD, java.util.List.of(), -1, "call was not on the game thread");
+            return new BlockSearch(RejectionReason.OFF_THREAD, Jdk8.listOf(), -1, "call was not on the game thread");
         }
         long tick = runtime.currentTick();
         if (blockIds == null || blockIds.isEmpty() || radius < 1 || radius > MAX_SEARCH_RADIUS || limit < 1 || limit > MAX_SEARCH_RESULTS) {
-            return new BlockSearch(RejectionReason.INVALID_ARGUMENT, java.util.List.of(), tick,
+            return new BlockSearch(RejectionReason.INVALID_ARGUMENT, Jdk8.listOf(), tick,
                     "need block ids, radius 1-" + MAX_SEARCH_RADIUS + ", limit 1-" + MAX_SEARCH_RESULTS);
         }
-        if (contexts.current().isEmpty()) {
-            return new BlockSearch(RejectionReason.NO_CURRENT_CONTEXT, java.util.List.of(), tick, "not in a world");
+        if (!contexts.current().isPresent()) {
+            return new BlockSearch(RejectionReason.NO_CURRENT_CONTEXT, Jdk8.listOf(), tick, "not in a world");
         }
         Optional<WorldPort> world = runtime.world();
-        if (world.isEmpty()) {
-            return new BlockSearch(RejectionReason.NO_ACTIONS, java.util.List.of(), tick, "runtime offers no block access");
+        if (!world.isPresent()) {
+            return new BlockSearch(RejectionReason.NO_ACTIONS, Jdk8.listOf(), tick, "runtime offers no block access");
         }
         Sample<BlockPoint> here;
         try {
@@ -316,13 +316,13 @@ public final class ContractService implements Conductor {
             here = Sample.unknown(e.toString());
         }
         if (here == null || here.availability() != Availability.OBSERVED) {
-            return new BlockSearch(RejectionReason.TARGET_UNAVAILABLE, java.util.List.of(), tick, "player position not observed");
+            return new BlockSearch(RejectionReason.TARGET_UNAVAILABLE, Jdk8.listOf(), tick, "player position not observed");
         }
         try {
-            return new BlockSearch(null, world.get().findBlocks(java.util.Set.copyOf(blockIds), here.value(), radius, limit), tick, "");
+            return new BlockSearch(null, world.get().findBlocks(Jdk8.copySet(blockIds), here.value(), radius, limit), tick, "");
         } catch (RuntimeException | LinkageError e) {
             sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.PROVIDER_FAULT, tick, contexts.current().orElse(null), "findBlocks", e.toString()));
-            return new BlockSearch(null, java.util.List.of(), tick, "search failed: " + e);
+            return new BlockSearch(null, Jdk8.listOf(), tick, "search failed: " + e);
         }
     }
 
@@ -380,7 +380,7 @@ public final class ContractService implements Conductor {
     }
 
     static String chatProblem(String message) {
-        if (message == null || message.isBlank()) {
+        if (message == null || message.trim().isEmpty()) {
             return "message is empty";
         }
         if (message.length() > 256) {
@@ -414,11 +414,11 @@ public final class ContractService implements Conductor {
         if (invalid != null) {
             return ActionResult.rejected(RejectionReason.INVALID_ARGUMENT, invalid);
         }
-        if (contexts.current().isEmpty()) {
+        if (!contexts.current().isPresent()) {
             return ActionResult.rejected(RejectionReason.NO_CURRENT_CONTEXT, "not in a world");
         }
         Optional<ActionPort> port = runtime.actions();
-        if (port.isEmpty()) {
+        if (!port.isPresent()) {
             return ActionResult.rejected(RejectionReason.NO_ACTIONS, "runtime offers no actions");
         }
         if (kind.engineConflict() && navigation.resourceState() != ResourceState.AVAILABLE) {
@@ -462,11 +462,11 @@ public final class ContractService implements Conductor {
             sink.record(DiagnosticEvent.offThread("showMessage " + module, "rejected before any game call"));
             return ActionResult.rejected(RejectionReason.OFF_THREAD, "call was not on the game thread");
         }
-        if (text == null || text.isBlank() || text.length() > 1000) {
+        if (text == null || text.trim().isEmpty() || text.length() > 1000) {
             return ActionResult.rejected(RejectionReason.INVALID_ARGUMENT, "text must be 1-1000 characters");
         }
         Optional<ActionPort> port = runtime.actions();
-        if (port.isEmpty()) {
+        if (!port.isPresent()) {
             return ActionResult.rejected(RejectionReason.NO_ACTIONS, "runtime offers no actions");
         }
         long tick = runtime.currentTick();
@@ -494,15 +494,15 @@ public final class ContractService implements Conductor {
     /** Host API, game thread: events collected by the runtime since the last call. */
     List<GameEvent> drainEvents() {
         Optional<EventPort> port = runtime.events();
-        if (port.isEmpty()) {
-            return List.of();
+        if (!port.isPresent()) {
+            return Jdk8.listOf();
         }
         try {
             return port.get().drain();
         } catch (RuntimeException | LinkageError e) {
             sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.PROVIDER_FAULT, runtime.currentTick(),
                     contexts.current().orElse(null), "events", e.toString()));
-            return List.of();
+            return Jdk8.listOf();
         }
     }
 
@@ -530,13 +530,13 @@ public final class ContractService implements Conductor {
             return ActionResult.rejected(RejectionReason.INVALID_ARGUMENT, "0-" + MAX_SHAPES_PER_MODULE + " shapes, none null");
         }
         Optional<OverlayPort> port = runtime.overlays();
-        if (port.isEmpty()) {
+        if (!port.isPresent()) {
             return ActionResult.rejected(RejectionReason.NO_ACTIONS, "runtime offers no overlays");
         }
         if (shapes.isEmpty()) {
             overlays.remove(module);
         } else {
-            overlays.put(module, List.copyOf(shapes));
+            overlays.put(module, Jdk8.copyList(shapes));
         }
         return pushOverlays(port.get()) ? ActionResult.done(shapes.size() + " shapes") : ActionResult.rejected(RejectionReason.ENGINE_DECLINED, "renderer failed");
     }
@@ -552,7 +552,7 @@ public final class ContractService implements Conductor {
         List<OverlayShape> all = new java.util.ArrayList<>();
         overlays.values().forEach(all::addAll);
         try {
-            port.show(List.copyOf(all));
+            port.show(Jdk8.copyList(all));
             return true;
         } catch (RuntimeException | LinkageError e) {
             sink.record(DiagnosticEvent.onGameThread(DiagnosticEvent.Type.PROVIDER_FAULT, runtime.currentTick(),

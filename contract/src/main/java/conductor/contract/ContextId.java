@@ -17,9 +17,33 @@ import java.util.Objects;
  * @param epoch     increases on every context change, including inside one session. Never reused.
  * @param dimension the runtime's dimension identifier, as reported by the version adapter.
  */
-public record ContextId(long sessionId, long epoch, String dimension) {
+public final class ContextId {
+    private final long sessionId;
+    private final long epoch;
+    private final String dimension;
 
-    public ContextId {
+    public ContextId(long sessionId, long epoch, String dimension) {
         Objects.requireNonNull(dimension, "dimension");
+
+        this.sessionId = sessionId;
+        this.epoch = epoch;
+        this.dimension = dimension;
     }
+
+    public long sessionId() { return sessionId; }
+
+    public long epoch() { return epoch; }
+
+    public String dimension() { return dimension; }
+
+    @Override public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ContextId)) return false;
+        ContextId other = (ContextId) o;
+        return java.util.Arrays.deepEquals(new Object[] {this.sessionId, this.epoch, this.dimension}, new Object[] {other.sessionId, other.epoch, other.dimension});
+    }
+
+    @Override public int hashCode() { return java.util.Arrays.deepHashCode(new Object[] {this.sessionId, this.epoch, this.dimension}); }
+
+    @Override public String toString() { return "ContextId[" + "sessionId=" + sessionId + ", " + "epoch=" + epoch + ", " + "dimension=" + dimension + "]"; }
 }

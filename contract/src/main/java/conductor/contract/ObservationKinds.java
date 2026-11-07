@@ -96,7 +96,7 @@ public final class ObservationKinds {
             "ACTIVE_EFFECTS",
             "The local player's active status effects.");
 
-    public static final List<ObservationKind<?>> ALL = List.of(
+    public static final List<ObservationKind<?>> ALL = Jdk8.listOf(
             PATH_SEGMENT_PRESENT, NEXT_SEGMENT_PRESENT, PATH_CALCULATION_PENDING, CONTROLLING_PROCESS,
             TRAVEL_GOAL_ACTIVE, FORCED_INPUTS, SECONDARY_BACKEND_BOUND, SECONDARY_BACKEND_PATHING,
             SECONDARY_BACKEND_STOPPING, PLAYER_POSITION, USE_KEY_HELD, COMBAT_TARGET, INVENTORY_ITEMS,
