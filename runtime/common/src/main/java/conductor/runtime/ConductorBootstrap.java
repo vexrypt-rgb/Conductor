@@ -7,8 +7,6 @@ import conductor.contract.InMemoryDiagnosticSink;
 import conductor.contract.ModuleHost;
 import conductor.contract.ReleasePolicy;
 import conductor.contract.SettingsStore;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.LogManager;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -24,7 +22,6 @@ import java.util.Objects;
  */
 public final class ConductorBootstrap {
 
-    private static final Logger LOG = LogManager.getLogger("conductor");
 
     private ConductorBootstrap() {}
 
@@ -61,17 +58,17 @@ public final class ConductorBootstrap {
         ContractService core = installed.service();
         ModuleHost host = new ModuleHost(core, System.getProperty("conductor.commandPrefix", ModuleHost.DEFAULT_COMMAND_PREFIX));
         host.useSettingsStore(settings);
-        modules.forEach((id, module) -> LOG.info("Conductor registered module {}", host.register(id, module)));
+        modules.forEach((id, module) -> ConductorLog.info("Conductor registered module {}", host.register(id, module)));
         installed.afterEachInWorldTick(() -> {
             try {
                 host.tick();
             } catch (RuntimeException e) {
                 // the host isolates module faults itself; this guards against a platform bug taking the game down
-                LOG.error("Conductor module host failed this tick", e);
+                ConductorLog.error("Conductor module host failed this tick", e);
             }
         });
         Hooks.onClientTick(installed.tick());
-        LOG.info("Conductor core installed (engine: {}); release policy {}", installed.engine(), policy);
+        ConductorLog.info("Conductor core installed (engine: {}); release policy {}", installed.engine(), policy);
         installed.tick().run(); // this tick counts
     }
 }

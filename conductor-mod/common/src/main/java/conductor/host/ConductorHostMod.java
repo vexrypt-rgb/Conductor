@@ -2,13 +2,12 @@ package conductor.host;
 
 import conductor.contract.FileSettingsStore;
 import conductor.contract.InMemoryDiagnosticSink;
+import conductor.runtime.ConductorLog;
 import conductor.runtime.ConductorBootstrap;
 import conductor.runtime.Hooks;
 import conductor.runtime.ModuleDiscovery;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.LogManager;
 
 import java.nio.file.Path;
 
@@ -25,7 +24,6 @@ import java.nio.file.Path;
  */
 public final class ConductorHostMod implements ClientModInitializer {
 
-    private static final Logger LOG = LogManager.getLogger("conductor");
 
     @Override
     public void onInitializeClient() {
@@ -35,7 +33,7 @@ public final class ConductorHostMod implements ClientModInitializer {
             start();
         } catch (Throwable t) {
             // never take the game down: Conductor is an add-on
-            LOG.error("Conductor failed to start and is NOT running; the game continues without it", t);
+            ConductorLog.error("Conductor failed to start and is NOT running; the game continues without it", t);
         }
     }
 
@@ -44,26 +42,26 @@ public final class ConductorHostMod implements ClientModInitializer {
         try {
             int n = VersionRenderLayers.apply(conductor.runtime.ContentInstaller.renderLayers());
             if (n > 0) {
-                LOG.info("Conductor content: {} block(s) drawn with a see-through render layer", n);
+                ConductorLog.info("Conductor content: {} block(s) drawn with a see-through render layer", n);
             }
             int m = VersionMobRenderers.apply(conductor.runtime.ContentInstaller.mobs());
             if (m > 0) {
-                LOG.info("Conductor content: renderers for {} mob(s)", m);
+                ConductorLog.info("Conductor content: renderers for {} mob(s)", m);
             }
         } catch (Throwable t) {
-            LOG.warn("Conductor could not set up module block layers or mob renderers", t);
+            ConductorLog.warn("Conductor could not set up module block layers or mob renderers", t);
         }
     }
 
     private void start() {
         Path dir = ConductorPreLaunch.modulesDir();
         ModuleDiscovery.Found found = ModuleDiscovery.discover(dir, ConductorHostMod.class.getClassLoader());
-        found.problems().forEach(p -> LOG.warn("Conductor module problem: {}", p));
+        found.problems().forEach(p -> ConductorLog.warn("Conductor module problem: {}", p));
         if (found.modules().isEmpty()) {
-            LOG.info("Conductor loaded; no modules in {} or on the classpath", dir);
+            ConductorLog.info("Conductor loaded; no modules in {} or on the classpath", dir);
             return;
         }
-        LOG.info("Conductor starting {} module(s) from {} and the classpath: {}", found.modules().size(), dir, found.modules().keySet());
+        ConductorLog.info("Conductor starting {} module(s) from {} and the classpath: {}", found.modules().size(), dir, found.modules().keySet());
         String configOverride = System.getProperty("conductor.configDir");
         Path config = configOverride != null ? Path.of(configOverride) : FabricLoader.getInstance().getGameDir().resolve("conductor/config");
         ConductorBootstrap.start(found.modules(), new InMemoryDiagnosticSink(50_000), new FileSettingsStore(config));

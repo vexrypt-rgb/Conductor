@@ -6,7 +6,8 @@ plugins {
 // compiles against an Ostinato branch checkout's classes (ostinatoDir); Ostinato is never repackaged. Values mirror each branch's
 // gradle.properties / build.gradle.
 ext.mcTargets = [
-    '1.21.11': [branch: 'main', parchment: '2025.12.20', loader: '0.19.5',
+    // The default ../Ostinato checkout must be on Ostinato's 1.21.11 branch (Ostinato main is the 26.3 line).
+    '1.21.11': [branch: '1.21.11', parchment: '2025.12.20', loader: '0.19.5',
                 ostinatoDir: findProperty('ostinatoDir') ?: "${rootDir}/../Ostinato"],
     '1.21.4' : [branch: '1.21.4', parchment: '2025.03.23', loader: '0.18.5',
                 ostinatoDir: findProperty('ostinatoDir_1_21_4') ?: "${rootDir}/../Ostinato-1.21.4"],
@@ -23,6 +24,10 @@ ext.mcTargets = [
     '26.2'   : [noEngine: true, unobfuscated: true, java: 25, loader: '0.19.5'],
     // The first year-numbered release Conductor targets (see the comment above).
     '26.3'   : [noEngine: true, unobfuscated: true, java: 25, loader: '0.19.5'],
+    // The oldest target: Mojang's 1.0 has no official names, so it is built with Ornithe's (Calamus intermediary,
+    // Feather names). Its client and server are separate jars with separate names; the server's hooks are their own
+    // source set. Behaviour and server modules only: 1.0 has nothing content modules could register into.
+    '1.0.0'  : [ancient: true, legacy: true, noEngine: true, loader: '0.19.5', feather: 2],
 ]
 
 subprojects {

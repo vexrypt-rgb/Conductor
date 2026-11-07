@@ -4,8 +4,6 @@ import conductor.contract.ContextTracker;
 import conductor.contract.ContractService;
 import conductor.contract.DiagnosticSink;
 import conductor.contract.ReleasePolicy;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.LogManager;
 
 import java.util.Objects;
 import java.util.ServiceLoader;
@@ -16,7 +14,6 @@ import java.util.ServiceLoader;
  */
 public final class ConductorRuntime {
 
-    private static final Logger LOG = LogManager.getLogger("conductor");
 
     /** The installed core: the contract service plus the pieces the bootstrap and tests drive. */
     public static final class Installed {
@@ -129,20 +126,20 @@ public final class ConductorRuntime {
                 }
                 provider = providers.next();
             } catch (java.util.ServiceConfigurationError e) {
-                LOG.warn("Conductor engine provider failed to load; continuing without it: {}", e.toString());
+                ConductorLog.warn("Conductor engine provider failed to load; continuing without it: {}", e.toString());
                 continue;
             }
             try {
                 if (provider.available(loader)) {
                     EngineLayer layer = provider.create();
-                    LOG.info("Conductor engine: {}", layer.name());
+                    ConductorLog.info("Conductor engine: {}", layer.name());
                     return layer;
                 }
             } catch (RuntimeException | LinkageError e) {
-                LOG.warn("Conductor engine provider {} failed; continuing without it: {}", provider.getClass().getName(), e.toString());
+                ConductorLog.warn("Conductor engine provider {} failed; continuing without it: {}", provider.getClass().getName(), e.toString());
             }
         }
-        LOG.info("Conductor engine: none (no movement engine installed; travel and combat are unavailable)");
+        ConductorLog.info("Conductor engine: none (no movement engine installed; travel and combat are unavailable)");
         return null;
     }
 }

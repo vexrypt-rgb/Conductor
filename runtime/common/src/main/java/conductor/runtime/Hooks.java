@@ -43,7 +43,7 @@ public final class Hooks {
             clientTick.run();
         } catch (RuntimeException | LinkageError e) {
             // never take the game down; the host already isolates module faults
-            org.apache.logging.log4j.LogManager.getLogger("conductor").error("Conductor tick failed", e);
+            ConductorLog.error("Conductor tick failed", e);
         }
     }
 
@@ -87,7 +87,7 @@ public final class Hooks {
         try {
             render.accept(pose);
         } catch (RuntimeException | LinkageError e) {
-            org.apache.logging.log4j.LogManager.getLogger("conductor").error("Conductor overlay rendering failed", e);
+            ConductorLog.error("Conductor overlay rendering failed", e);
             render = p -> {}; // stop trying every frame
         }
     }
